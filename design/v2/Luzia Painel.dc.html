@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&display=swap">
+<style>
+html,body{margin:0;background:#08070a;color:#f4eff7;-webkit-font-smoothing:antialiased}
+*{box-sizing:border-box}
+a{color:#cdbcf7}a:hover{color:#f4eff7}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;text-align:left}
+button:focus-visible,select:focus-visible,input:focus-visible,summary:focus-visible{outline:2px solid #f4eff7;outline-offset:2px}
+summary{cursor:pointer;list-style:none}summary::-webkit-details-marker{display:none}
+select option{background:#1c1626;color:#f4eff7}
+@keyframes lz-entrar{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+@keyframes lz-pulsar{0%,100%{opacity:.6}50%{opacity:1}}
+@keyframes lz-virar{0%{filter:hue-rotate(0)}100%{filter:hue-rotate(0)}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+</helmet>
+<div style="width:100%;max-width:{{ frameW }};height:100vh;margin:0 auto;position:relative;display:flex;container-type:inline-size;overflow:hidden;background:#120d18;font-family:'Hanken Grotesk','Segoe UI',system-ui,sans-serif;font-size:15px;border-left:1px solid #231b2d;border-right:1px solid #231b2d">
+
+<sc-if value="{{ semSessao }}" hint-placeholder-val="{{ false }}">
+  <div data-screen-label="Entrada" style="flex:1;display:flex;align-items:center;justify-content:center;padding:24px">
+    <div style="width:100%;max-width:420px;border-radius:28px;background:#1c1626;padding:36px">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:28px"><svg viewBox="0 0 64 64" aria-hidden="true" style="width:32px;height:32px;overflow:visible"><polygon points="32,3 25,25 3,32 25,39 32,61" style="fill:#b9a2f2;filter:drop-shadow(-2px 0 5px rgba(185,162,242,.75))"></polygon><polygon points="32,3 39,25 61,32 39,39 32,61" style="fill:#f08a3c;filter:drop-shadow(2px 0 6px rgba(240,138,60,.85))"></polygon></svg><b style="font-size:22px;font-weight:650">Luzia</b></div>
+      <h1 style="font-size:28px;font-weight:650;letter-spacing:-.02em;margin:0 0 10px">Abra pelo seu agente</h1>
+      <p style="margin:0 0 24px;color:#bdb2ca;line-height:1.5;font-size:16px">Rode no chat. Você fica conectada por 30 dias.</p>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><code style="flex:1 1 180px;padding:12px 16px;border-radius:14px;background:#120d18;font:14px ui-monospace,Consolas,monospace;color:#f4eff7">/luzia:career-map</code><button onClick="{{ copiarComando }}" style="height:44px;padding:0 20px;border-radius:99px;background:#f4eff7;color:#120d18;font-weight:650">Copiar</button></div>
+      <p style="margin:24px 0 0;color:#9a8fb0;font-size:13px">Só quem usa o seu agente nesta máquina entra.</p>
+    </div>
+  </div>
+</sc-if>
+
+<sc-if value="{{ comSessao }}" hint-placeholder-val="{{ true }}">
+<sc-if value="{{ desktop }}" hint-placeholder-val="{{ true }}">
+  <aside style="width:88px;flex:none;display:flex;flex-direction:column;align-items:center;gap:6px;padding:24px 0;border-right:1px solid #231b2d">
+    <svg viewBox="0 0 64 64" aria-hidden="true" style="width:32px;height:32px;margin-bottom:20px;overflow:visible"><polygon points="32,3 25,25 3,32 25,39 32,61" style="fill:#b9a2f2;filter:drop-shadow(-2px 0 5px rgba(185,162,242,.75))"></polygon><polygon points="32,3 39,25 61,32 39,39 32,61" style="fill:#f08a3c;filter:drop-shadow(2px 0 6px rgba(240,138,60,.85))"></polygon></svg>
+    <sc-for list="{{ nav }}" as="n" hint-placeholder-count="5">
+      <button onClick="{{ n.ir }}" aria-current="{{ n.atual }}" style="width:72px;padding:10px 0 8px;border-radius:16px;display:flex;flex-direction:column;align-items:center;gap:4px;font-size:12px;background:{{ n.bg }};color:{{ n.cor }}" style-hover="color:#f4eff7"><svg viewBox="0 0 24 24" aria-hidden="true" style="width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round"><path d="{{ n.d }}"></path></svg>{{ n.nome }}</button>
+    </sc-for>
+    <button onClick="{{ sair }}" style="margin-top:auto;font-size:12px;color:#9a8fb0;text-decoration:underline;text-underline-offset:3px;padding:8px">Sair</button>
+  </aside>
+</sc-if>
+
+<div style="flex:1;min-width:0;display:flex;flex-direction:column;height:100%">
+<main style="flex:1;overflow:auto;padding:clamp(16px,4cqw,44px) clamp(16px,4.5cqw,56px) 56px">
+<div style="max-width:1040px;margin:0 auto">
+
+<sc-if value="{{ tHoje }}" hint-placeholder-val="{{ true }}">
+<div data-screen-label="Hoje" style="animation:lz-entrar .25s ease-out">
+  <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:24px;flex-wrap:wrap">
+    <button onClick="{{ irTrajetoria }}" aria-label="{{ plena.aria }}" style="display:flex;align-items:center;gap:14px;flex:1 1 320px;max-width:520px" style-hover="opacity:.9">
+      <span style="color:#bdb2ca;white-space:nowrap">Júnior 3 → Plena</span>
+      <span aria-hidden="true" style="flex:1;display:flex;gap:2px;height:8px;border-radius:99px;overflow:hidden;background:#211a2a"><sc-for list="{{ plena.segs }}" as="s" hint-placeholder-count="4"><i style="flex:{{ s.lm }} 1 0;display:block;min-width:2px;height:100%;background:{{ s.bg }};border:{{ s.borda }};box-shadow:{{ s.glow }}"></i></sc-for></span>
+      <b style="color:#ffb27a;white-space:nowrap">{{ plena.pct }}% seu</b>
+    </button>
+    <div title="{{ focoDica }}" style="display:flex;align-items:center;gap:8px;font-size:13px;color:#bdb2ca;padding:6px 12px;border-radius:99px;background:#1c1626"><span style="width:8px;height:8px;border-radius:50%;background:{{ focoCor }};box-shadow:0 0 8px {{ focoCor }}"></span>{{ focoNome }}</div>
+  </div>
+
+  <sc-if value="{{ conquistaPronta }}" hint-placeholder-val="{{ false }}">
+    <div role="status" style="display:flex;align-items:center;gap:12px 16px;flex-wrap:wrap;padding:16px 20px;border-radius:20px;margin-bottom:16px;background:linear-gradient(90deg,rgba(185,162,242,.14),rgba(240,138,60,.16));border:1px solid rgba(240,138,60,.45)"><i style="width:18px;height:18px;border-radius:50%;background:linear-gradient(135deg,#b9a2f2 0 50%,#f08a3c 50%);box-shadow:0 0 12px rgba(240,138,60,.6);flex:none;animation:lz-pulsar 1.6s ease-in-out infinite"></i><span style="flex:1 1 260px"><b style="font-weight:650;display:block">A Luzia confirmou seu entendimento</b><span style="color:#bdb2ca;font-size:14px">{{ conq.titulo }} · {{ conq.prisma }} · +{{ conq.lm }} lm</span></span><button onClick="{{ abrirConquista }}" style="height:44px;padding:0 20px;border-radius:99px;background:#f08a3c;color:#1a0f08;font-weight:700" style-hover="background:#ffb27a">Acender luz própria</button></div>
+  </sc-if>
+
+  <sc-if value="{{ temHero }}" hint-placeholder-val="{{ true }}">
+  <div style="border-radius:28px;padding:clamp(22px,4cqw,44px) clamp(20px,4.5cqw,48px);background:radial-gradient(520px 340px at 92% 40%,rgba(240,138,60,.24),transparent 70%),radial-gradient(420px 300px at 62% 80%,rgba(185,162,242,.16),transparent 70%),#1c1626;display:flex;flex-wrap:wrap;gap:28px;align-items:center">
+    <div style="flex:1 1 300px;min-width:0">
+      <div style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600;color:#cdbcf7"><i style="width:12px;height:12px;border-radius:50%;background:{{ hero.orb }};box-shadow:{{ hero.orbGlow }}"></i>{{ hero.chamada }}</div>
+      <h1 style="font-size:clamp(27px,5cqw,38px);font-weight:650;letter-spacing:-.02em;line-height:1.1;margin:12px 0 14px;max-width:18ch;text-wrap:balance"><button onClick="{{ hero.abrir }}" style="font:inherit;letter-spacing:inherit;line-height:inherit" style-hover="text-decoration:underline;text-underline-offset:5px">{{ hero.titulo }}</button></h1>
+      <p style="font-size:17px;line-height:1.5;color:#d3c9de;margin:0 0 14px;max-width:46ch">{{ hero.porque }}</p>
+      <div style="font-size:14px;color:#bdb2ca;margin-bottom:26px">Apareceu em <b style="color:#f4eff7;font-weight:600">{{ hero.onde }}</b> · {{ hero.tipoTxt }}</div>
+      <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap"><button onClick="{{ hero.enviar }}" style="height:48px;padding:0 24px;border-radius:99px;background:#f08a3c;color:#1a0f08;font-weight:700;font-size:16px;box-shadow:0 0 28px rgba(240,138,60,.45);white-space:nowrap" style-hover="background:#ffb27a">{{ hero.acaoRotulo }}</button><button onClick="{{ copiarPrompt }}" style="height:48px;padding:0 20px;border-radius:99px;border:1px solid #5a4a72;white-space:nowrap" style-hover="background:#251d31">Copiar prompt</button></div>
+    </div>
+    <button onClick="{{ hero.abrir }}" aria-label="{{ hero.aria }}" style="flex:1 1 280px;max-width:380px;display:flex;flex-direction:column;gap:14px;padding:24px;border-radius:22px;background:rgba(18,13,24,.6);border:1px solid rgba(240,138,60,.3)" style-hover="border-color:#f08a3c">
+      <span style="display:flex;align-items:center;gap:14px">
+        <span style="display:flex;flex-direction:column;align-items:center;gap:6px"><i style="width:44px;height:44px;border-radius:50%;background:#b9a2f2;box-shadow:0 0 18px rgba(185,162,242,.6)"></i><span style="font-size:12px;color:#cdbcf7">refletida</span></span>
+        <svg viewBox="0 0 40 12" aria-hidden="true" style="width:40px;height:12px;flex:none"><path d="M0 6h34M29 1l6 5-6 5" style="fill:none;stroke:#bdb2ca;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round"></path></svg>
+        <span style="display:flex;flex-direction:column;align-items:center;gap:6px"><i style="width:44px;height:44px;border-radius:50%;background:#f08a3c;box-shadow:0 0 22px rgba(240,138,60,.8)"></i><span style="font-size:12px;color:#ffb27a">própria</span></span>
+        <span style="margin-left:auto;text-align:right"><b style="display:block;font-size:40px;font-weight:700;letter-spacing:-.03em;color:#ffb27a;line-height:1">+{{ hero.lm }}</b><span style="font-size:13px;color:#bdb2ca">lm de luz própria</span></span>
+      </span>
+      <span style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:14px;color:#d3c9de"><b style="color:#f4eff7;font-weight:650">{{ hero.prisma }}</b><span>{{ hero.pctAntes }}% → <b style="color:#ffb27a">{{ hero.pctDepois }}%</b> seu</span></span>
+      <span aria-hidden="true" style="display:flex;gap:3px;height:12px;border-radius:99px;overflow:hidden;background:#211a2a"><sc-for list="{{ hero.segs }}" as="s" hint-placeholder-count="5"><i title="{{ s.dica }}" style="flex:{{ s.lm }} 1 0;display:block;min-width:4px;height:100%;border-radius:99px;background:{{ s.bg }};border:{{ s.borda }};box-shadow:{{ s.glow }};animation:{{ s.anim }}"></i></sc-for></span>
+      <span style="font-size:13px;color:#bdb2ca;text-decoration:underline dotted;text-underline-offset:4px">Por que {{ hero.lm }} lm</span>
+    </button>
+  </div>
+  </sc-if>
+
+  <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;margin:32px 0 14px"><h2 style="margin:0;font-size:18px;font-weight:650">Luz refletida para converter <span style="font-size:14px;color:#cdbcf7;font-weight:500">· {{ nConverter }} centelhas · {{ lmConverter }} lm</span></h2><button onClick="{{ irConverter }}" style="font-size:14px;color:#bdb2ca;text-decoration:underline;text-underline-offset:3px;padding:8px 0">Ver todas</button></div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px">
+    <sc-for list="{{ paraConverter }}" as="c" hint-placeholder-count="4">
+      <button onClick="{{ c.abrir }}" style="border-radius:20px;padding:18px 20px;display:flex;flex-direction:column;gap:10px;background:{{ c.card }};border:1px solid {{ c.cardBorda }};transition:transform .15s" style-hover="transform:translateY(-2px)">
+        <span style="display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:13px"><span style="display:flex;align-items:center;gap:8px;color:{{ c.cor }};font-weight:600"><i style="width:12px;height:12px;border-radius:50%;background:{{ c.orb }};border:{{ c.orbBorda }};box-shadow:{{ c.orbGlow }};flex:none"></i>{{ c.prisma }}</span><b style="color:#f4eff7">{{ c.lm }} lm</b></span>
+        <b style="font-size:16px;font-weight:650;line-height:1.3">{{ c.titulo }}</b>
+        <span style="font-size:13px;color:#9a8fb0;margin-top:auto">Apareceu em {{ c.onde }}</span>
+        <span style="font-size:13px;color:#ffb27a;font-weight:600">{{ c.cta }} →</span>
+      </button>
+    </sc-for>
+  </div>
+
+  <h2 style="margin:32px 0 14px;font-size:18px;font-weight:650">Seus prismas</h2>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px">
+    <sc-for list="{{ prismas }}" as="p" hint-placeholder-count="3">
+      <button onClick="{{ p.abrir }}" style="border-radius:20px;padding:20px 22px;background:#18121f;border:1px solid {{ p.borda }};display:flex;flex-direction:column;gap:14px" style-hover="background:#1c1626">
+        <span style="display:flex;align-items:center;gap:14px">
+          <span aria-hidden="true" style="display:block;flex:none;width:48px;height:44px;filter:{{ p.glow }}"><span style="display:block;width:100%;height:100%;clip-path:polygon(50% 2%,98% 98%,2% 98%);background:linear-gradient(100deg,rgba(255,255,255,.14) 0 50%,rgba(0,0,0,.14) 50% 100%),linear-gradient(to top,#f08a3c 0 {{ p.oP }}%,rgba(185,162,242,.75) {{ p.oP }}% {{ p.oR }}%,#2c2338 {{ p.oR }}% 100%)"></span></span>
+          <span style="flex:1;min-width:0"><b style="display:block;font-size:17px;font-weight:650">{{ p.nome }}</b><span style="font-size:13px;color:#9a8fb0">{{ p.nPropria }} de {{ p.n }} centelhas são suas</span></span>
+          <b style="font-size:26px;font-weight:700;color:#ffb27a;letter-spacing:-.02em">{{ p.pct }}%</b>
+        </span>
+        <span role="img" aria-label="{{ p.barAria }}" style="display:flex;gap:3px;height:12px;border-radius:99px;overflow:hidden;background:#211a2a"><sc-for list="{{ p.segs }}" as="s" hint-placeholder-count="5"><i title="{{ s.dica }}" style="flex:{{ s.lm }} 1 0;display:block;min-width:4px;height:100%;border-radius:99px;background:{{ s.bg }};border:{{ s.borda }};box-shadow:{{ s.glow }};animation:{{ s.anim }}"></i></sc-for></span>
+        <span style="font-size:13px;color:{{ p.resumoCor }}">{{ p.resumo }}</span>
+      </button>
+    </sc-for>
+  </div>
+
+  <div style="display:flex;align-items:center;gap:10px;margin-top:24px;font-size:14px;color:#bdb2ca;flex-wrap:wrap"><span style="color:#9a8fb0">Coletadas hoje no chat</span>
+    <sc-for list="{{ hoje }}" as="c" hint-placeholder-count="3"><button onClick="{{ c.abrir }}" style="display:flex;align-items:center;gap:8px;padding:8px 14px;border-radius:99px;background:{{ c.chip }};color:{{ c.cor }};min-height:36px" style-hover="filter:brightness(1.2)"><i style="width:10px;height:10px;border-radius:50%;background:{{ c.orb }};box-shadow:{{ c.orbGlow }};flex:none"></i><b>{{ c.lm }} lm</b> {{ c.prisma }} · {{ c.rotuloCurto }}</button></sc-for>
+  </div>
+</div>
+</sc-if>
+
+<sc-if value="{{ tTrajetoria }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="Trajetória" style="animation:lz-entrar .25s ease-out">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;margin-bottom:20px"><div><h1 style="margin:0;font-size:26px;font-weight:650;letter-spacing:-.01em">Trajetória</h1><div style="color:#bdb2ca;margin-top:6px">{{ versao }} · Júnior 3 → Plena</div></div><button onClick="{{ abrirForm }}" style="height:44px;padding:0 20px;border-radius:99px;border:1px solid #5a4a72;white-space:nowrap" style-hover="background:#251d31">Mudar trajetória</button></div>
+
+  <div style="border-radius:24px;padding:24px 26px;background:#18121f;margin-bottom:20px">
+    <div style="display:flex;align-items:baseline;gap:8px 14px;flex-wrap:wrap;margin-bottom:14px"><b style="font-size:40px;font-weight:700;letter-spacing:-.03em;color:#ffb27a;line-height:1">{{ plena.pct }}%</b><span style="color:#d3c9de">do caminho até Plena já é luz própria</span><span style="margin-left:auto;font-size:13px;color:#9a8fb0">{{ plena.P }} de {{ plena.tot }} lm</span></div>
+    <div role="img" aria-label="{{ plena.aria }}" style="display:flex;gap:3px;height:16px;border-radius:99px;overflow:hidden;background:#211a2a"><sc-for list="{{ plena.segs }}" as="s" hint-placeholder-count="4"><i style="flex:{{ s.lm }} 1 0;display:block;min-width:4px;height:100%;border-radius:99px;background:{{ s.bg }};border:{{ s.borda }};box-shadow:{{ s.glow }};animation:{{ s.anim }}"></i></sc-for></div>
+    <div style="display:flex;gap:10px 22px;flex-wrap:wrap;margin-top:14px;font-size:13px;color:#bdb2ca"><sc-for list="{{ plena.legenda }}" as="l" hint-placeholder-count="4"><span style="display:flex;align-items:center;gap:8px"><i style="width:12px;height:12px;border-radius:50%;background:{{ l.orb }};border:{{ l.orbBorda }};box-shadow:{{ l.orbGlow }};flex:none"></i>{{ l.nome }} <b style="color:#f4eff7">{{ l.lm }} lm</b></span></sc-for></div>
+  </div>
+
+  <sc-if value="{{ formAberto }}" hint-placeholder-val="{{ false }}">
+    <div style="border-radius:22px;padding:24px;background:#1a1422;border:1px solid rgba(185,162,242,.4);margin-bottom:20px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px"><b style="font-size:17px;font-weight:650">Mudar trajetória</b><button onClick="{{ fecharForm }}" style="color:#bdb2ca;text-decoration:underline;padding:8px 0">Fechar</button></div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px">
+        <label style="display:flex;flex-direction:column;gap:6px;font-size:13px;color:#bdb2ca">O que mudar<select style="height:44px;padding:0 12px;border-radius:12px;border:1px solid #3a2e4a;background:#120d18;color:#f4eff7;font:inherit"><option>Incluir prisma</option><option>Mudar meta</option><option>Arquivar prisma</option><option>Reativar prisma</option></select></label>
+        <label style="display:flex;flex-direction:column;gap:6px;font-size:13px;color:#bdb2ca">Nome do prisma<input value="Mensageria" onChange="{{ noop }}" style="height:44px;padding:0 12px;border-radius:12px;border:1px solid #3a2e4a;background:#120d18;color:#f4eff7;font:inherit"></label>
+        <label style="display:flex;flex-direction:column;gap:6px;font-size:13px;color:#bdb2ca">Por quê?<input value="o time vai adotar filas no próximo trimestre" onChange="{{ noop }}" style="height:44px;padding:0 12px;border-radius:12px;border:1px solid #3a2e4a;background:#120d18;color:#f4eff7;font:inherit"></label>
+      </div>
+      <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-top:18px"><button onClick="{{ pedirProposta }}" style="height:44px;padding:0 20px;border-radius:99px;background:#f4eff7;color:#120d18;font-weight:650">Pedir proposta</button><span style="font-size:13px;color:#9a8fb0">A Luzia propõe as centelhas da meta; você decide.</span></div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ pedidoAberto }}" hint-placeholder-val="{{ false }}">
+    <div style="border-radius:22px;padding:24px;background:#1a1422;border:1px solid rgba(185,162,242,.4);margin-bottom:20px">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap"><b style="font-size:17px;font-weight:650">Incluir Mensageria <span style="font-size:13px;color:#9a8fb0;font-weight:400">#2 · 16 nov</span></b><span style="font-size:13px;color:#cdbcf7;padding:4px 10px;border-radius:99px;background:rgba(185,162,242,.12)">Proposta</span></div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin:16px 0;align-items:center"><i style="width:18px;height:18px;border-radius:50%;background:#b9a2f2;box-shadow:0 0 8px rgba(185,162,242,.55)"></i><i style="width:18px;height:18px;border-radius:50%;border:2px dashed #6b5a85"></i><i style="width:18px;height:18px;border-radius:50%;border:2px dashed #6b5a85"></i><span style="margin-left:8px;color:#bdb2ca;font-size:14px">3 centelhas para a meta · 150 lm · 1 já refletida no seu chat</span></div>
+      <p style="margin:0;color:#d3c9de;line-height:1.55;max-width:70ch">Mensageria aparece em 2 entregas recentes, sempre aplicada pelo agente. A primeira centelha já pode ser convertida: o contexto está na busca por código.</p>
+      <div style="font-size:13px;color:#9a8fb0;margin-top:8px">Análise da Luzia · 16 nov · <span tabindex="0" title="Base: o pedido #2 e a trajetória v1 · Modelo: gemini-3.5-flash-lite" style="text-decoration:underline dotted;text-underline-offset:3px;cursor:help">base e modelo</span></div>
+      <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin-top:18px"><button onClick="{{ aceitarPedido }}" style="height:44px;padding:0 20px;border-radius:99px;background:#f4eff7;color:#120d18;font-weight:650">Aceitar</button><button onClick="{{ ajustarPedido }}" style="text-decoration:underline;text-underline-offset:3px;padding:10px 0">Ajustar</button><button onClick="{{ recusarPedido }}" style="text-decoration:underline;text-underline-offset:3px;color:#bdb2ca;padding:10px 0">Recusar</button></div>
+    </div>
+  </sc-if>
+
+  <sc-if value="{{ dividirAberto }}" hint-placeholder-val="{{ false }}">
+    <div style="border-radius:22px;padding:24px;background:#1a1422;border:1px solid rgba(185,162,242,.4);margin-bottom:20px">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap"><b style="font-size:17px;font-weight:650">Dividir Front-end <span style="font-size:13px;color:#9a8fb0;font-weight:400">#1 · 16 nov</span></b><span style="font-size:13px;color:#cdbcf7;padding:4px 10px;border-radius:99px;background:rgba(185,162,242,.12)">Proposta</span></div>
+      <p style="margin:12px 0 16px;color:#bdb2ca;line-height:1.5">Um prisma é uma habilidade só. As 4 centelhas de Front-end se dividem, e nenhuma luz se perde.</p>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px">
+        <div style="border-radius:16px;padding:16px;background:#120d18"><div style="font-size:13px;color:#9a8fb0">Habilidade 1</div><b style="font-size:17px">React</b><div style="font-size:13px;color:#bdb2ca;margin-top:8px">Renderização da lista · Estado e props</div></div>
+        <div style="border-radius:16px;padding:16px;background:#120d18"><div style="font-size:13px;color:#9a8fb0">Habilidade 2</div><b style="font-size:17px">CSS</b><div style="font-size:13px;color:#bdb2ca;margin-top:8px">Layout com grid · Acessibilidade de formulários</div></div>
+      </div>
+      <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin-top:18px"><button onClick="{{ aceitarDividir }}" style="height:44px;padding:0 20px;border-radius:99px;background:#f4eff7;color:#120d18;font-weight:650">Aceitar</button><button onClick="{{ ajustarPedido }}" style="text-decoration:underline;text-underline-offset:3px;padding:10px 0">Ajustar</button><button onClick="{{ recusarDividir }}" style="text-decoration:underline;text-underline-offset:3px;color:#bdb2ca;padding:10px 0">Recusar</button></div>
+    </div>
+  </sc-if>
+
+  <div style="display:flex;flex-direction:column;gap:16px">
+    <sc-for list="{{ prismas }}" as="p" hint-placeholder-count="3">
+      <section style="border-radius:22px;background:#18121f;border:1px solid {{ p.borda }};padding:22px 24px">
+        <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:14px">
+          <span aria-hidden="true" style="display:block;flex:none;width:56px;height:52px;filter:{{ p.glow }}"><span style="display:block;width:100%;height:100%;clip-path:polygon(50% 2%,98% 98%,2% 98%);background:linear-gradient(100deg,rgba(255,255,255,.14) 0 50%,rgba(0,0,0,.14) 50% 100%),linear-gradient(to top,#f08a3c 0 {{ p.oP }}%,rgba(185,162,242,.75) {{ p.oP }}% {{ p.oR }}%,#2c2338 {{ p.oR }}% 100%)"></span></span>
+          <span style="flex:1 1 180px"><h2 style="margin:0;font-size:20px;font-weight:650">{{ p.nome }}</h2><span style="font-size:13px;color:#9a8fb0">{{ p.P }} de {{ p.tot }} lm · {{ p.nPropria }} de {{ p.n }} centelhas são suas</span></span>
+          <b style="font-size:30px;font-weight:700;color:#ffb27a;letter-spacing:-.02em">{{ p.pct }}%</b>
+        </div>
+        <div role="img" aria-label="{{ p.barAria }}" style="display:flex;gap:3px;height:12px;border-radius:99px;overflow:hidden;background:#211a2a;margin-bottom:14px"><sc-for list="{{ p.segs }}" as="s" hint-placeholder-count="5"><i title="{{ s.dica }}" style="flex:{{ s.lm }} 1 0;display:block;min-width:4px;height:100%;border-radius:99px;background:{{ s.bg }};border:{{ s.borda }};box-shadow:{{ s.glow }};animation:{{ s.anim }}"></i></sc-for></div>
+        <h3 style="margin:0 0 6px;font-size:13px;color:#9a8fb0;font-weight:600">Centelhas da meta</h3>
+        <ul style="list-style:none;margin:0;padding:0;display:flex;flex-direction:column">
+          <sc-for list="{{ p.lista }}" as="c" hint-placeholder-count="5"><li style="border-top:1px solid #231b2d"><button onClick="{{ c.abrir }}" style="width:100%;display:flex;align-items:center;gap:14px;padding:12px 4px;border-radius:12px" style-hover="background:#1c1626">
+            <i style="width:16px;height:16px;border-radius:50%;background:{{ c.orb }};border:{{ c.orbBorda }};box-shadow:{{ c.orbGlow }};animation:{{ c.anim }};flex:none"></i>
+            <span style="flex:1;min-width:0"><b style="display:block;font-weight:600;color:{{ c.tituloCor }}">{{ c.titulo }}</b><span style="font-size:13px;color:#9a8fb0">{{ c.desc }}</span></span>
+            <span style="font-size:12px;color:{{ c.cor }};white-space:nowrap">{{ c.rotuloCurto }}</span>
+            <b style="font-size:14px;color:#f4eff7;white-space:nowrap;min-width:52px;text-align:right">{{ c.lm }} lm</b>
+          </button></li></sc-for>
+        </ul>
+        <sc-if value="{{ p.composto }}" hint-placeholder-val="{{ false }}"><div style="padding-top:14px;font-size:14px;color:#bdb2ca;display:flex;gap:12px;align-items:center;flex-wrap:wrap">Junta assuntos: React, CSS.<button onClick="{{ pedirDividir }}" style="height:36px;padding:0 14px;border-radius:99px;border:1px solid #5a4a72;color:#f4eff7">Separar em habilidades</button></div></sc-if>
+      </section>
+    </sc-for>
+  </div>
+  <details style="margin-top:28px;color:#bdb2ca"><summary style="padding:8px 0;font-weight:600">Versões ({{ nVersoes }}) ▾</summary><div style="padding:14px 18px;border-radius:14px;background:#18121f;font-size:14px;line-height:1.8">{{ versoesTxt }}</div></details>
+</div>
+</sc-if>
+
+<sc-if value="{{ tCentelhas }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="Centelhas" style="animation:lz-entrar .25s ease-out">
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:24px;flex-wrap:wrap">
+    <h1 style="margin:0 14px 0 0;font-size:26px;font-weight:650;letter-spacing:-.01em">Centelhas</h1>
+    <div role="group" aria-label="Estado" style="display:flex;gap:8px;flex-wrap:wrap"><sc-for list="{{ segmentos }}" as="s" hint-placeholder-count="4"><button onClick="{{ s.usar }}" aria-pressed="{{ s.ativo }}" style="min-height:40px;padding:0 16px;border-radius:99px;background:{{ s.bg }};color:{{ s.cor }};font-weight:{{ s.peso }};font-size:14px;white-space:nowrap">{{ s.nome }} {{ s.n }}</button></sc-for></div>
+    <label style="margin-left:auto;display:flex;align-items:center;gap:6px;min-height:40px;padding:0 14px;border-radius:99px;border:1px solid #3a2e4a;color:#bdb2ca;font-size:14px;white-space:nowrap">Prisma:<select value="{{ fPrisma }}" onChange="{{ setFPrisma }}" aria-label="Filtrar por prisma" style="background:transparent;border:0;color:#f4eff7;font:inherit;padding:8px 0"><option value="todos">todos</option><sc-for list="{{ prismas }}" as="p" hint-placeholder-count="3"><option value="{{ p.nome }}">{{ p.nome }}</option></sc-for></select></label>
+    <label style="display:flex;align-items:center;gap:6px;min-height:40px;padding:0 14px;border-radius:99px;border:1px solid #3a2e4a;color:#bdb2ca;font-size:14px;white-space:nowrap">Tipo:<select value="{{ fTipo }}" onChange="{{ setFTipo }}" aria-label="Filtrar por tipo" style="background:transparent;border:0;color:#f4eff7;font:inherit;padding:8px 0"><option value="todos">todos</option><option value="praticar">praticar</option><option value="explicar">explicar</option><option value="estudar">estudar</option><option value="explorar">explorar</option></select></label>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:16px">
+    <sc-for list="{{ centelhas }}" as="c" hint-placeholder-count="6">
+      <button onClick="{{ c.abrir }}" style="border-radius:22px;padding:22px;min-height:180px;display:flex;flex-direction:column;gap:12px;background:{{ c.card }};border:1px solid {{ c.cardBorda }};transition:transform .15s" style-hover="transform:translateY(-2px)">
+        <span style="display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:13px;font-weight:600"><span style="display:flex;align-items:center;gap:10px;color:{{ c.cor }}"><i style="width:16px;height:16px;border-radius:50%;background:{{ c.orb }};border:{{ c.orbBorda }};box-shadow:{{ c.orbGlow }};animation:{{ c.anim }};flex:none"></i>{{ c.rotulo }}</span><span style="color:#9a8fb0;font-weight:400">{{ c.origemTxt }}</span></span>
+        <b style="font-size:18px;font-weight:650;line-height:1.25;color:{{ c.tituloCor }}">{{ c.titulo }}</b>
+        <span style="font-size:13px;color:#9a8fb0;line-height:1.4">{{ c.linha }}</span>
+        <span style="margin-top:auto;display:flex;justify-content:space-between;gap:8px;font-size:14px;color:#bdb2ca"><span>{{ c.metaTxt }}</span><b style="color:{{ c.cor }};white-space:nowrap">{{ c.lm }} lm</b></span>
+      </button>
+    </sc-for>
+  </div>
+  <sc-if value="{{ semCentelhas }}" hint-placeholder-val="{{ false }}"><div style="border-radius:22px;border:1px dashed #5a4a72;padding:36px;text-align:center;color:#bdb2ca"><div style="font-size:17px;margin-bottom:14px">Nada com esses filtros.</div><button onClick="{{ limparFiltros }}" style="height:44px;padding:0 20px;border-radius:99px;border:1px solid #5a4a72;color:#f4eff7">Limpar filtros</button></div></sc-if>
+</div>
+</sc-if>
+
+<sc-if value="{{ tEntregas }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="Entregas" style="animation:lz-entrar .25s ease-out">
+  <div style="display:flex;align-items:baseline;gap:8px 16px;margin-bottom:8px;flex-wrap:wrap"><h1 style="margin:0;font-size:26px;font-weight:650;letter-spacing:-.01em">Entregas</h1><span style="color:#9a8fb0">Quanto de cada entrega é seu</span></div>
+  <details style="margin-bottom:20px;font-size:14px;color:#bdb2ca"><summary style="text-decoration:underline dotted;text-underline-offset:4px;display:inline-block;padding:6px 0">Como medimos</summary><div style="padding:12px 16px;border-radius:14px;background:#18121f;margin-top:8px;line-height:1.6">P1 a P4 medem direção, coesão, conceito e arquitetura. P3 e P4 só contam quando você explica ou defende a entrega, e isso converte as centelhas refletidas dela.</div></details>
+  <sc-for list="{{ entregas }}" as="e" hint-placeholder-count="2">
+    <div style="border-radius:24px;background:{{ e.bg }};border:1px solid {{ e.borda }};margin-bottom:16px;overflow:hidden">
+      <button onClick="{{ e.alternar }}" aria-expanded="{{ e.aberta }}" style="width:100%;padding:26px 30px;display:flex;flex-wrap:wrap;gap:20px 40px;align-items:center">
+        <span style="flex:1 1 300px;min-width:0"><b style="font-size:18px;font-weight:650;line-height:1.3;display:block">{{ e.titulo }}</b><span style="font-size:14px;color:#9a8fb0;margin-top:8px;display:block">{{ e.fatos }}</span></span>
+        <span style="flex:1 1 240px;max-width:320px"><span style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px"><b style="font-size:24px;font-weight:700;color:#ffb27a">{{ e.pct }}% seu</b><span style="font-size:13px;color:#bdb2ca">{{ e.ver }}</span></span><span role="img" aria-label="{{ e.aria }}" style="display:flex;height:14px;border-radius:99px;overflow:hidden;background:#251d31"><i style="width:{{ e.pct }}%;background:#f08a3c;box-shadow:0 0 16px rgba(240,138,60,.6);border-radius:99px"></i><i style="flex:1;background:rgba(185,162,242,.55)"></i></span><span style="display:block;font-size:13px;color:#9a8fb0;margin-top:6px">{{ e.medido }}</span></span>
+      </button>
+      <sc-if value="{{ e.aberta }}" hint-placeholder-val="{{ false }}">
+        <div style="padding:4px 30px 30px;display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:28px 40px;animation:lz-entrar .2s ease-out">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <sc-for list="{{ e.dims }}" as="d" hint-placeholder-count="4"><div title="{{ d.dica }}" style="border-radius:18px;padding:16px;background:{{ d.bg }};border:{{ d.borda }}"><div style="font-size:13px;color:#bdb2ca">{{ d.nome }}</div><b style="font-size:30px;font-weight:700;color:{{ d.cor }};display:block;margin:6px 0">{{ d.nota }}</b><div style="font-size:13px;color:{{ d.baseCor }};line-height:1.4">{{ d.base }}</div></div></sc-for>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:20px;justify-content:space-between">
+            <div><p style="margin:0;font-size:16px;line-height:1.55;color:#d3c9de">{{ e.analise }}</p><div style="font-size:13px;color:#9a8fb0;margin-top:10px">Análise da Luzia · 12 nov · <span tabindex="0" title="{{ e.baseModelo }}" style="text-decoration:underline dotted;text-underline-offset:3px;cursor:help">base e modelo</span></div></div>
+            <sc-if value="{{ e.falta }}" hint-placeholder-val="{{ true }}"><div><button onClick="{{ e.provar }}" style="height:48px;padding:0 24px;border-radius:99px;background:#f08a3c;color:#1a0f08;font-weight:700;font-size:16px;box-shadow:0 0 28px rgba(240,138,60,.4)" style-hover="background:#ffb27a">Converter a luz desta entrega</button><div style="font-size:13px;color:#9a8fb0;margin-top:10px">2 centelhas refletidas apareceram aqui · 75 lm</div></div></sc-if>
+          </div>
+        </div>
+      </sc-if>
+    </div>
+  </sc-for>
+  <div style="text-align:center;margin-top:8px"><button onClick="{{ buscarAntigas }}" style="height:44px;padding:0 20px;border-radius:99px;border:1px solid #3a2e4a;color:#bdb2ca">Buscar mais antigas</button></div>
+</div>
+</sc-if>
+
+<sc-if value="{{ tAjustes }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="Ajustes" style="animation:lz-entrar .25s ease-out;display:flex;flex-direction:column;gap:36px">
+  <h1 style="margin:0;font-size:26px;font-weight:650;letter-spacing:-.01em">Ajustes</h1>
+  <section><h2 style="margin:0 0 14px;font-size:18px;font-weight:650">Foco</h2>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px"><sc-for list="{{ modos }}" as="m" hint-placeholder-count="3"><button onClick="{{ m.usar }}" aria-pressed="{{ m.ativo }}" style="border-radius:20px;padding:18px 20px;background:{{ m.bg }};border:1px solid {{ m.borda }};display:flex;gap:12px;align-items:flex-start"><i style="width:14px;height:14px;border-radius:50%;margin-top:4px;flex:none;background:{{ m.orb }};border:2px solid {{ m.orbBorda }};box-shadow:{{ m.glow }}"></i><span><b style="display:block;font-weight:650">{{ m.nome }}</b><span style="font-size:13px;color:#bdb2ca">{{ m.desc }}</span></span></button></sc-for></div>
+  </section>
+  <section><div style="display:flex;gap:12px;align-items:baseline;flex-wrap:wrap;margin-bottom:14px"><h2 style="margin:0;font-size:18px;font-weight:650">Modelo</h2><span style="font-size:14px;color:#9a8fb0">Em uso: gemini-3.5-flash-lite</span></div>
+    <div style="border-radius:20px;padding:20px;background:#18121f"><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px">
+      <label style="display:flex;flex-direction:column;gap:6px;font-size:13px;color:#bdb2ca">Provedor<select style="height:44px;padding:0 12px;border-radius:12px;border:1px solid #3a2e4a;background:#120d18;color:#f4eff7;font:inherit"><option>Google · com chave</option><option>Anthropic · sem chave</option><option>OpenAI · sem chave</option><option>Local · sem chave</option></select></label>
+      <label style="display:flex;flex-direction:column;gap:6px;font-size:13px;color:#bdb2ca">Modelo<select style="height:44px;padding:0 12px;border-radius:12px;border:1px solid #3a2e4a;background:#120d18;color:#f4eff7;font:inherit"><option>gemini-3.5-flash-lite</option><option>Outro…</option></select></label>
+      <label style="display:flex;flex-direction:column;gap:6px;font-size:13px;color:#bdb2ca">API key<input type="password" placeholder="Já salva. Deixe vazio para manter." style="height:44px;padding:0 12px;border-radius:12px;border:1px solid #3a2e4a;background:#120d18;color:#f4eff7;font:inherit"></label></div>
+      <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:16px"><button onClick="{{ salvarModelo }}" style="height:44px;padding:0 20px;border-radius:99px;background:#f4eff7;color:#120d18;font-weight:650">Salvar</button><button onClick="{{ testarModelo }}" style="height:44px;padding:0 20px;border-radius:99px;border:1px solid #5a4a72">Testar</button><span style="font-size:13px;color:#9a8fb0">Fica só no .env desta máquina.</span></div></div>
+  </section>
+  <section><h2 style="margin:0 0 14px;font-size:18px;font-weight:650">Agente</h2>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px"><sc-for list="{{ agentes }}" as="m" hint-placeholder-count="5"><button onClick="{{ m.usar }}" aria-pressed="{{ m.ativo }}" style="border-radius:20px;padding:18px 20px;background:{{ m.bg }};border:1px solid {{ m.borda }}"><b style="display:block;font-weight:650">{{ m.nome }}</b><span style="font-size:13px;color:#bdb2ca">{{ m.desc }}</span></button></sc-for></div>
+  </section>
+  <section><h2 style="margin:0 0 14px;font-size:18px;font-weight:650">O que vai para o modelo</h2>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px"><sc-for list="{{ privacidade }}" as="m" hint-placeholder-count="2"><button onClick="{{ m.usar }}" aria-pressed="{{ m.ativo }}" style="border-radius:20px;padding:18px 20px;background:{{ m.bg }};border:1px solid {{ m.borda }}"><b style="display:block;font-weight:650">{{ m.nome }}</b><span style="font-size:13px;color:#bdb2ca">{{ m.desc }}</span></button></sc-for></div>
+    <p style="font-size:13px;color:#9a8fb0;margin:12px 0 0">Vale só para as chamadas da Luzia. Seu agente vê os dados reais.</p>
+  </section>
+  <section><h2 style="margin:0 0 14px;font-size:18px;font-weight:650">Sobre</h2><div style="display:grid;grid-template-columns:max-content minmax(0,1fr);gap:8px 20px;font-size:13px;color:#bdb2ca"><span style="color:#9a8fb0">Versão</span><span style="font-family:ui-monospace,Consolas,monospace">0.9.2</span><span style="color:#9a8fb0">Última chamada</span><span style="font-family:ui-monospace,Consolas,monospace">12 s · 84 MiB · 1203→410 tokens</span></div></section>
+</div>
+</sc-if>
+
+</div>
+</main>
+<sc-if value="{{ mobile }}" hint-placeholder-val="{{ false }}">
+  <nav style="flex:none;display:flex;justify-content:space-around;padding:6px 4px 10px;border-top:1px solid #231b2d;background:#120d18">
+    <sc-for list="{{ nav }}" as="n" hint-placeholder-count="5"><button onClick="{{ n.ir }}" aria-current="{{ n.atual }}" style="min-width:60px;min-height:52px;padding:6px 4px;border-radius:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-size:12px;background:{{ n.bg }};color:{{ n.cor }}"><svg viewBox="0 0 24 24" aria-hidden="true" style="width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round"><path d="{{ n.d }}"></path></svg>{{ n.nome }}</button></sc-for>
+  </nav>
+</sc-if>
+</div>
+
+<sc-if value="{{ gavetaAberta }}" hint-placeholder-val="{{ false }}">
+  <div style="position:absolute;inset:0;z-index:10;display:flex;justify-content:flex-end">
+    <button onClick="{{ fecharGaveta }}" aria-label="Fechar" style="position:absolute;inset:0;background:rgba(5,4,8,.7)"></button>
+    <article role="dialog" aria-modal="true" style="position:relative;width:min(520px,100%);height:100%;overflow:auto;background:#18121f;border-left:1px solid #3a2e4a;padding:clamp(20px,5cqw,36px);animation:lz-entrar .2s ease-out">
+      <button onClick="{{ fecharGaveta }}" style="position:absolute;top:16px;right:16px;width:44px;height:44px;border-radius:50%;text-align:center;color:#bdb2ca;font-size:20px" style-hover="background:#251d31" aria-label="Fechar">×</button>
+      <sc-if value="{{ gCentelha }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;align-items:center;gap:10px;font-size:13px;color:{{ g.cor }};font-weight:600;padding-right:48px"><i style="width:16px;height:16px;border-radius:50%;background:{{ g.orb }};border:{{ g.orbBorda }};box-shadow:{{ g.orbGlow }};animation:{{ g.anim }}"></i>{{ g.rotulo }} · {{ g.origemTxt }}</div>
+        <h2 style="font-size:28px;font-weight:650;letter-spacing:-.02em;line-height:1.15;margin:16px 0 12px;text-wrap:balance">{{ g.titulo }}</h2>
+        <p style="margin:0 0 18px;color:#d3c9de;font-size:16px;line-height:1.55">{{ g.porque }}</p>
+        <div style="border-radius:16px;background:#120d18;padding:16px 18px;margin-bottom:22px">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:14px;color:#bdb2ca;margin-bottom:10px"><span>Prisma <b style="color:#f4eff7">{{ g.prisma }}</b></span><span>{{ g.prTxt }}</span></div>
+          <div role="img" aria-label="{{ g.prAria }}" style="display:flex;gap:3px;height:12px;border-radius:99px;overflow:hidden;background:#211a2a"><sc-for list="{{ g.prSegs }}" as="s" hint-placeholder-count="5"><i title="{{ s.dica }}" style="flex:{{ s.lm }} 1 0;display:block;min-width:4px;height:100%;border-radius:99px;background:{{ s.bg }};border:{{ s.borda }};box-shadow:{{ s.glow }};animation:{{ s.anim }}"></i></sc-for></div>
+          <sc-if value="{{ g.temOnde }}" hint-placeholder-val="{{ true }}"><div style="font-size:13px;color:#9a8fb0;margin-top:12px">Apareceu em <b style="color:#d3c9de;font-weight:600">{{ g.onde }}</b></div></sc-if>
+        </div>
+        <sc-if value="{{ g.temAcao }}" hint-placeholder-val="{{ true }}"><div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center"><button onClick="{{ g.enviar }}" style="height:48px;padding:0 24px;border-radius:99px;background:#f08a3c;color:#1a0f08;font-weight:700;font-size:16px;box-shadow:0 0 28px rgba(240,138,60,.4);white-space:nowrap" style-hover="background:#ffb27a">{{ g.acaoRotulo }}</button><button onClick="{{ copiarPrompt }}" style="height:48px;padding:0 20px;border-radius:99px;border:1px solid #5a4a72;white-space:nowrap">Copiar prompt</button></div><div style="font-size:13px;color:#9a8fb0;margin-top:10px">{{ g.dica }}</div></sc-if>
+        <sc-if value="{{ g.ehPropria }}" hint-placeholder-val="{{ false }}"><div style="display:flex;align-items:center;gap:10px;padding:14px 16px;border-radius:14px;background:rgba(240,138,60,.12);color:#ffb27a;font-weight:600"><i style="width:12px;height:12px;border-radius:50%;background:#f08a3c;box-shadow:0 0 10px #f08a3c"></i>Esta luz já é sua · +{{ g.lm }} lm em {{ g.prisma }}</div></sc-if>
+        <h3 style="font-size:13px;color:#9a8fb0;font-weight:600;margin:28px 0 10px">{{ g.guiaTitulo }}</h3>
+        <ol style="margin:0;padding-left:20px;color:#bdb2ca;line-height:1.7"><sc-for list="{{ g.guia }}" as="s" hint-placeholder-count="3"><li>{{ s }}</li></sc-for></ol>
+        <details style="margin-top:28px"><summary style="font-weight:600;padding:8px 0">Por que {{ g.lm }} lm ▾</summary>
+          <div style="border-radius:16px;background:#120d18;padding:16px 18px;font-size:14px;color:#bdb2ca"><sc-for list="{{ g.conta }}" as="k" hint-placeholder-count="3"><div style="display:flex;justify-content:space-between;gap:12px;padding:6px 0"><span>{{ k.nome }}</span><b style="color:#f4eff7">+{{ k.v }}</b></div></sc-for><div style="display:flex;justify-content:space-between;gap:12px;padding:10px 0 2px;margin-top:6px;border-top:1px solid #2c2338;color:#ffb27a;font-weight:650"><span>Complexidade da centelha</span><span>{{ g.lm }} lm</span></div></div></details>
+        <sc-if value="{{ g.descartavel }}" hint-placeholder-val="{{ true }}"><details style="margin-top:16px"><summary style="color:#9a8fb0;text-decoration:underline;text-underline-offset:3px;padding:8px 0;display:inline-block">Descartar…</summary><div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><button onClick="{{ g.descartar }}" style="min-height:40px;padding:0 14px;border-radius:99px;border:1px solid #3a2e4a;font-size:14px">Não faz sentido</button><button onClick="{{ g.descartar }}" style="min-height:40px;padding:0 14px;border-radius:99px;border:1px solid #3a2e4a;font-size:14px">Já domino</button><button onClick="{{ g.descartar }}" style="min-height:40px;padding:0 14px;border-radius:99px;border:1px solid #3a2e4a;font-size:14px">Agora não</button></div></details></sc-if>
+      </sc-if>
+      <sc-if value="{{ gPrisma }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;align-items:center;gap:18px;padding-right:48px">
+          <span aria-hidden="true" style="display:block;flex:none;width:72px;height:66px;filter:{{ g.glow }}"><span style="display:block;width:100%;height:100%;clip-path:polygon(50% 2%,98% 98%,2% 98%);background:linear-gradient(100deg,rgba(255,255,255,.14) 0 50%,rgba(0,0,0,.14) 50% 100%),linear-gradient(to top,#f08a3c 0 {{ g.oP }}%,rgba(185,162,242,.75) {{ g.oP }}% {{ g.oR }}%,#2c2338 {{ g.oR }}% 100%)"></span></span>
+          <span><span style="font-size:13px;color:#9a8fb0">Prisma</span><h2 style="font-size:30px;font-weight:650;letter-spacing:-.02em;margin:2px 0 0">{{ g.nome }}</h2></span>
+        </div>
+        <div style="display:flex;align-items:baseline;gap:10px;margin:22px 0 10px"><b style="font-size:40px;font-weight:700;color:#ffb27a;letter-spacing:-.03em;line-height:1">{{ g.pct }}%</b><span style="color:#d3c9de">é luz própria · {{ g.P }} de {{ g.tot }} lm</span></div>
+        <div role="img" aria-label="{{ g.barAria }}" style="display:flex;gap:3px;height:14px;border-radius:99px;overflow:hidden;background:#211a2a"><sc-for list="{{ g.segs }}" as="s" hint-placeholder-count="5"><i title="{{ s.dica }}" style="flex:{{ s.lm }} 1 0;display:block;min-width:4px;height:100%;border-radius:99px;background:{{ s.bg }};border:{{ s.borda }};box-shadow:{{ s.glow }};animation:{{ s.anim }}"></i></sc-for></div>
+        <div style="font-size:13px;color:{{ g.resumoCor }};margin-top:10px">{{ g.resumo }}</div>
+        <sc-if value="{{ g.temProxima }}" hint-placeholder-val="{{ true }}"><button onClick="{{ g.converterProxima }}" style="margin-top:18px;height:48px;padding:0 24px;border-radius:99px;background:#f08a3c;color:#1a0f08;font-weight:700;font-size:16px;box-shadow:0 0 28px rgba(240,138,60,.4)" style-hover="background:#ffb27a">Converter a próxima · +{{ g.proximaLm }} lm</button></sc-if>
+        <h3 style="font-size:13px;color:#9a8fb0;font-weight:600;margin:28px 0 6px">Centelhas para a meta</h3>
+        <ul style="list-style:none;margin:0;padding:0"><sc-for list="{{ g.lista }}" as="c" hint-placeholder-count="5"><li style="border-top:1px solid #231b2d"><button onClick="{{ c.abrir }}" style="width:100%;display:flex;align-items:center;gap:12px;padding:12px 2px" style-hover="background:#1c1626"><i style="width:14px;height:14px;border-radius:50%;background:{{ c.orb }};border:{{ c.orbBorda }};box-shadow:{{ c.orbGlow }};animation:{{ c.anim }};flex:none"></i><span style="flex:1;min-width:0;color:{{ c.tituloCor }}">{{ c.titulo }}</span><span style="font-size:12px;color:{{ c.cor }};white-space:nowrap">{{ c.rotuloCurto }}</span><b style="font-size:14px;white-space:nowrap;min-width:48px;text-align:right">{{ c.lm }} lm</b></button></li></sc-for></ul>
+        <h3 style="font-size:13px;color:#9a8fb0;font-weight:600;margin:28px 0 10px">Análise</h3>
+        <p style="margin:0;color:#d3c9de;line-height:1.55">{{ g.analise }}</p>
+        <div style="font-size:13px;color:#9a8fb0;margin-top:8px">Análise da Luzia · 12 nov · <span tabindex="0" title="{{ g.baseModelo }}" style="text-decoration:underline dotted;text-underline-offset:3px;cursor:help">base e modelo</span></div>
+      </sc-if>
+    </article>
+  </div>
+</sc-if>
+
+<sc-if value="{{ conquistaAberta }}" hint-placeholder-val="{{ false }}">
+  <div role="dialog" aria-modal="true" style="position:absolute;inset:0;z-index:20;background:rgba(8,6,12,.92);display:flex;align-items:center;justify-content:center;padding:24px;animation:lz-entrar .3s ease-out">
+    <div style="max-width:460px;width:100%;text-align:center;display:flex;flex-direction:column;align-items:center">
+      <div style="position:relative;width:176px;height:176px;margin-bottom:28px">
+        <div style="position:absolute;inset:0;border-radius:50%;background:radial-gradient(circle at 50% 45%,#e4dafb,#b9a2f2 60%,#8f7bc4);box-shadow:0 0 60px rgba(185,162,242,.5)"></div>
+        <div style="position:absolute;inset:0;border-radius:50%;background:radial-gradient(circle at 50% 45%,#fff3e6,#ffb27a 45%,#f08a3c);opacity:{{ cq.op }};transform:scale({{ cq.escala }});box-shadow:0 0 90px rgba(240,138,60,.65);transition:opacity 1.2s ease,transform 1.2s cubic-bezier(.2,.8,.2,1)"></div>
+        <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#1a0f08"><b style="font-size:44px;font-weight:700;letter-spacing:-.03em;line-height:1">+{{ conq.lm }}</b><span style="font-size:14px;font-weight:600">lm</span></div>
+      </div>
+      <div style="font-size:14px;color:#bdb2ca">{{ conq.prisma }} · {{ conq.titulo }}</div>
+      <h2 style="font-size:32px;font-weight:650;letter-spacing:-.02em;margin:10px 0 12px;text-wrap:balance">{{ cq.titulo }}</h2>
+      <p style="margin:0 0 18px;color:#bdb2ca;font-size:16px;line-height:1.55;max-width:38ch">{{ cq.texto }}</p>
+      <div style="width:100%;max-width:340px;margin-bottom:28px"><div style="display:flex;justify-content:space-between;font-size:14px;color:#d3c9de;margin-bottom:8px"><b>{{ conq.prisma }}</b><span>{{ cq.pctTxt }}</span></div><div aria-hidden="true" style="display:flex;gap:3px;height:12px;border-radius:99px;overflow:hidden;background:#211a2a"><sc-for list="{{ cq.segs }}" as="s" hint-placeholder-count="5"><i style="flex:{{ s.lm }} 1 0;display:block;min-width:4px;height:100%;border-radius:99px;background:{{ s.bg }};border:{{ s.borda }};box-shadow:{{ s.glow }};animation:{{ s.anim }};transition:background .8s"></i></sc-for></div></div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;justify-content:center"><button onClick="{{ cq.acao }}" style="height:48px;padding:0 24px;border-radius:99px;background:#f08a3c;color:#1a0f08;font-weight:700;font-size:16px" style-hover="background:#ffb27a">{{ cq.acaoRotulo }}</button><button onClick="{{ fecharConquista }}" style="height:48px;padding:0 20px;border-radius:99px;border:1px solid #5a4a72">{{ cq.sair }}</button></div>
+    </div>
+  </div>
+</sc-if>
+
+<sc-if value="{{ toastAberto }}" hint-placeholder-val="{{ false }}">
+  <div role="status" aria-live="polite" style="position:absolute;left:50%;bottom:84px;transform:translateX(-50%);z-index:30;display:flex;gap:10px;align-items:center;padding:12px 18px;border-radius:99px;background:#251d31;border:1px solid #5a4a72;box-shadow:0 8px 30px rgba(0,0,0,.4),0 0 24px rgba(240,138,60,.18);max-width:calc(100% - 24px);white-space:nowrap;font-size:14px"><i style="width:10px;height:10px;border-radius:50%;background:#f08a3c;box-shadow:0 0 10px #f08a3c;flex:none"></i>{{ toastMsg }}</div>
+</sc-if>
+</sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;viewport&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;desktop&quot;,&quot;mobile&quot;],&quot;default&quot;:&quot;desktop&quot;,&quot;tsType&quot;:&quot;'desktop'|'mobile'&quot;,&quot;section&quot;:&quot;Protótipo&quot;},&quot;momento&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;normal&quot;,&quot;conversão confirmada&quot;],&quot;default&quot;:&quot;normal&quot;,&quot;tsType&quot;:&quot;'normal'|'conversão confirmada'&quot;,&quot;section&quot;:&quot;Protótipo&quot;},&quot;sessao&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Protótipo&quot;}}">
+class Component extends DCLogic {
+  state = { tela: 'hoje', gaveta: null, filtro: 'converter', fPrisma: 'todos', fTipo: 'todos', entrega: 'e2', toast: null, conquista: null, convertidas: {}, dividir: 0, pedido: 0, form: false, modo: 'ativo', agente: 'claude-code', mascarar: false, fila: {}, descartadas: {}, saiu: false };
+
+  toast(msg) {
+    clearTimeout(this._t);
+    this.setState({ toast: msg });
+    this._t = setTimeout(() => this.setState({ toast: null }), 3200);
+  }
+  componentWillUnmount() { clearTimeout(this._t); clearTimeout(this._s); }
+
+  renderVals() {
+    const s = this.state, P = this.props;
+    const set = (o) => () => this.setState(o);
+    const mobile = (P.viewport ?? 'desktop') === 'mobile';
+    const agenteNome = { 'claude-code': 'Claude Code', codex: 'Codex', cursor: 'Cursor', antigravity: 'Antigravity', outro: 'seu agente' }[s.agente];
+    const fe = s.dividir === 2 ? 'React' : 'Front-end';
+    const fe2 = s.dividir === 2 ? 'CSS' : 'Front-end';
+
+    const EST = {
+      propria: { rotulo: 'Luz própria', curto: 'própria', cor: '#ffb27a', orb: '#f08a3c', orbBorda: '2px solid #f08a3c', orbGlow: '0 0 10px rgba(240,138,60,.75)', seg: '#f08a3c', segBorda: 'none', segGlow: '0 0 8px rgba(240,138,60,.6)', anim: 'none', card: 'radial-gradient(260px 160px at 0 0,rgba(240,138,60,.18),transparent 70%),#1f1727', cardBorda: 'rgba(240,138,60,.5)', chip: 'rgba(240,138,60,.14)', tituloCor: '#f4eff7' },
+      convertendo: { rotulo: 'Convertendo', curto: 'convertendo', cor: '#ffb27a', orb: 'linear-gradient(135deg,#b9a2f2 0 50%,#f08a3c 50%)', orbBorda: '2px solid #f08a3c', orbGlow: '0 0 10px rgba(240,138,60,.5)', seg: 'linear-gradient(90deg,#b9a2f2,#f08a3c)', segBorda: 'none', segGlow: 'none', anim: 'lz-pulsar 1.6s ease-in-out infinite', card: 'linear-gradient(135deg,rgba(185,162,242,.16),rgba(240,138,60,.16)),#1c1626', cardBorda: 'rgba(240,138,60,.45)', chip: 'rgba(240,138,60,.14)', tituloCor: '#f4eff7' },
+      refletida: { rotulo: 'Luz refletida', curto: 'refletida', cor: '#cdbcf7', orb: '#b9a2f2', orbBorda: '2px solid #b9a2f2', orbGlow: '0 0 8px rgba(185,162,242,.55)', seg: 'rgba(185,162,242,.6)', segBorda: 'none', segGlow: 'none', anim: 'none', card: 'radial-gradient(260px 160px at 0 0,rgba(185,162,242,.16),transparent 70%),#1a1422', cardBorda: 'rgba(185,162,242,.4)', chip: 'rgba(185,162,242,.12)', tituloCor: '#f4eff7' },
+      apagada: { rotulo: 'Por acender', curto: 'por acender', cor: '#9a8fb0', orb: 'transparent', orbBorda: '2px dashed #6b5a85', orbGlow: 'none', seg: 'transparent', segBorda: '1px dashed #6b5a85', segGlow: 'none', anim: 'none', card: '#16111d', cardBorda: '#2c2338', chip: '#1c1626', tituloCor: '#d3c9de' },
+    };
+    const ORDEM = { propria: 0, convertendo: 1, refletida: 2, apagada: 3 };
+    const ORIGEM = { triagem: 'da triagem', chat: 'do chat', centelha: 'do painel', meta: 'da meta' };
+
+    let base = [
+      { id: 'd1', prisma: 'DDD', titulo: 'Entidades e objetos de valor', desc: 'Saber o que tem identidade e o que é só valor.', lm: 30, estado: 'propria', origem: 'triagem', onde: 'Cadastro de clientes', tipo: 'explicar', min: 5, porque: 'Na triagem, seus commits de março mostram você separando o endereço como objeto de valor.' },
+      { id: 'd6', prisma: 'DDD', titulo: 'Linguagem ubíqua nos pedidos ao agente', desc: 'Usar os termos do domínio para dirigir o código.', lm: 25, estado: 'propria', origem: 'chat', onde: 'chat de hoje, 14:32', hoje: true, tipo: 'praticar', min: 0, porque: 'Hoje você pediu ao agente falando em "agregado de pedido". Quem dirigiu o conceito foi você, então a luz já veio própria.' },
+      { id: 'd3', prisma: 'DDD', titulo: 'Modelar um agregado', desc: 'Definir os limites e a raiz de um agregado.', lm: 68, estado: 'propria', origem: 'centelha', onde: 'Módulo de pedidos', tipo: 'praticar', min: 28, porque: 'Você modelou o agregado de pedido e explicou os limites dele.' },
+      { id: 'd2', prisma: 'DDD', titulo: 'Por que o repositório devolve o agregado inteiro', desc: 'Custo e ganho de carregar a entidade toda.', lm: 45, estado: 'refletida', origem: 'chat', onde: 'Busca por código com espaços', hoje: true, tipo: 'explicar', min: 5, porque: 'O agente fez o repositório carregar o agregado todo e você aceitou sem discutir. A Luzia viu o conceito no código, não o seu entendimento dele.' },
+      { id: 'd4', prisma: 'DDD', titulo: 'Eventos de domínio', desc: 'Nomear, publicar e consumir um evento.', lm: 55, estado: 'refletida', origem: 'triagem', onde: 'Módulo de pedidos · 3 commits', tipo: 'praticar', min: 15, porque: 'Eventos de domínio aparecem no seu código, sempre escritos pelo agente.' },
+      { id: 'd5', prisma: 'DDD', titulo: 'Fronteiras entre contextos', desc: 'Decidir onde um contexto termina e outro começa.', lm: 80, estado: 'apagada', origem: 'meta', onde: '', tipo: 'estudar', min: 25, porque: 'Plena pede defender uma fronteira entre contextos. Isso ainda não apareceu no seu trabalho.' },
+      { id: 's1', prisma: 'SQL', titulo: 'Filtros por período', desc: 'Filtrar datas sem perder registros na borda.', lm: 30, estado: 'propria', origem: 'triagem', onde: 'Exportar relatório de estoque', tipo: 'praticar', min: 10, porque: 'Na exportação em CSV você definiu os filtros antes de pedir o código.' },
+      { id: 's2', prisma: 'SQL', titulo: 'Escolher um índice', desc: 'Ler o plano da consulta e defender o índice.', lm: 60, estado: 'propria', origem: 'centelha', onde: 'Exportar relatório de estoque', tipo: 'explicar', min: 10, porque: 'Você defendeu o índice escolhido na exportação.' },
+      { id: 's3', prisma: 'SQL', titulo: 'Escrever um teste de unidade guiado', desc: 'Garantir o que a consulta deve devolver.', lm: 45, estado: 'convertendo', origem: 'chat', onde: 'Exportar relatório de estoque', tipo: 'praticar', min: 20, porque: 'O agente gerou a consulta sem teste. Escrever o teste mostra que você sabe o que ela deve garantir.', guia: ['A Luzia abre a consulta que o agente gerou na exportação.', 'Você escreve um teste que falha se o filtro de período sumir, com dicas quando travar.', 'Você explica à Luzia o que o teste garante, e a luz vira sua.'] },
+      { id: 's4', prisma: 'SQL', titulo: 'Onde verificar o efeito colateral', desc: 'Testar o que mudou no banco, não só o retorno.', lm: 30, estado: 'refletida', origem: 'triagem', onde: 'Teste da exportação', tipo: 'explicar', min: 5, porque: 'Testes que só olham o retorno deixam passar o que mudou no banco. O agente escreveu os seus assim.' },
+      { id: 's5', prisma: 'SQL', titulo: 'Transações e isolamento', desc: 'Quando duas escritas podem se atropelar.', lm: 70, estado: 'apagada', origem: 'meta', onde: '', tipo: 'estudar', min: 20, porque: 'Plena pede saber quando duas escritas concorrentes quebram os dados.' },
+      { id: 'f1', prisma: fe, titulo: 'Como a lista de trabalho renderiza', desc: 'Seguir os dados até a tela.', lm: 30, estado: 'refletida', origem: 'chat', onde: 'chat de hoje, 11:18', hoje: true, tipo: 'explorar', min: 10, porque: 'O agente mexeu na lista de trabalho hoje. Saber o caminho da renderização evita pedir no escuro.' },
+      { id: 'f2', prisma: fe, titulo: 'Estado e props', desc: 'O que fica no componente e o que vem de fora.', lm: 40, estado: 'refletida', origem: 'triagem', onde: 'Lista de trabalho · 5 commits', tipo: 'explicar', min: 5, porque: 'Os componentes da lista foram escritos pelo agente. Você ainda não explicou por que o estado fica onde fica.' },
+      { id: 'f3', prisma: fe2, titulo: 'Layout com grid', desc: 'Montar a grade sem depender do agente.', lm: 35, estado: 'propria', origem: 'triagem', onde: 'Painel de pedidos', tipo: 'praticar', min: 10, porque: 'Você montou a grade do painel de pedidos à mão.' },
+      { id: 'f4', prisma: fe2, titulo: 'Acessibilidade de formulários', desc: 'Rótulos, foco e erros que o leitor de tela entende.', lm: 50, estado: 'apagada', origem: 'meta', onde: '', tipo: 'estudar', min: 15, porque: 'Plena pede formulários que funcionem com teclado e leitor de tela.' },
+    ];
+    if (s.pedido === 2) base.push(
+      { id: 'm1', prisma: 'Mensageria', titulo: 'Filas e consumidores', desc: 'Quem publica, quem consome e quando.', lm: 40, estado: 'refletida', origem: 'chat', onde: 'Busca por código com espaços', tipo: 'explicar', min: 5, porque: 'O agente colocou a reindexação numa fila. Explicar por quê converte essa luz.' },
+      { id: 'm2', prisma: 'Mensageria', titulo: 'Reprocessar mensagens', desc: 'O que fazer quando o consumidor falha.', lm: 50, estado: 'apagada', origem: 'meta', onde: '', tipo: 'estudar', min: 15, porque: 'O time vai adotar filas: falhas de consumo vão aparecer.' },
+      { id: 'm3', prisma: 'Mensageria', titulo: 'Idempotência', desc: 'Processar duas vezes sem estragar nada.', lm: 60, estado: 'apagada', origem: 'meta', onde: '', tipo: 'praticar', min: 20, porque: 'Sem idempotência, reprocessar duplica pedidos.' });
+
+    const confirmada = (P.momento ?? 'normal') === 'conversão confirmada';
+    const C = base.filter((c) => !s.descartadas[c.id]).map((c) => {
+      let estado = c.estado;
+      if (s.convertidas[c.id]) estado = 'propria';
+      else if (s.fila[c.id] && estado !== 'propria') estado = 'convertendo';
+      const e = EST[estado];
+      const a = Math.round(c.lm * 0.5), b = Math.round(c.lm * 0.3);
+      const cap = c.tipo[0].toUpperCase() + c.tipo.slice(1);
+      const enviar = () => { this.setState({ fila: { ...s.fila, [c.id]: true } }); this.toast(estado === 'apagada' ? 'Na fila do ' + agenteNome : 'A Luzia guia a conversão no ' + agenteNome); };
+      return { ...c, ...e, estado,
+        rotuloCurto: e.curto, origemTxt: ORIGEM[c.origem],
+        linha: c.onde ? 'Apareceu em ' + c.onde : c.desc,
+        metaTxt: `${cap} · ${c.prisma}${c.min ? ' · ' + c.min + ' min' : ''}`,
+        tipoTxt: `${cap.toLowerCase()} · ${c.min} min`,
+        cta: estado === 'convertendo' ? 'Continuar' : 'Converter',
+        conta: [{ nome: 'Profundidade do conceito', v: a }, { nome: 'Lacuna no prisma', v: b }, { nome: 'Peso para Plena', v: c.lm - a - b }],
+        acaoRotulo: estado === 'convertendo' ? (s.fila[c.id] ? 'Na fila do ' + agenteNome : 'Continuar no ' + agenteNome) : estado === 'refletida' ? 'Converter com a Luzia' : 'Acender no ' + agenteNome,
+        abrir: set({ gaveta: { tipo: 'centelha', id: c.id } }), enviar,
+      };
+    });
+
+    const segDe = (c, foco) => ({ lm: c.lm, bg: c.seg, borda: c.id === foco && c.estado !== 'convertendo' ? '1px solid #f08a3c' : c.segBorda, glow: c.segGlow, anim: c.id === foco ? 'lz-pulsar 1.6s ease-in-out infinite' : c.anim, dica: `${c.rotulo}: ${c.titulo} · ${c.lm} lm` });
+    const soma = (l, f) => l.filter(f).reduce((x, c) => x + c.lm, 0);
+    const nomes = [...new Set(C.map((c) => c.prisma))];
+    const prismas = nomes.map((nome) => {
+      const lista = C.filter((c) => c.prisma === nome).sort((a, b) => ORDEM[a.estado] - ORDEM[b.estado] || b.lm - a.lm);
+      const tot = soma(lista, () => true), Pl = soma(lista, (c) => c.estado === 'propria'), V = soma(lista, (c) => c.estado === 'refletida' || c.estado === 'convertendo');
+      const pct = tot ? Math.round((100 * Pl) / tot) : 0, pctV = tot ? Math.round((100 * V) / tot) : 0;
+      const nConv = lista.filter((c) => c.estado === 'refletida' || c.estado === 'convertendo').length, nApag = lista.filter((c) => c.estado === 'apagada').length, nPropria = lista.filter((c) => c.estado === 'propria').length;
+      const proxima = lista.find((c) => c.estado === 'convertendo') || lista.find((c) => c.estado === 'refletida') || lista.find((c) => c.estado === 'apagada');
+      return { nome, lista, tot, P: Pl, V, pct, oP: pct, oR: Math.min(100, pct + pctV), n: lista.length, nPropria, proxima,
+        segs: lista.map((c) => segDe(c, null)),
+        glow: pct ? `drop-shadow(0 0 ${6 + Math.round(pct / 8)}px rgba(240,138,60,.5))` : 'none',
+        borda: 'transparent',
+        resumo: pct === 100 ? 'Na meta · tudo é luz própria' : [nConv ? `${nConv} para converter · ${V} lm` : '', nApag ? `${nApag} por acender` : ''].filter(Boolean).join(' · '),
+        resumoCor: nConv ? '#cdbcf7' : '#bdb2ca',
+        barAria: `${nome}: ${Pl} de ${tot} lúmens em luz própria, ${V} refletidos para converter`,
+        abrir: set({ gaveta: { tipo: 'prisma', nome } }),
+        composto: nome === 'Front-end' && s.dividir < 2,
+      };
+    });
+
+    const totAll = soma(C, () => true);
+    const agg = ['propria', 'convertendo', 'refletida', 'apagada'].map((k) => ({ k, lm: soma(C, (c) => c.estado === k) }));
+    const Pall = agg[0].lm, Vall = agg[1].lm + agg[2].lm;
+    const plena = { tot: totAll, P: Pall, pct: totAll ? Math.round((100 * Pall) / totAll) : 0,
+      segs: agg.filter((x) => x.lm).map((x) => ({ lm: x.lm, bg: EST[x.k].seg, borda: EST[x.k].segBorda, glow: EST[x.k].segGlow, anim: EST[x.k].anim })),
+      legenda: agg.map((x) => ({ nome: EST[x.k].rotulo, lm: x.lm, orb: EST[x.k].orb, orbBorda: EST[x.k].orbBorda, orbGlow: EST[x.k].orbGlow })),
+    };
+    plena.aria = `Júnior 3 para Plena: ${plena.pct}% em luz própria, ${Vall} lúmens refletidos para converter. Ver trajetória.`;
+
+    const conv = C.filter((c) => c.estado === 'convertendo' || c.estado === 'refletida').sort((a, b) => ORDEM[a.estado] - ORDEM[b.estado] || b.lm - a.lm);
+    const h = conv[0];
+    let hero = {};
+    if (h) {
+      const p = prismas.find((x) => x.nome === h.prisma);
+      hero = { ...h, chamada: h.estado === 'convertendo' ? 'Continue a conversão' : 'Converta esta luz', segs: p.lista.map((c) => segDe(c, h.id)), pctAntes: p.pct, pctDepois: Math.round((100 * (p.P + h.lm)) / p.tot),
+        aria: `Converter rende ${h.lm} lúmens de luz própria em ${h.prisma}: de ${p.pct}% para ${Math.round((100 * (p.P + h.lm)) / p.tot)}%. Ver detalhes.` };
+    }
+    const paraConverter = conv.filter((c) => !h || c.id !== h.id).slice(0, 4);
+
+    const conq = C.find((c) => c.id === 's3') || {};
+    const conqPrisma = prismas.find((x) => x.nome === conq.prisma);
+    const conquistaPronta = confirmada && !s.convertidas.s3 && conq.estado !== 'propria';
+    const fase = s.conquista;
+    const cqSegs = conqPrisma ? conqPrisma.lista.map((c) => (fase === 'virou' && c.id === 's3' ? { lm: c.lm, bg: EST.propria.seg, borda: 'none', glow: EST.propria.segGlow, anim: 'none' } : segDe(c, 's3'))) : [];
+    const pAntes = conqPrisma ? conqPrisma.pct : 0, pDepois = conqPrisma ? Math.round((100 * (conqPrisma.P + (conq.estado === 'propria' ? 0 : conq.lm))) / conqPrisma.tot) : 0;
+    const cq = fase === 'virou'
+      ? { op: 1, escala: 1, titulo: 'Agora a luz é sua', texto: `Você mostrou que sabe o que o teste garante. ${conq.lm} lm de ${conq.prisma} viraram luz própria.`, pctTxt: `${pAntes}% → ${pDepois}% seu`, segs: cqSegs, acaoRotulo: 'Converter a próxima', sair: 'Fechar',
+          acao: () => { const prox = conv.find((c) => c.id !== 's3'); this.setState({ conquista: null, gaveta: prox ? { tipo: 'centelha', id: prox.id } : null }); } }
+      : { op: 0, escala: 0.82, titulo: 'Pronta para virar sua', texto: 'Na conversa com o agente você explicou o que o teste garante. A Luzia confirmou o entendimento.', pctTxt: `${pAntes}% seu`, segs: cqSegs, acaoRotulo: 'Acender luz própria', sair: 'Agora não',
+          acao: () => { this.setState({ conquista: 'virou', gaveta: null }); this._s = setTimeout(() => this.setState({ convertidas: { ...this.state.convertidas, s3: true } }), 1200); } };
+
+    const segPassa = { converter: (c) => c.estado === 'refletida' || c.estado === 'convertendo', propria: (c) => c.estado === 'propria', apagada: (c) => c.estado === 'apagada', todas: () => true };
+    const passa = (c, f) => segPassa[f](c) && (s.fPrisma === 'todos' || c.prisma === s.fPrisma) && (s.fTipo === 'todos' || c.tipo === s.fTipo);
+    const centelhas = C.filter((c) => passa(c, s.filtro)).sort((a, b) => ORDEM[a.estado] - ORDEM[b.estado] || b.lm - a.lm);
+    const segmentos = [['converter', 'Para converter'], ['propria', 'Próprias'], ['apagada', 'Por acender'], ['todas', 'Todas']].map(([k, nome]) => ({ nome, n: C.filter((c) => passa(c, k)).length, ativo: s.filtro === k, usar: set({ filtro: k }), bg: s.filtro === k ? '#f4eff7' : '#1c1626', cor: s.filtro === k ? '#120d18' : '#bdb2ca', peso: s.filtro === k ? 650 : 400 }));
+
+    const dim = (nome, nota, base, dica) => nota == null
+      ? { nome, nota: '—', base, dica: '', cor: '#9a8fb0', baseCor: '#cdbcf7', bg: 'transparent', borda: '1px dashed rgba(185,162,242,.5)' }
+      : { nome, nota, base, dica, cor: '#ffb27a', baseCor: '#bdb2ca', bg: `radial-gradient(160px 100px at 0 0,rgba(240,138,60,${nota / 400}),transparent 70%),#261c2c`, borda: '1px solid transparent' };
+    const entregas = [
+      { id: 'e1', titulo: 'Exportar o relatório de estoque em CSV com filtros de período', fatos: '3 dias · 4 commits · 9 arquivos · +312 linhas · SQL', pct: 81, medido: 'medido em P1 a P4', falta: false, analise: 'Você definiu o formato e os filtros antes de pedir o código, e defendeu o índice escolhido. A entrega é quase toda sua.', base: '4 commits, 9 arquivos, 312 linhas, 1 prisma',
+        dims: [dim('P1 Direção no prompt', 85, 'Você descreveu o formato antes de codar.', 'inferido'), dim('P2 Coesão', 80, 'Entrega focada.', 'calculado · 100 − 20 (9 arquivos)'), dim('P3 Aplicação de conceito', 75, 'Você explicou o filtro por período.', 'centelha própria'), dim('P4 Decisão de arquitetura', 85, 'Você defendeu o índice.', 'centelha própria')] },
+      { id: 'e2', titulo: 'Permitir busca por código alfanumérico com espaços em pedidos e lista de trabalho', fatos: `8 dias · 2 commits · 16 arquivos · +195 linhas · DDD, ${fe}, SQL`, pct: 58, medido: 'medido em P1 e P2 · faltam P3 e P4', falta: true, analise: 'A busca passou a tratar espaços no domínio, não na tela. Explicar essa escolha converte a luz refletida desta entrega.', base: '2 commits, 16 arquivos, 195 linhas, 3 prismas',
+        dims: [dim('P1 Direção no prompt', 65, 'Você pediu um plano antes de codar.', 'inferido'), dim('P2 Coesão', 50, '16 arquivos e 3 áreas reduzem a nota.', 'calculado · 100 − 40 (16 arquivos) − 10 (3 áreas)'), dim('P3 Aplicação de conceito', null, 'Falta você explicar.'), dim('P4 Decisão de arquitetura', null, 'Falta você defender.')] },
+    ].map((e) => { const aberta = s.entrega === e.id; return { ...e, aberta, ver: aberta ? 'Fechar ▴' : 'Ver detalhe ▾', bg: aberta ? '#1f1727' : '#1a1422', borda: aberta ? '#3a2e4a' : 'transparent', aria: `${e.pct}% seu, ${100 - e.pct}% do agente`, baseModelo: `Base: ${e.base} · Modelo: gemini-3.5-flash-lite`, alternar: set({ entrega: aberta ? null : e.id }), provar: () => this.setState({ gaveta: { tipo: 'centelha', id: 'd2' } }) }; });
+
+    const opc = (ativo, usar, nome, desc, extra) => ({ nome, desc, ativo, usar, bg: ativo ? '#241a26' : '#18121f', borda: ativo ? '#f4eff7' : 'transparent', ...extra });
+    const focos = { ativo: ['Em foco', 'Coleta centelhas e propõe conversões no chat', '#f08a3c', 'Com centelhas da sessão no chat'], passivo: ['Em silêncio', 'Coleta centelhas sem interromper', '#b9a2f2', 'Coleta centelhas sem interromper o chat'], sob_demanda: ['Fora de foco', 'Só age quando você chama', '#5a4a72', 'Só age quando você chama um comando'] };
+    const modos = Object.entries(focos).map(([k, [nome, desc, cor]]) => opc(s.modo === k, () => { this.setState({ modo: k }); this.toast('Foco: ' + nome); }, nome, desc, { orb: k === 'sob_demanda' ? 'transparent' : cor, orbBorda: cor, glow: k === 'ativo' ? '0 0 10px #f08a3c' : 'none' }));
+    const agentes = [['claude-code', 'Claude Code', 'Fila, comandos e foco automático'], ['codex', 'Codex', 'Fila e comandos via AGENTS.md'], ['cursor', 'Cursor', 'Fila e comandos via User Rules'], ['antigravity', 'Antigravity', 'Fila e comandos via GEMINI.md'], ['outro', 'Outro', 'Qualquer agente com terminal']].map(([k, nome, desc]) => opc(s.agente === k, () => { this.setState({ agente: k }); this.toast('Agente: ' + nome); }, nome, desc));
+    const privacidade = [opc(!s.mascarar, () => { this.setState({ mascarar: false }); this.toast('Enviando dados reais'); }, 'Dados reais', 'Padrão'), opc(s.mascarar, () => { this.setState({ mascarar: true }); this.toast('Mascarando'); }, 'Mascarar', 'E-mails, tickets e nomes viram marcadores')];
+
+    const ICO = {
+      hoje: 'M12 8a4 4 0 1 0 0 8a4 4 0 0 0 0-8zM12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4',
+      trajetoria: 'M12 3l9 17H3z',
+      centelhas: 'M12 2l2.4 7.6L22 12l-7.6 2.4L12 22l-2.4-7.6L2 12l7.6-2.4z',
+      entregas: 'M4 7h16v12H4zM9 7V5h6v2',
+      ajustes: 'M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M16 4a2 2 0 1 0 0 4a2 2 0 0 0 0-4zM10 10a2 2 0 1 0 0 4a2 2 0 0 0 0-4zM18 16a2 2 0 1 0 0 4a2 2 0 0 0 0-4z',
+    };
+    const nav = [['hoje', 'Hoje'], ['trajetoria', 'Trajetória'], ['centelhas', 'Centelhas'], ['entregas', 'Entregas'], ['ajustes', 'Ajustes']].map(([k, nome]) => ({ nome, d: ICO[k], atual: s.tela === k ? 'page' : undefined, ir: set({ tela: k, gaveta: null }), bg: s.tela === k ? '#251d31' : 'transparent', cor: s.tela === k ? '#f4eff7' : '#9a8fb0' }));
+
+    let g = {};
+    const gv = s.gaveta;
+    if (gv?.tipo === 'centelha') {
+      const c = C.find((x) => x.id === gv.id);
+      const p = c && prismas.find((x) => x.nome === c.prisma);
+      if (c && p) {
+        const depois = Math.round((100 * (p.P + c.lm)) / p.tot);
+        g = { ...c, prSegs: p.lista.map((x) => segDe(x, c.id)), prAria: p.barAria,
+          prTxt: c.estado === 'propria' ? `${p.pct}% seu` : `${p.pct}% → ${depois}% seu`,
+          temOnde: !!c.onde, ehPropria: c.estado === 'propria', temAcao: c.estado !== 'propria',
+          dica: c.estado === 'apagada' ? `Abre na sua próxima mensagem no chat, ou digite /luzia:fazer ${c.id}.` : `A Luzia abre o contexto de ${c.onde} e guia você até a luz virar própria.`,
+          guiaTitulo: c.estado === 'propria' ? 'Como você conquistou' : c.estado === 'apagada' ? 'Como a Luzia acende' : 'Como a Luzia guia a conversão',
+          guia: c.guia || (c.estado === 'propria' ? [c.porque] : c.estado === 'apagada' ? ['A Luzia explica o conceito com um exemplo do seu projeto.', 'Você aplica numa tarefa curta com o agente.', 'Você explica a escolha em 2 frases, e a luz já nasce própria.'] : [`A Luzia abre o trecho de ${c.onde} em que o agente aplicou o conceito.`, c.tipo === 'explicar' ? 'Você explica, com suas palavras, o que o agente fez e por quê; a Luzia completa o que faltar.' : c.tipo === 'explorar' ? 'Você segue o código com a Luzia apontando o caminho.' : 'Você refaz um pedaço sem o agente, com dicas quando travar.', 'A Luzia confirma o entendimento e a luz vira sua.']),
+          descartavel: c.estado !== 'propria',
+          descartar: () => { this.setState({ descartadas: { ...s.descartadas, [c.id]: true }, gaveta: null }); this.toast('Descartada'); } };
+      }
+    } else if (gv?.tipo === 'prisma') {
+      const p = prismas.find((x) => x.nome === gv.nome) || prismas[0];
+      const px = p.proxima && p.proxima.estado !== 'apagada' ? p.proxima : null;
+      g = { ...p, temProxima: !!px, proximaLm: px ? px.lm : 0, converterProxima: px ? set({ gaveta: { tipo: 'centelha', id: px.id } }) : () => {},
+        analise: p.nome === 'DDD' ? 'Você já dirige o agente com vocabulário de DDD e modelou um agregado. A maior luz refletida está em eventos de domínio, sempre escritos pelo agente.' : p.pct < 40 ? 'Quase toda a luz deste prisma veio do agente. Converter as centelhas refletidas é o caminho mais curto.' : 'Boa parte já é sua. Converta o que o agente aplicou e acenda o que a meta ainda pede.',
+        baseModelo: `Base: ${p.n} centelhas, ${p.P} de ${p.tot} lm em luz própria · Modelo: gemini-3.5-flash-lite` };
+    }
+
+    const [fNome, , fCor, fDica] = focos[s.modo];
+    const nVer = 1 + (s.dividir === 2 ? 1 : 0) + (s.pedido === 2 ? 1 : 0);
+    return {
+      frameW: mobile ? '390px' : 'none', mobile, desktop: !mobile,
+      semSessao: !(P.sessao ?? true) || s.saiu, comSessao: (P.sessao ?? true) && !s.saiu,
+      copiarComando: () => { this.setState({ saiu: false }); }, sair: set({ saiu: true }),
+      nav, prismas, plena, hero, temHero: !!h, paraConverter, nConverter: conv.length, lmConverter: Vall,
+      hoje: C.filter((c) => c.hoje), centelhas, segmentos, entregas, modos, agentes, privacidade, g,
+      tHoje: s.tela === 'hoje', tTrajetoria: s.tela === 'trajetoria', tCentelhas: s.tela === 'centelhas', tEntregas: s.tela === 'entregas', tAjustes: s.tela === 'ajustes',
+      irTrajetoria: set({ tela: 'trajetoria' }), irConverter: set({ tela: 'centelhas', filtro: 'converter' }),
+      focoNome: fNome, focoCor: fCor, focoDica: fDica,
+      conq, conquistaPronta, cq, conquistaAberta: !!fase, abrirConquista: set({ conquista: 'ver' }), fecharConquista: set({ conquista: null }),
+      copiarPrompt: () => this.toast('Prompt copiado. Cole no chat.'),
+      versao: 'v' + nVer, nVersoes: nVer,
+      versoesTxt: ['v1 · triagem · 2 nov', s.dividir === 2 ? 'pedido #1 · dividir Front-end · 16 nov' : '', s.pedido === 2 ? 'pedido #2 · incluir Mensageria · 16 nov' : ''].filter(Boolean).join('  ·  '),
+      formAberto: s.form, abrirForm: set({ form: true }), fecharForm: set({ form: false }), noop: () => {},
+      pedirProposta: set({ form: false, pedido: 1 }), pedidoAberto: s.pedido === 1,
+      aceitarPedido: () => { this.setState({ pedido: 2 }); this.toast('Trajetória atualizada · Mensageria incluída'); },
+      recusarPedido: () => { this.setState({ pedido: 0 }); this.toast('Pedido recusado'); },
+      ajustarPedido: () => this.toast('Ajuste: diga quais centelhas mudar'),
+      pedirDividir: set({ dividir: 1 }), dividirAberto: s.dividir === 1,
+      aceitarDividir: () => { this.setState({ dividir: 2 }); this.toast('Trajetória atualizada · React e CSS'); },
+      recusarDividir: () => { this.setState({ dividir: 0 }); this.toast('Pedido recusado'); },
+      fPrisma: s.fPrisma, fTipo: s.fTipo, setFPrisma: (e) => this.setState({ fPrisma: e.target.value }), setFTipo: (e) => this.setState({ fTipo: e.target.value }),
+      semCentelhas: !centelhas.length, limparFiltros: set({ filtro: 'converter', fPrisma: 'todos', fTipo: 'todos' }),
+      buscarAntigas: () => this.toast('Nenhuma entrega mais antiga'),
+      salvarModelo: () => this.toast('Modelo salvo'), testarModelo: () => this.toast('Respondeu em 1,2 s'),
+      gavetaAberta: !!gv && !!g.nome || (!!gv && !!g.titulo), fecharGaveta: set({ gaveta: null }), gCentelha: gv?.tipo === 'centelha' && !!g.titulo, gPrisma: gv?.tipo === 'prisma',
+      toastAberto: !!s.toast, toastMsg: s.toast || '',
+    };
+  }
+}
+</script>
+</body>
+</html>

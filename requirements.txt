@@ -1,0 +1,8 @@
+# Núcleo: só a biblioteca padrão do Python (3.11+). Testes:
+pytest>=8
+# Opcionais, conforme o provedor configurado em Ajustes > Modelo:
+# google-genai   (Gemini)
+# anthropic      (Claude)
+# openai         (compatível com OpenAI)
+# psutil         (dados da máquina no registro de custo)
+# pypdf          (ler currículo em PDF na triagem)

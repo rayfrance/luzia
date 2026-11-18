@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&display=swap">
+<style>
+html,body{margin:0;background:#120d18;color:#f4eff7;-webkit-font-smoothing:antialiased}
+*{box-sizing:border-box}
+a{color:#cdbcf7}a:hover{color:#f4eff7}
+pre{margin:0}
+</style>
+</helmet>
+<div style="max-width:1120px;margin:0 auto;padding:clamp(24px,5vw,64px) clamp(16px,4vw,40px) 96px;font-family:'Hanken Grotesk','Segoe UI',system-ui,sans-serif;font-size:16px;line-height:1.55;color:#d3c9de">
+
+<header style="margin-bottom:56px">
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px"><svg viewBox="0 0 64 64" style="width:32px;height:32px;overflow:visible"><polygon points="32,3 25,25 3,32 25,39 32,61" style="fill:#b9a2f2;filter:drop-shadow(-2px 0 5px rgba(185,162,242,.75))"></polygon><polygon points="32,3 39,25 61,32 39,39 32,61" style="fill:#f08a3c;filter:drop-shadow(2px 0 6px rgba(240,138,60,.85))"></polygon></svg><b style="font-size:20px;font-weight:650;color:#f4eff7">Luzia</b></div>
+  <h1 style="font-size:clamp(32px,5vw,48px);font-weight:650;letter-spacing:-.02em;line-height:1.08;margin:0 0 16px;color:#f4eff7;text-wrap:balance">Guia de voz do chat</h1>
+  <p style="margin:0;font-size:18px;max-width:62ch">O chat é a superfície principal. Aqui a luz não tem cor nem brilho: ela vive na ordem das informações, nos sinais de texto e no tom. Este guia define os três.</p>
+</header>
+
+<section style="margin-bottom:64px">
+  <h2 style="font-size:26px;font-weight:650;letter-spacing:-.01em;color:#f4eff7;margin:0 0 20px">Sete regras</h2>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px">
+    <div style="border-radius:20px;background:#18121f;padding:20px 22px"><b style="color:#f4eff7">1. O ganho vem primeiro.</b> Toda saída abre com o que mudou para a pessoa: lúmens, nível, estado. O cabeçalho "Luzia · Tela" só aparece em listagens.</div>
+    <div style="border-radius:20px;background:#18121f;padding:20px 22px"><b style="color:#f4eff7">2. Uma tela sem rolar.</b> No máximo 12 linhas antes da frase de contexto. O resto fica atrás de um botão "Ver…".</div>
+    <div style="border-radius:20px;background:#18121f;padding:20px 22px"><b style="color:#f4eff7">3. Uma métrica por linha curta.</b> Até 4 valores separados por " · ". Números antes de palavras: "45 lm", "5 min", "58% seu".</div>
+    <div style="border-radius:20px;background:#18121f;padding:20px 22px"><b style="color:#f4eff7">4. A frase de contexto é da Luzia, não da tabela.</b> De 1 a 3 frases, segunda pessoa, dizendo onde a pessoa está e por que as opções fazem sentido agora. Nunca lê os botões em voz alta.</div>
+    <div style="border-radius:20px;background:#18121f;padding:20px 22px"><b style="color:#f4eff7">5. Botões são verbos curtos.</b> Verbo + objeto em 2 a 4 palavras, até 48 caracteres, sem reticências. O título da centelha vira um apelido ("teste de SQL"). Sempre no máximo 3, mais "Agora não".</div>
+    <div style="border-radius:20px;background:#18121f;padding:20px 22px"><b style="color:#f4eff7">6. Sem cobrança, sem festa.</b> "Ainda não valeu lúmens", nunca "você errou". "DDD está no nível 3", nunca "Parabéns!!". O elogio é específico: diz o que ficou claro.</div>
+    <div style="border-radius:20px;background:#18121f;padding:20px 22px"><b style="color:#f4eff7">7. Texto de IA é assinado.</b> A análise vem depois dos fatos, com travessão: "— Análise da Luzia, 16 nov · base: … · modelo". Sem modelo, só fatos e "Sem análise".</div>
+  </div>
+</section>
+
+<section style="margin-bottom:64px">
+  <h2 style="font-size:26px;font-weight:650;letter-spacing:-.01em;color:#f4eff7;margin:0 0 8px">Sinais</h2>
+  <p style="margin:0 0 20px;max-width:62ch">Seis sinais, sempre com o mesmo sentido, iguais aos estados do painel. Funcionam em texto puro; nunca emoji.</p>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;font-size:15px">
+    <div style="display:flex;gap:14px;align-items:center;border-radius:16px;background:#18121f;padding:14px 18px"><span style="font:22px ui-monospace,Consolas,monospace;color:#f08a3c;width:28px;text-align:center">✦</span><span><b style="color:#f4eff7">Luz própria</b><br>centelha acesa, ganho, nível novo</span></div>
+    <div style="display:flex;gap:14px;align-items:center;border-radius:16px;background:#18121f;padding:14px 18px"><span style="font:22px ui-monospace,Consolas,monospace;color:#f08a3c;width:28px;text-align:center">◐</span><span><b style="color:#f4eff7">Pela metade</b><br>em andamento, tente de novo</span></div>
+    <div style="display:flex;gap:14px;align-items:center;border-radius:16px;background:#18121f;padding:14px 18px"><span style="font:22px ui-monospace,Consolas,monospace;color:#b9a2f2;width:28px;text-align:center">➤</span><span><b style="color:#f4eff7">Na fila</b><br>espera a sua próxima mensagem</span></div>
+    <div style="display:flex;gap:14px;align-items:center;border-radius:16px;background:#18121f;padding:14px 18px"><span style="font:22px ui-monospace,Consolas,monospace;color:#9a8fb0;width:28px;text-align:center">○</span><span><b style="color:#f4eff7">Apagada</b><br>sugerida, fora de foco</span></div>
+    <div style="display:flex;gap:14px;align-items:center;border-radius:16px;background:#18121f;padding:14px 18px"><span style="font:18px ui-monospace,Consolas,monospace;color:#f4e3cb;width:28px;text-align:center">▰▱</span><span><b style="color:#f4eff7">Níveis</b><br>5 faixas por prisma, 6 na trajetória</span></div>
+    <div style="display:flex;gap:14px;align-items:center;border-radius:16px;background:#18121f;padding:14px 18px"><span style="font:22px ui-monospace,Consolas,monospace;color:#9a8fb0;width:28px;text-align:center">—</span><span><b style="color:#f4eff7">Assinatura</b><br>abre a linha da Análise da Luzia</span></div>
+  </div>
+</section>
+
+<section style="margin-bottom:64px">
+  <h2 style="font-size:26px;font-weight:650;letter-spacing:-.01em;color:#f4eff7;margin:0 0 8px">Antes e depois, por comando</h2>
+  <p style="margin:0 0 28px;max-width:62ch">"Antes" é a saída real de exemplos-chat/. "Depois" é o texto markdown, a frase de contexto (em branco) e os botões.</p>
+
+  <h3 style="font-size:19px;font-weight:650;color:#f4eff7;margin:0 0 12px">/luzia:hoje</h3>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:14px;margin-bottom:12px">
+    <div style="border-radius:18px;background:#0d0b11;border:1px solid #2c2338;padding:20px"><div style="font-size:13px;color:#9a8fb0;margin-bottom:10px">Antes</div><pre style="font:13px/1.65 ui-monospace,Consolas,monospace;color:#bdb2ca;white-space:pre-wrap">## Luzia · Hoje
+**Trajetória** Júnior 3 ━━━━━━━◉───────────── Plena · **2 de 6 níveis** · 201 lm · 70% própria
++0 lm hoje · 1 em andamento · 1 na fila
+Perto de subir: DDD 40/150 lm (falta 1 centelha) · Front-end 20/150 lm (falta 1 centelha) · SQL 10/150 lm (falta 1 centelha)<br><br>Próximo passo?
+1. Continuar: Escrever um teste de unidade gu…
+2. Acender: Por que este repositório devolv…
+3. Revisitar: Modelar um agregado de exemplo</pre></div>
+    <div style="border-radius:18px;background:#0d0b11;border:1px solid rgba(240,138,60,.45);padding:20px"><div style="font-size:13px;color:#ffb27a;margin-bottom:10px">Depois</div><pre style="font:13px/1.65 ui-monospace,Consolas,monospace;color:#bdb2ca;white-space:pre-wrap">## Luzia · Hoje<br><br>Júnior 3  ▰▰▱▱▱▱  Plena
+2 de 6 níveis · 201 lm · 70% própria<br><br>◐ **Escrever um teste de unidade guiado**
+  praticar · SQL · 20 min · 45 lm
+➤ **Por que este repositório devolve uma entidade inteira?**
+  explicar · DDD · 5 min · 45 lm<br><br><span style="color:#f4eff7">Você parou no meio do teste de SQL; terminar vale 45 lm. A pergunta de DDD leva 5 min e ataca sua maior lacuna.</span><br><br>Próximo passo?
+1. Continuar teste de SQL · praticar · 20 min · 45 lm
+2. Acender pergunta de DDD · explicar · 5 min · 45 lm
+3. Revisitar agregado · vale +17 lm</pre></div>
+  </div>
+  <p style="margin:0 0 36px;font-size:15px;color:#bdb2ca">A linha de 5 métricas virou duas. "Perto de subir" saiu: repetia a mesma falta três vezes e a frase de contexto já aponta o prisma que importa. "+0 lm hoje" só aparece quando não é zero.</p>
+
+  <h3 style="font-size:19px;font-weight:650;color:#f4eff7;margin:0 0 12px">/luzia:trajetoria</h3>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:14px;margin-bottom:12px">
+    <div style="border-radius:18px;background:#0d0b11;border:1px solid #2c2338;padding:20px"><div style="font-size:13px;color:#9a8fb0;margin-bottom:10px">Antes (trecho)</div><pre style="font:13px/1.65 ui-monospace,Consolas,monospace;color:#bdb2ca;white-space:pre-wrap">## Luzia · Trajetória · Júnior 3 → Plena · v1
+**Trajetória** Júnior 3 ━━━━━━━◉───────────── Plena · **2 de 6 níveis** · 201 lm · 70% própria
+   DDD `▰▰▱▱▱` 2 → 4 · 40/150 lm · falta 110 lm · luz própria (0% de 40%) · 1 centelha
+      _Sem análise: falta configurar o modelo (`modelo`, ou Ajustes no painel)._
+   SQL `▰▰▰▱▱` 3 → 4 · 10/150 lm · falta 140 lm · luz própria (0% de 40%) · 1 centelha
+      _Sem análise: falta configurar o modelo (`modelo`, ou Ajustes no painel)._
+   … mais 12 linhas de centelhas por prisma</pre></div>
+    <div style="border-radius:18px;background:#0d0b11;border:1px solid rgba(240,138,60,.45);padding:20px"><div style="font-size:13px;color:#ffb27a;margin-bottom:10px">Depois</div><pre style="font:13px/1.65 ui-monospace,Consolas,monospace;color:#bdb2ca;white-space:pre-wrap">## Luzia · Trajetória<br><br>Júnior 3  ▰▰▱▱▱▱  Plena · v1
+2 de 6 níveis · 201 lm · 70% própria<br><br>DDD  ▰▰▱▱▱  2 → 4
+  91 de 150 lm · faltam 59 lm
+SQL  ▰▰▰▱▱  3 → 4
+  10 de 150 lm · falta luz própria
+Front-end  ▰▰▰▱▱  3 → 4
+  20 de 150 lm · falta 1 centelha<br><br><span style="color:#f4eff7">DDD é quem está mais perto: uma centelha de 15 min quase fecha o nível 3. Em SQL, os lúmens ainda são todos do agente.</span><br><br>Próximo passo?
+1. Ver DDD · a conta do nível e as centelhas
+2. Mudar trajetória · incluir, arquivar ou mudar meta
+3. Abrir painel · mapa completo no navegador</pre></div>
+  </div>
+  <p style="margin:0 0 36px;font-size:15px;color:#bdb2ca">Cada prisma mostra só o que falta, nunca a regra inteira. "Sem análise" aparece uma vez, no fim, e não em cada prisma. As centelhas saem daqui: são de /luzia:centelhas. O ritmo vai para o detalhe. Duas linhas por prisma em vez de colunas, porque nem todo agente usa fonte monoespaçada.</p>
+
+  <h3 style="font-size:19px;font-weight:650;color:#f4eff7;margin:0 0 12px">/luzia:centelhas</h3>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:14px;margin-bottom:12px">
+    <div style="border-radius:18px;background:#0d0b11;border:1px solid #2c2338;padding:20px"><div style="font-size:13px;color:#9a8fb0;margin-bottom:10px">Antes</div><pre style="font:13px/1.65 ui-monospace,Consolas,monospace;color:#bdb2ca;white-space:pre-wrap">## Luzia · Centelhas (em andamento)
+◐ **Escrever um teste de unidade guiado** · praticar · SQL · 20 min · 45 lm `#dbe9`<br><br>Próximo passo?
+1. Acender: Escrever um teste de unidade gu…
+2. Ver só sugeridas · filtra a lista</pre></div>
+    <div style="border-radius:18px;background:#0d0b11;border:1px solid rgba(240,138,60,.45);padding:20px"><div style="font-size:13px;color:#ffb27a;margin-bottom:10px">Depois</div><pre style="font:13px/1.65 ui-monospace,Consolas,monospace;color:#bdb2ca;white-space:pre-wrap">## Luzia · Centelhas · 5 abertas<br><br>◐ **Escrever um teste de unidade guiado**
+  praticar · SQL · 20 min · 45 lm · #dbe9
+➤ **Por que este repositório devolve uma entidade inteira?**
+  explicar · DDD · 5 min · 45 lm · #c04e
+○ **Revisar a modelagem de um evento de domínio**
+  praticar · DDD · 15 min · 55 lm · #e1a0
+○ mais 2 sugeridas<br><br><span style="color:#f4eff7">Uma em andamento, uma na fila. As sugeridas esperam; a de DDD é a que mais vale.</span><br><br>Próximo passo?
+1. Continuar teste de SQL · praticar · 20 min · 45 lm
+2. Ver as 2 sugeridas · SQL e Front-end
+3. Filtrar por prisma · DDD, SQL ou Front-end</pre></div>
+  </div>
+  <p style="margin:0 0 36px;font-size:15px;color:#bdb2ca">O padrão passa a ser "abertas", na mesma ordem do painel. O botão dizia "Acender" para algo já em andamento; agora diz "Continuar". O id vai para o fim da linha de métrica, sem crase.</p>
+
+  <h3 style="font-size:19px;font-weight:650;color:#f4eff7;margin:0 0 12px">/luzia:entregas</h3>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:14px;margin-bottom:12px">
+    <div style="border-radius:18px;background:#0d0b11;border:1px solid #2c2338;padding:20px"><div style="font-size:13px;color:#9a8fb0;margin-bottom:10px">Antes (da auditoria)</div><pre style="font:13px/1.65 ui-monospace,Consolas,monospace;color:#bdb2ca;white-space:pre-wrap">## ✦ Luzia · suas entregas e propriedade sobre o código
+… 3 linhas por entrega …
+_Leitura da Luzia · com base em: 2 commit(s), 16 arquivo(s), 195 linhas e 4 prisma(s) atravessado(s) da entrega · gemini/... · 2026-11-12:_ texto
+- P3 · aplicação conceitual: sem base — acende quando você explica o conceito num avanço desta entrega</pre></div>
+    <div style="border-radius:18px;background:#0d0b11;border:1px solid rgba(240,138,60,.45);padding:20px"><div style="font-size:13px;color:#ffb27a;margin-bottom:10px">Depois</div><pre style="font:13px/1.65 ui-monospace,Consolas,monospace;color:#bdb2ca;white-space:pre-wrap">## Luzia · Entregas · 2 em 90 dias<br><br>**#14 Exportar relatório de estoque em CSV**
+  81% seu · 3 dias · SQL · P1 a P4
+**#12 Busca por código com espaços**
+  58% seu · 8 dias · DDD, Front-end, SQL · faltam P3 e P4<br><br><span style="color:#f4eff7">A #12 ainda tem duas notas em aberto. Duas centelhas curtas mostram quanto dela é seu.</span><br><br>Qual entrega?
+1. Provar P3 e P4 da #12 · 2 centelhas · ~10 min
+2. Ver #12 · notas P1 a P4 com a base
+3. Buscar 180 dias · entregas mais antigas</pre></div>
+  </div>
+  <p style="margin:0 0 8px;font-size:15px;color:#bdb2ca">Uma entrega em duas linhas; a análise só aparece no detalhe (<span style="font-family:ui-monospace,Consolas,monospace;font-size:14px">entrega 12</span>), assinada. Plural de verdade.</p>
+</section>
+
+<section style="margin-bottom:64px">
+  <h2 style="font-size:26px;font-weight:650;letter-spacing:-.01em;color:#f4eff7;margin:0 0 8px">Momentos</h2>
+  <p style="margin:0 0 24px;max-width:62ch">As mensagens depois de <span style="font-family:ui-monospace,Consolas,monospace;font-size:15px">fazer</span>, <span style="font-family:ui-monospace,Consolas,monospace;font-size:15px">registrar</span> e <span style="font-family:ui-monospace,Consolas,monospace;font-size:15px">subir</span>, e quando algo falta.</p>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:14px">
+    <div style="border-radius:18px;background:#0d0b11;border:1px solid #2c2338;padding:20px"><div style="font-size:13px;color:#9a8fb0;margin-bottom:10px">Começar · /luzia:fazer c04e</div><pre style="font:13px/1.65 ui-monospace,Consolas,monospace;color:#bdb2ca;white-space:pre-wrap">➤ **Por que este repositório devolve uma entidade inteira?**
+explicar · DDD · 5 min · 45 lm<br><br><span style="color:#f4eff7">Vou fazer uma pergunta por vez e não respondo por você. Quer manter esta conversa limpa?</span><br><br>Onde fazer?
+1. Abrir em sessão nova · recomendado
+2. Fazer aqui · nesta conversa</pre></div>
+    <div style="border-radius:18px;background:#0d0b11;border:1px solid rgba(240,138,60,.45);padding:20px"><div style="font-size:13px;color:#ffb27a;margin-bottom:10px">Conquista · nota 3 ou 4</div><pre style="font:13px/1.65 ui-monospace,Consolas,monospace;color:#bdb2ca;white-space:pre-wrap">✦ **+34 lm de luz própria** · nota 3 de 4<br><br>DDD  ▰▰▱▱▱  2 → 4
+125 de 150 lm · faltam 25 lm<br><br>Você explicou o custo de carregar o agregado inteiro, mas não citou a alternativa (uma projeção).
+— Análise da Luzia, 16 nov · base: sua resposta e a rubrica 0–4 · gemini-3.5-flash-lite<br><br><span style="color:#f4eff7">Boa explicação: o porquê ficou claro. Faltou só nomear a alternativa; uma revisita busca os 11 lm que sobraram.</span><br><br>Próximo passo?
+1. Revisitar agora · vale +11 lm
+2. Continuar teste de SQL · 20 min · 45 lm</pre></div>
+    <div style="border-radius:18px;background:#0d0b11;border:1px solid #2c2338;padding:20px"><div style="font-size:13px;color:#9a8fb0;margin-bottom:10px">Tente de novo · nota 0 ou 1</div><pre style="font:13px/1.65 ui-monospace,Consolas,monospace;color:#bdb2ca;white-space:pre-wrap">◐ Nota 1 de 4 · ainda não valeu lúmens<br><br>Você descreveu o que o teste faz, mas não o que ele garante.
+— Análise da Luzia, 16 nov · base: sua resposta e a rubrica 0–4 · gemini-3.5-flash-lite<br><br><span style="color:#f4eff7">A centelha continua em andamento, sem prazo. Dá para tentar de novo agora ou voltar depois.</span><br><br>Próximo passo?
+1. Tentar de novo · mesma centelha · 45 lm
+2. Ver uma dica · sem entregar a resposta</pre></div>
+    <div style="border-radius:18px;background:#0d0b11;border:1px solid rgba(240,138,60,.45);padding:20px"><div style="font-size:13px;color:#ffb27a;margin-bottom:10px">Nível pronto e subida · /luzia:subir DDD</div><pre style="font:13px/1.65 ui-monospace,Consolas,monospace;color:#bdb2ca;white-space:pre-wrap">✦ **DDD pronto para o nível 3**
+160 lm · 52% própria · 2 centelhas acesas<br><br><span style="color:#f4eff7">Você cumpriu a conta. O nível só muda com o seu sim.</span><br><br>Sobe para o nível 3?
+1. Subir DDD para 3 · confirma o nível
+2. Ver a conta · de onde vieram os 160 lm<br><br>── depois do sim ──<br><br>✦ **DDD · nível 3**
+▰▰▰▱▱  3 → 4 · 3 de 6 níveis na trajetória
+Dossiê atualizado com esta evidência.<br><br>Próximo passo?
+1. Acender 3 de DDD · para o nível 4 · ~10 s
+2. Ver dossiê · o que vai para o seu líder</pre></div>
+    <div style="border-radius:18px;background:#0d0b11;border:1px solid #2c2338;padding:20px"><div style="font-size:13px;color:#9a8fb0;margin-bottom:10px">Vazio</div><pre style="font:13px/1.65 ui-monospace,Consolas,monospace;color:#bdb2ca;white-space:pre-wrap">## Luzia · Centelhas<br><br>○ Nenhuma centelha aberta.<br><br><span style="color:#f4eff7">DDD é sua maior lacuna; posso captar três centelhas novas para ele.</span><br><br>Próximo passo?
+1. Acender 3 de DDD · ~10 s
+2. Ver trajetória · níveis por prisma</pre></div>
+    <div style="border-radius:18px;background:#0d0b11;border:1px solid rgba(199,107,75,.6);padding:20px"><div style="font-size:13px;color:#e39a80;margin-bottom:10px">Erro</div><pre style="font:13px/1.65 ui-monospace,Consolas,monospace;color:#bdb2ca;white-space:pre-wrap">Luzia · sem modelo configurado<br><br>As análises ficam em pausa. Fatos, lúmens e centelhas continuam valendo.<br><br>Próximo passo?
+1. Configurar modelo · no painel, em Ajustes
+2. Seguir sem análise · só fatos medidos</pre></div>
+  </div>
+  <p style="margin:16px 0 0;font-size:15px;color:#bdb2ca">Erro segue a mesma forma: o que aconteceu, o que continua funcionando, uma saída. Nunca termina sem botão.</p>
+</section>
+
+<section style="margin-bottom:64px">
+  <h2 style="font-size:26px;font-weight:650;letter-spacing:-.01em;color:#f4eff7;margin:0 0 20px">Centelha da sessão e linha de status</h2>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:14px">
+    <div style="border-radius:18px;background:#0d0b11;border:1px solid rgba(185,162,242,.45);padding:20px"><div style="font-size:13px;color:#cdbcf7;margin-bottom:10px">Centelha da sessão · 3 linhas, no fim da resposta do agente</div><pre style="font:13px/1.65 ui-monospace,Consolas,monospace;color:#bdb2ca;white-space:pre-wrap">✦ Centelha da sessão · DDD · +10 lm refletida
+Em 1 frase: por que o agregado valida o pedido, e não o controller?
+Responder agora vale até +30 lm de luz própria.<br><br>1. Responder agora · 1 pergunta · até +30 lm
+2. Guardar · vira centelha guardada</pre>
+      <ul style="margin:16px 0 0;padding-left:18px;font-size:14px;color:#bdb2ca;display:flex;flex-direction:column;gap:4px"><li>Sempre 3 linhas: o que foi reconhecido, a pergunta, o que vale.</li><li>Só depois que o agente termina a tarefa; nunca no meio.</li><li>Uma por prisma por sessão. Sem resposta, some sem cobrar.</li><li>Sem frase de contexto: o cartão já é o contexto.</li></ul></div>
+    <div style="border-radius:18px;background:#0d0b11;border:1px solid #2c2338;padding:20px"><div style="font-size:13px;color:#9a8fb0;margin-bottom:10px">Linha de status · até 48 caracteres</div><pre style="font:13px/1.9 ui-monospace,Consolas,monospace;color:#bdb2ca;white-space:pre-wrap">✦ Luzia · em foco · 2/6 níveis · 70% própria
+◐ Luzia · em silêncio · 2/6 níveis · 70% própria
+○ Luzia · fora de foco
+✦ Luzia · DDD pronto para subir
+✦ Luzia · +20 lm própria · DDD</pre>
+      <ul style="margin:16px 0 0;padding-left:18px;font-size:14px;color:#bdb2ca;display:flex;flex-direction:column;gap:4px"><li>O sinal diz o foco: ✦ com centelhas, ◐ em silêncio, ○ fora.</li><li>Ordem fixa: foco, níveis, luz própria.</li><li>Um ganho substitui a linha por 10 s e volta. Nível pronto fica até a pessoa decidir.</li><li>Minúsculas depois de "Luzia"; sem verbo.</li></ul></div>
+  </div>
+</section>
+
+<section style="margin-bottom:64px">
+  <h2 style="font-size:26px;font-weight:650;letter-spacing:-.01em;color:#f4eff7;margin:0 0 8px">Jornada</h2>
+  <p style="margin:0 0 24px;max-width:62ch">Cinco percursos. Cada passo é uma saída com botões; o painel aparece só onde ajuda a ver o todo.</p>
+  <div style="display:flex;flex-direction:column;gap:14px">
+    <div style="border-radius:20px;background:#18121f;padding:22px 24px"><b style="color:#f4eff7;font-size:18px">Primeiro uso</b><ol style="margin:12px 0 0;padding-left:20px;display:flex;flex-direction:column;gap:6px;font-size:15px"><li><span style="color:#cdbcf7">chat</span> · /luzia:triage lê currículo e commits autorizados e estima o nível de cada prisma.</li><li><span style="color:#cdbcf7">chat</span> · "Estimei DDD em 2. É isso?" Botões: Confirmar níveis · Ajustar um prisma.</li><li><span style="color:#cdbcf7">chat</span> · /luzia:hoje mostra a trajetória e 1 centelha de 5 min. Botão: Acender primeira centelha.</li><li><span style="color:#cdbcf7">chat</span> · Primeira conquista: "✦ +34 lm de luz própria". A linha de status passa a existir.</li></ol></div>
+    <div style="border-radius:20px;background:#18121f;padding:22px 24px"><b style="color:#f4eff7;font-size:18px">Uso diário</b><ol style="margin:12px 0 0;padding-left:20px;display:flex;flex-direction:column;gap:6px;font-size:15px"><li><span style="color:#cdbcf7">status</span> · A pessoa trabalha com o agente; a linha mostra foco e progresso.</li><li><span style="color:#cdbcf7">chat</span> · O agente termina; aparece a centelha da sessão (3 linhas, 2 botões).</li><li><span style="color:#cdbcf7">chat</span> · Responder agora: 1 pergunta, avaliação 0–4, mensagem de conquista ou "ainda não".</li><li><span style="color:#cdbcf7">chat</span> · A análise assinada diz o que ficou claro e o que faltou.</li><li><span style="color:#ffb27a">painel</span> · Opcional: Hoje mostra o lúmen novo; clicar nele abre "por que ganhei".</li></ol></div>
+    <div style="border-radius:20px;background:#18121f;padding:22px 24px"><b style="color:#f4eff7;font-size:18px">Subida de nível</b><ol style="margin:12px 0 0;padding-left:20px;display:flex;flex-direction:column;gap:6px;font-size:15px"><li><span style="color:#cdbcf7">status</span> · "✦ Luzia · DDD pronto para subir" fica até a decisão.</li><li><span style="color:#cdbcf7">chat</span> <span style="color:#9a8fb0">ou</span> <span style="color:#ffb27a">painel</span> · A conta aparece (lm, % própria, centelhas) e pede o sim.</li><li>Depois do sim: o anel fecha e o orbe acende em 1,2 s, uma vez. Sem confete, sem som.</li><li>Oferta única: Acender 3 centelhas para o próximo nível. O dossiê é atualizado.</li></ol></div>
+    <div style="border-radius:20px;background:#18121f;padding:22px 24px"><b style="color:#f4eff7;font-size:18px">Pedido de mudança de trajetória</b><ol style="margin:12px 0 0;padding-left:20px;display:flex;flex-direction:column;gap:6px;font-size:15px"><li>"Quero incluir Mensageria" (chat) ou Mudar trajetória (painel), com o motivo.</li><li>A Luzia propõe: 1 → meta 3, 3 centelhas iniciais, análise assinada.</li><li>Botões: Aceitar · Ajustar · Recusar. Ajustar pergunta nível e meta, um de cada vez.</li><li>Ao aceitar: "Trajetória v2 · Mensageria incluída. Nada do seu progresso mudou."</li></ol></div>
+    <div style="border-radius:20px;background:#18121f;padding:22px 24px"><b style="color:#f4eff7;font-size:18px">Dossiê para o líder</b><ol style="margin:12px 0 0;padding-left:20px;display:flex;flex-direction:column;gap:6px;font-size:15px"><li><span style="color:#cdbcf7">chat</span> · /luzia:dossie, ou oferta automática a cada terço da trajetória.</li><li>O texto troca de registro: skill, nível, ação, pontos de evidência, autoria própria. Sem lúmen, centelha ou sinais.</li><li>Botões: Ver dossiê · Copiar para o PDI. A pessoa decide o que compartilhar.</li></ol></div>
+  </div>
+</section>
+
+<section>
+  <h2 style="font-size:26px;font-weight:650;letter-spacing:-.01em;color:#f4eff7;margin:0 0 20px">Diga assim</h2>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:0 32px;font-size:15px">
+    <div style="padding:12px 0;border-top:1px solid #2c2338"><span style="color:#9a8fb0;text-decoration:line-through">Continuar: Escrever um teste de unidade gu…</span><br><span style="color:#f4eff7">Continuar teste de SQL</span></div>
+    <div style="padding:12px 0;border-top:1px solid #2c2338"><span style="color:#9a8fb0;text-decoration:line-through">◐ Nota 1/4 (…): ainda não.</span><br><span style="color:#f4eff7">◐ Nota 1 de 4 · ainda não valeu lúmens</span></div>
+    <div style="padding:12px 0;border-top:1px solid #2c2338"><span style="color:#9a8fb0;text-decoration:line-through">luz própria (0% de 40%)</span><br><span style="color:#f4eff7">falta luz própria</span></div>
+    <div style="padding:12px 0;border-top:1px solid #2c2338"><span style="color:#9a8fb0;text-decoration:line-through">Sem análise: falta configurar o modelo (`modelo`, ou Ajustes no painel).</span><br><span style="color:#f4eff7">Sem análise: falta o modelo.</span></div>
+    <div style="padding:12px 0;border-top:1px solid #2c2338"><span style="color:#9a8fb0;text-decoration:line-through">Ver só sugeridas · filtra a lista</span><br><span style="color:#f4eff7">Ver as 2 sugeridas · SQL e Front-end</span></div>
+    <div style="padding:12px 0;border-top:1px solid #2c2338"><span style="color:#9a8fb0;text-decoration:line-through">Pedido aceito! Nova versão da trajetória criada.</span><br><span style="color:#f4eff7">Trajetória v2 · Mensageria incluída</span></div>
+  </div>
+</section>
+</div>
+</x-dc>
+</body>
+</html>

@@ -1,0 +1,8 @@
+# dados pessoais e corporativos nunca entram no git
+private/
+.env
+__pycache__/
+*.pyc
+.pytest_cache/
+.superpowers/
+.playwright-mcp/

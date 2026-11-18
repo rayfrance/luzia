@@ -1,0 +1,124 @@
+/* Luzia · tokens da direção "Lume" (1b). Substitui o bloco :root de painel/luzia.css.
+   Regra de cor: laranja = luz própria e o ato de acender. Lilás = luz refletida e o que espera por você.
+   Areia = nível conquistado e meta. Branco = navegação, seleção e ações neutras. Nada mais usa laranja. */
+@font-face { font-family: "Hanken Grotesk"; src: url("fontes/HankenGrotesk-Variable.woff2") format("woff2"); font-weight: 400 700; font-display: swap; }
+
+:root {
+  color-scheme: dark;
+
+  /* fundo: da penumbra à superfície acesa */
+  --noite: #08070a;          /* fora do painel */
+  --bg: #120d18;             /* tela */
+  --sup-0: #16111d;          /* cartão apagado (sugerida) */
+  --sup-1: #18121f;          /* cartão padrão, gaveta */
+  --sup-2: #1c1626;          /* destaque, hover */
+  --sup-3: #251d31;          /* item ativo, toast */
+  --linha: #231b2d;
+  --linha-2: #2c2338;
+  --linha-3: #3a2e4a;
+  --linha-forte: #5a4a72;
+
+  /* texto (todos ≥ 4,5:1 sobre --sup-2) */
+  --texto: #f4eff7;
+  --texto-2: #d3c9de;        /* corpo */
+  --texto-3: #bdb2ca;        /* apoio */
+  --texto-4: #9a8fb0;        /* rótulos, 13 px no mínimo */
+
+  /* luz */
+  --propria: #f08a3c;
+  --propria-clara: #ffb27a;  /* texto laranja sobre escuro */
+  --propria-tinta: #1a0f08;  /* texto sobre laranja */
+  --propria-fundo: rgba(240, 138, 60, .14);
+  --refletida: #b9a2f2;
+  --refletida-clara: #cdbcf7;
+  --refletida-fundo: rgba(185, 162, 242, .12);
+  --refletida-padrao: repeating-linear-gradient(135deg, rgba(185,162,242,.7) 0 4px, rgba(185,162,242,.3) 4px 8px);
+  --nivel: #f4e3cb;          /* nível conquistado */
+  --meta: #e5c9a1;           /* anel da meta */
+  --roxo: #7c5cd6;
+  --erro: #c76b4b;
+  --ok: #9fc39c;
+
+  /* halo: só o que está aceso emite */
+  --halo-propria: 0 0 28px rgba(240, 138, 60, .45);
+  --halo-propria-forte: 0 0 60px rgba(240, 138, 60, .35);
+  --halo-orbe: 0 0 12px var(--propria);
+  --halo-nivel: 0 0 10px rgba(229, 201, 161, .6);
+  --halo-subida: 0 0 90px rgba(244, 227, 203, .55), 0 0 30px rgba(240, 138, 60, .5);
+  --brilho-destaque: radial-gradient(620px 360px at 88% 50%, rgba(240,138,60,.28), rgba(240,138,60,.06) 55%, transparent 75%);
+  --brilho-cartao: radial-gradient(260px 160px at 0% 0%, rgba(240,138,60,.22), transparent 70%);
+  --sombra: 0 8px 30px rgba(0, 0, 0, .4);
+
+  /* tipo */
+  --fonte: "Hanken Grotesk", "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  --mono: ui-monospace, "Cascadia Code", Consolas, monospace;
+  --t-13: 13px; --t-14: 14px; --t-15: 15px; --t-17: 17px; --t-18: 18px; --t-26: 26px; --t-38: 38px; --t-64: 64px;
+  --peso: 400; --peso-forte: 650; --peso-numero: 700;
+
+  /* espaço e forma */
+  --e1: 4px; --e2: 8px; --e3: 12px; --e4: 16px; --e5: 20px; --e6: 28px; --e7: 40px; --e8: 56px;
+  --r-campo: 12px; --r-bloco: 16px; --r-cartao: 22px; --r-destaque: 28px; --r-pilula: 99px;
+  --alvo: 44px;              /* altura mínima de toque */
+
+  /* motion */
+  --rapido: 150ms; --medio: 250ms; --lento: 1200ms;
+  --curva: cubic-bezier(.2, .8, .2, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root { --rapido: 0ms; --medio: 0ms; --lento: 0ms; }
+  * { animation: none !important; }
+}
+
+body { margin: 0; background: var(--bg); color: var(--texto); font: var(--peso) var(--t-15)/1.5 var(--fonte); -webkit-font-smoothing: antialiased; }
+:focus-visible { outline: 2px solid var(--texto); outline-offset: 2px; }
+
+/* ---- botões: uma ação laranja por tela ---- */
+.btn { display: inline-flex; align-items: center; gap: var(--e2); min-height: var(--alvo); padding: 0 var(--e5); border-radius: var(--r-pilula); font-weight: var(--peso-forte); white-space: nowrap; }
+.btn.acender { min-height: 48px; padding: 0 24px; background: var(--propria); color: var(--propria-tinta); font-weight: 700; font-size: 16px; box-shadow: var(--halo-propria); }
+.btn.acender:hover { background: var(--propria-clara); }
+.btn.neutro { background: var(--texto); color: var(--bg); }
+.btn.sec { border: 1px solid var(--linha-forte); }
+.btn.sec:hover { background: var(--sup-3); }
+.btn.link { min-height: auto; padding: var(--e2) 0; font-weight: var(--peso); text-decoration: underline; text-underline-offset: 3px; color: var(--texto-3); }
+.conta-link { text-decoration: underline dotted; text-underline-offset: 4px; cursor: help; } /* "Por que 45 lm", "Ver a conta", "base e modelo" */
+
+/* ---- orbe: o estado é luminosidade ---- */
+.orbe { width: 16px; height: 16px; border-radius: 50%; border: 2px solid var(--linha-forte); flex: none; }
+.orbe.na-fila { border-color: var(--refletida); background: radial-gradient(var(--refletida) 0 3px, transparent 4px); }
+.orbe.em-andamento { border-color: var(--propria); background: conic-gradient(var(--propria) 0 50%, transparent 50%); }
+.orbe.acesa { border-color: var(--propria); background: var(--propria); box-shadow: var(--halo-orbe); }
+
+/* ---- cartão de centelha ---- */
+.centelha { display: flex; flex-direction: column; gap: var(--e3); min-height: 168px; padding: 22px; border-radius: var(--r-cartao); background: var(--sup-0); border: 1px solid var(--linha-2); transition: transform var(--rapido), border-color var(--rapido); }
+.centelha:hover { transform: translateY(-2px); }
+.centelha.na-fila { background: #1a1422; border-color: rgba(185,162,242,.4); }
+.centelha.em-andamento { background: var(--brilho-cartao), #1f1727; border-color: rgba(240,138,60,.45); }
+.centelha.acesa { background: radial-gradient(300px 200px at 50% 0%, rgba(240,138,60,.3), transparent 75%), #241a26; border-color: var(--propria); box-shadow: 0 0 32px rgba(240,138,60,.22); }
+.centelha b { font-size: var(--t-18); font-weight: var(--peso-forte); line-height: 1.25; }
+.centelha.sugerida b { color: var(--texto-2); }
+
+/* ---- prisma: 5 orbes; o próximo é um anel ---- */
+.niveis { display: flex; gap: 10px; align-items: center; }
+.niveis i { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--linha-3); }
+.niveis i.feito { border: 0; background: var(--nivel); box-shadow: var(--halo-nivel); }
+.niveis i.meta { outline: 2px solid var(--meta); outline-offset: 2px; }
+/* --p = % de luz própria sobre 150 lm; --r = % própria + refletida */
+.niveis i.proximo { width: 26px; height: 26px; border: 0; background: conic-gradient(var(--propria) 0 calc(var(--p) * 1%), var(--refletida) calc(var(--p) * 1%) calc(var(--r) * 1%), var(--linha-3) calc(var(--r) * 1%) 100%); -webkit-mask: radial-gradient(circle, transparent 7px, #000 8px); mask: radial-gradient(circle, transparent 7px, #000 8px); }
+
+/* ---- barra própria/refletida (entregas) ---- */
+.luz-barra { display: flex; height: 14px; border-radius: var(--r-pilula); overflow: hidden; background: var(--sup-3); }
+.luz-barra .propria { background: var(--propria); border-radius: var(--r-pilula); box-shadow: 0 0 16px rgba(240,138,60,.6); transition: width var(--lento) var(--curva); }
+.luz-barra .refletida { flex: 1; background: var(--refletida-padrao); }
+
+/* ---- destaque (Hoje), gaveta, toast ---- */
+.destaque { border-radius: var(--r-destaque); padding: clamp(22px, 4cqw, 44px) clamp(20px, 4.5cqw, 48px); background: var(--brilho-destaque), var(--sup-2); }
+.gaveta-corpo { width: min(520px, 100%); background: var(--sup-1); border-left: 1px solid var(--linha-3); padding: clamp(20px, 5cqw, 36px); animation: entrar var(--medio) ease-out; }
+.toast { display: flex; gap: 10px; align-items: center; padding: 12px 18px; border-radius: var(--r-pilula); background: var(--sup-3); border: 1px solid var(--linha-forte); box-shadow: var(--sombra), 0 0 24px rgba(240,138,60,.18); font-size: var(--t-14); }
+.toast::before { content: ""; width: 10px; height: 10px; border-radius: 50%; background: var(--propria); box-shadow: var(--halo-orbe); }
+.toast.refletida::before { background: var(--refletida); box-shadow: 0 0 10px var(--refletida); }
+@keyframes entrar { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+/* ---- vazio e erro: 1 frase + 1 botão ---- */
+.vazio { padding: 36px; border-radius: var(--r-cartao); border: 1px dashed var(--linha-forte); text-align: center; color: var(--texto-3); }
+.erro { color: var(--texto); border-color: var(--erro); }

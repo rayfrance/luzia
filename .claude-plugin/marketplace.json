@@ -1,0 +1,14 @@
+{
+  "name": "luzia",
+  "owner": {
+    "name": "Rayane Thaís Gomes de Lima France"
+  },
+  "description": "Luzia, líder técnica de carreira dentro do agente.",
+  "plugins": [
+    {
+      "name": "luzia",
+      "source": "./luzia",
+      "description": "Líder técnica de carreira dentro do agente: centelhas, luz própria e refletida, trajetória por prismas (skills) e propriedade das entregas."
+    }
+  ]
+}
