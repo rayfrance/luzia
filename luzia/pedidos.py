@@ -137,6 +137,10 @@ def abrir(con: sqlite3.Connection, tipo: str, prisma: str, motivo: str = '') -> 
         raise ValueError('informe o nome do prisma')
     if tipo == 'incluir':
         nome = prismas.exigir_isolado(nome)
+        linha = con.execute('SELECT estado FROM prisma WHERE nome = ?', (nome,)).fetchone()
+        if linha is not None:  # incluir de novo duplicava as centelhas iniciais (rodada geral de 24/11)
+            raise ValueError(f'o prisma {nome} já está na trajetória' if linha['estado'] == 'ativo'
+                             else f'o prisma {nome} está arquivado; peça para reativar em vez de incluir')
     elif tipo in ('dividir', 'reativar'):
         linha = con.execute('SELECT estado FROM prisma WHERE nome = ?', (nome,)).fetchone()
         if tipo == 'dividir':

@@ -2,7 +2,7 @@
 
 Você vai usar a Luzia no seu trabalho de sempre, a partir de **quarta-feira, 25/11**, até a data que a Rayane combinar com você. Depois, responde a [AVALIACAO.md](AVALIACAO.md). Instalação: [INSTALAR.md](INSTALAR.md).
 
-A ideia em uma frase: o que o agente aplica e você não domina é luz refletida. Quando você explica e defende, vira luz própria. Cada prisma (skill) da sua meta tem centelhas (conceitos), cada uma com um valor fixo em lúmens (lm). O avanço do prisma é a luz própria até o alvo da meta: acender centelhas novas só cria oportunidades, então o avanço nunca cai. Ao lado, a composição mostra quanto da luz que você já coletou é sua.
+A ideia em uma frase: o que o agente aplica e você não domina é luz refletida. Quando você explica e defende, vira luz própria. Cada prisma (skill) da sua meta tem centelhas (conceitos), cada uma com um valor fixo em lúmens (lm). O % de cada prisma, e o **% do caminho** da trajetória, é a luz própria até o alvo da meta: acender centelhas novas só cria oportunidades, então esse número nunca cai. Ao lado, o **% da luz coletada é sua** mostra quanto da luz que você já tocou é sua, e não do agente.
 
 ## Registre enquanto usa
 
@@ -35,7 +35,7 @@ Frases curtas bastam. Isso vira a sua avaliação no final. Não cole código da
 
 1. No painel, em Ajustes, deixe o modo **Em foco**.
 2. Trabalhe como sempre no repositório autorizado, com o agente, por pelo menos **1 hora**.
-3. Quando a Luzia mostrar uma centelha da sessão (luz refletida que o agente usou), aceite convertê-la. Faça isso pelo menos **2 vezes**. Se nenhuma aparecer, rode `/luzia:centelhas` e converta uma de lá.
+3. Quando a Luzia mostrar uma centelha da sessão (luz refletida que o agente usou), aceite convertê-la. Faça isso pelo menos **2 vezes**. Se nenhuma aparecer, rode `/luzia:centelhas` e converta uma de lá com `/luzia:converter <id>`.
 4. Responda às perguntas da Luzia, uma por vez, com as suas palavras. Termine **uma** conversão até o botão **Acender luz própria**.
 
 Se quiser retomar uma centelha depois:
@@ -53,7 +53,8 @@ Se quiser retomar uma centelha depois:
 - O cartão apareceu em hora boa ou interrompeu você?
 - As perguntas ajudaram a entender o código, ou pareceram uma prova?
 - Ao final, você conseguiria explicar aquele trecho sem a IA?
-- Se você mesma dirigiu um conceito no seu prompt, a centelha do chat virou luz própria direto. Isso pareceu justo?
+- Quando o conceito veio de você, no seu prompt, a centelha do chat virou luz própria direto. Isso pareceu justo?
+- Depois de converter, o **% do caminho** subiu? Quando o agente fez algo por você, o "% da luz coletada é sua" caiu? Os dois números fizeram sentido?
 
 ## Missão 3 · Painel e entregas
 
@@ -67,8 +68,8 @@ Se quiser retomar uma centelha depois:
 
 2. Escolha um prisma e veja as suas centelhas e os estados (Por acender, Luz refletida, Convertendo, Luz própria).
 3. Abra uma centelha e clique em **Por que N lm**. O valor fez sentido?
-4. Abra a aba **Entregas**. Ela mostra quanto de cada entrega do git é seu (P1 a P4).
-5. Em uma entrega com lacuna, rode **Provar P3 e P4** ou **Converter a luz desta entrega**. Esses botões só aparecem quando falta prova de autoria naquela entrega.
+4. Abra a aba **Entregas**. Ela mostra quanto de cada entrega do git é seu, em quatro medidas: **P1** a direção que você deu ao agente nos prompts, **P2** o foco da entrega, **P3** o conceito aplicado que você explicou e **P4** a decisão que você defendeu.
+5. Em uma entrega, use **Provar P3 e P4** (aparece quando falta prova de autoria) ou **Converter a luz desta entrega** (aparece quando há luz refletida ligada a ela).
 6. Gere o dossiê de evidências:
 
 ```

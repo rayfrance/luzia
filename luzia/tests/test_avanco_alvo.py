@@ -175,3 +175,16 @@ def test_completar_meta_segue_quando_o_modelo_falha(plan, monkeypatch):
     monkeypatch.setattr(cli, '_pedir_centelhas', quebra)
     assert cli.completar_meta() == []
     assert all(p['alvo_lm'] > 0 for p in jogo.luz(pipeline.load_state()['plano'])['prismas'])
+
+
+def test_triagem_avisa_quando_algum_prisma_fica_com_meta_curta(plan, monkeypatch):
+    """Teste com testadores (24/11): o limite por minuto da chave gratuita derrubava chamadas de completar a meta em silêncio."""
+    from luzia import cli
+
+    def quebra(*a, **k):
+        raise RuntimeError('429 RESOURCE_EXHAUSTED')
+
+    monkeypatch.setattr(cli, '_pedir_centelhas', quebra)
+    cli.completar_meta()
+    curtos = cli.prismas_com_meta_curta()
+    assert curtos and all(isinstance(n, str) for n in curtos)

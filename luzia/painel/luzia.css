@@ -398,12 +398,14 @@ details summary::-webkit-details-marker { display: none; }
   transition: top var(--medio) var(--curva), left var(--medio) var(--curva), width var(--medio) var(--curva), height var(--medio) var(--curva); }
 .tt-cartao { position: fixed; width: min(380px, calc(100vw - 32px)); background: var(--sup-2); border: 1px solid var(--linha-3); border-radius: var(--r-cartao);
   padding: 22px 22px 18px; box-shadow: var(--sombra); display: flex; flex-direction: column; gap: 12px; animation: entrar var(--medio) ease-out;
-  max-height: calc(100vh - 32px); overflow: auto; }
+  max-height: calc(100vh - 32px); overflow: hidden; }
 .tutorial.sem-alvo .tt-cartao { position: relative; width: min(460px, 100%); padding: 30px 30px 22px; }
 .tt-conta { font-size: 13px; color: var(--texto-4); }
 .tt-cartao h2 { font-size: 21px; line-height: 1.25; text-wrap: balance; outline: none; }
 .tutorial.sem-alvo .tt-cartao h2 { font-size: 26px; }
-.tt-corpo { display: flex; flex-direction: column; gap: 10px; color: var(--texto-2); font-size: 15px; line-height: 1.55; }
+.tt-corpo { display: flex; flex-direction: column; gap: 10px; color: var(--texto-2); font-size: 15px; line-height: 1.55;
+  overflow: auto; min-height: 0; flex: 1 1 auto; }  /* só o texto rola: os botões ficam sempre à vista */
+.tt-conta, .tt-cartao h2, .tt-trilha, .tt-acoes { flex: none; }
 .tt-corpo b { color: var(--texto); font-weight: 650; }
 .tt-corpo code { font-size: 13px; padding: 1px 6px; border-radius: 6px; background: var(--bg); color: var(--texto); }
 .tt-legenda, .tt-passos, .tt-modos { margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
@@ -418,5 +420,6 @@ details summary::-webkit-details-marker { display: none; }
 .tt-acoes .btn.link { min-height: var(--alvo); }
 .tt-nav { display: flex; gap: 8px; margin-left: auto; }
 @media (max-width: 960px) {
-  .tutorial:not(.sem-alvo) .tt-cartao { left: 12px; right: 12px; bottom: 88px; width: auto; max-height: 52vh; overflow: auto; }
+  .tutorial:not(.sem-alvo) .tt-cartao { left: 12px; right: 12px; bottom: 88px; width: auto; max-height: 56vh; padding: 18px 18px 14px; gap: 10px; }
+  .tt-corpo { font-size: 14px; }
 }

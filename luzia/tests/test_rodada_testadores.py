@@ -80,3 +80,11 @@ def test_painel_orienta_quando_nao_ha_nada_para_converter_e_tutorial_explica_p1_
     for termo in ('lúmens (lm)', '<b>P1</b>', '<b>P4</b>', 'falta a nota e o seu sim'):
         assert termo in tutorial, termo
     assert 'btn neutro mini' not in tutorial and "setAttribute('aria-labelledby', 'gaveta-titulo')" in js
+
+
+def test_incluir_prisma_que_ja_esta_na_trajetoria_e_recusado(privado, monkeypatch):
+    """Rodada geral de 24/11: incluir de novo duplicava as centelhas iniciais do prisma."""
+    s = visivel(rodar(monkeypatch, 'pedido', 'abrir', 'incluir', DDD, '--motivo', 'x'))
+    assert 'já está na trajetória' in s
+    saida = rodar(monkeypatch, 'pedido', 'abrir', 'incluir', DDD, '--motivo', 'x')
+    assert 'LUZIA_PERGUNTA=Como seguimos?' in saida  # nada a decidir: a pergunta não fala em pedido

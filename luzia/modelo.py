@@ -25,7 +25,7 @@ ENVS = [arquivos.PRIVATE / '.env', ROOT / '.env']  # a chave mora na pasta de da
 
 PROVEDORES = {
     'gemini': {'nome': 'Google Gemini', 'chave': 'GEMINI_API_KEY', 'sdk': 'google.genai', 'pip': 'google-genai',
-               'sugestoes': ['gemini-3.5-flash-lite', 'gemini-2.5-flash', 'gemini-4-argon', 'gemini-4-carbon'], 'base_url': False},
+               'sugestoes': ['gemini-3.5-flash-lite', 'gemini-3.5-flash', 'gemini-4-argon', 'gemini-4-carbon'], 'base_url': False},
     'anthropic': {'nome': 'Anthropic Claude', 'chave': 'ANTHROPIC_API_KEY', 'sdk': 'anthropic', 'pip': 'anthropic',
                   'sugestoes': ['claude-opus-5-5', 'claude-sonnet-5-5', 'claude-haiku-5-5'], 'base_url': False},
     'openai': {'nome': 'Compatível com OpenAI', 'chave': 'OPENAI_API_KEY', 'sdk': 'openai', 'pip': 'openai',
@@ -156,6 +156,8 @@ def resumo_erro(e: Exception) -> str:
         return 'cota esgotada no momento (limite de uso da chave)'
     if 'NOT_FOUND' in s or '404' in s:
         return 'modelo não encontrado para esta chave'
+    if 'UNAVAILABLE' in s or '503' in s or 'high demand' in s.lower() or 'overloaded' in s.lower():
+        return 'o Gemini está sobrecarregado agora (erro 503, do lado do Google); tente de novo em alguns minutos'
     if 'PERMISSION' in s or '403' in s or 'API_KEY' in s.upper() and 'INVALID' in s.upper():
         return 'chave sem permissão ou inválida'
     return s[:160].rstrip(' .')  # quem monta a frase põe o ponto final
@@ -165,23 +167,57 @@ def _gemini(modelo: str, prompt: str, system: str, chave: str):
     from google import genai
     from google.genai import types
 
-    client = genai.Client(api_key=chave, http_options=types.HttpOptions(timeout=45_000))
+    client = genai.Client(api_key=chave, http_options=types.HttpOptions(timeout=60_000))
+
+    def gerar(m: str):
+        resp = client.models.generate_content(
+            model=m, contents=prompt,
+            config=types.GenerateContentConfig(
+                system_instruction=system, temperature=0.2, response_mime_type='application/json',
+                automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True)),  # sem aviso AFC no chat
+        )
+        u = resp.usage_metadata
+        return resp.text or '', getattr(u, 'prompt_token_count', 0) or 0, getattr(u, 'candidates_token_count', 0) or 0, m
+
+    # 1) o modelo escolhido, de novo se o erro for passageiro (sobrecarga, tempo, 5xx, cota momentânea);
+    # 2) só em sobrecarga ou falha passageira persistente, uma vez cada reserva atual (nunca um modelo aposentado:
+    #    o antigo gemini-2.5-flash dava 404 para contas novas e escondia a causa real). O erro mostrado é o do principal.
     erro = None
-    for m in dict.fromkeys([modelo, 'gemini-2.5-flash']):
+    for tentativa in range(TENTATIVAS):
         try:
-            resp = client.models.generate_content(
-                model=m, contents=prompt,
-                config=types.GenerateContentConfig(
-                    system_instruction=system, temperature=0.2, response_mime_type='application/json',
-                    automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True)),  # sem aviso AFC no chat
-            )
-            u = resp.usage_metadata
-            return resp.text or '', getattr(u, 'prompt_token_count', 0) or 0, getattr(u, 'candidates_token_count', 0) or 0, m
-        except Exception as e:  # tenta o modelo reserva do mesmo provedor, mas registra por quê
+            return gerar(modelo)
+        except Exception as e:
             erro = e
-            if m == modelo:
-                ULTIMO_ERRO_PRINCIPAL['erro'] = resumo_erro(e)
+            ULTIMO_ERRO_PRINCIPAL['erro'] = resumo_erro(e)
+            if not _passageiro(e):
+                raise RuntimeError(f'Gemini falhou: {resumo_erro(e)}') from None
+            sobrecarga = any(k in str(e).upper() for k in ('UNAVAILABLE', '503', 'HIGH DEMAND', 'OVERLOADED'))
+            if sobrecarga and tentativa >= 1:  # pico do lado do Google: insistir raramente resolve; vai à reserva
+                break
+            if tentativa < TENTATIVAS - 1:
+                cota = 'RESOURCE_EXHAUSTED' in str(e).upper() or '429' in str(e)
+                time.sleep((PAUSAS_COTA if cota else PAUSAS)[tentativa])
+    for reserva in (r for r in RESERVAS_GEMINI if r != modelo):
+        try:
+            return gerar(reserva)
+        except Exception:  # reserva fora do ar ou que não existe mais: segue, o erro que conta é o do principal
+            continue
     raise RuntimeError(f'Gemini falhou: {resumo_erro(erro)}')
+
+
+TENTATIVAS = 3
+PAUSAS = (3, 8)  # segundos entre a 1ª e a 2ª, e entre a 2ª e a 3ª tentativa
+PAUSAS_COTA = (15, 30)  # limite por minuto da chave (comum no plano gratuito): espera a janela virar
+RESERVAS_GEMINI = ('gemini-3.1-flash-lite', 'gemini-3.5-flash')  # conferidas em 24/11/2026 com uma chave nova
+
+
+def _passageiro(e: Exception) -> bool:
+    """Erro que costuma passar sozinho: sobrecarga, tempo esgotado, 5xx, rede ou cota momentânea (não a cota zero)."""
+    s = f'{type(e).__name__} {e}'.upper()
+    if 'LIMIT: 0' in s or any(k in s for k in ('NOT_FOUND', '404', 'PERMISSION', '403', 'INVALID', '400')):
+        return False
+    return any(k in s for k in ('UNAVAILABLE', 'OVERLOADED', 'DEADLINE', 'TIMEOUT', 'TIMED OUT', 'RESOURCE_EXHAUSTED',
+                                '429', '500', '502', '503', '504', 'INTERNAL', 'CONNECTION', 'RESET'))
 
 
 def _claude(modelo: str, prompt: str, system: str, chave: str):

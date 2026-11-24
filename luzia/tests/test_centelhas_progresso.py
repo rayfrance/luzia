@@ -370,3 +370,15 @@ def test_evento_de_tipo_inesperado_nao_derruba_o_hook(privado, monkeypatch, brut
     import io, sys
     monkeypatch.setattr(sys, 'stdin', io.TextIOWrapper(io.BytesIO(bruto)))
     observer.main()  # não levanta
+
+
+def test_palavras_do_dia_a_dia_com_agente_nao_viram_conceito(plan):
+    """Rodada geral de 24/11: "agente" era palavra do prisma Programação Agêntica e todo prompt ganhava +36 lm."""
+    gaps = _gaps(plan)
+    for info in gaps.values():
+        info['palavras'] = ['Agente', 'Prompt', 'Contexto', 'Critério', 'refactor']
+        for c in info.get('centelhas', []):
+            c['palavras'] = ['Agente', 'Prompt']
+    for texto, origem in (('Quero que o agente leia o arquivo com este prompt e contexto', 'prompt'),
+                          ('# o agente roda a tarefa\n# critério: refactor: naming', 'agente')):
+        assert observer.reconhecer_em(texto, origem, 's1', 'ativo', '.py', 'Write', gaps) == [], texto

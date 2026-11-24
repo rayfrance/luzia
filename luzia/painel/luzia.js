@@ -610,7 +610,7 @@ function telaAjustes() {
       <button class="btn sec" data-tutorial="1">Rever o tutorial</button></section>
     <section><div class="titulo-sec"><h2>Sobre</h2></div>
       <dl class="sobre-lista"><dt>Versão</dt><dd>${esc(ex.versao || '—')}</dd>
-        <dt>Última chamada</dt><dd>${ex.tempo_total_s ? `${esc(ex.tempo_total_s)} s · ${esc(ex.pico_memoria_mib)} MiB · ${esc(ex.tokens_entrada)}→${esc(ex.tokens_saida)} tokens` : '—'}</dd>
+        <dt>Última chamada</dt><dd>${ex.tempo_total_s ? `${esc(ex.tempo_total_s)} s · memória ${esc(ex.pico_memoria_mib)} MiB · ${esc(ex.tokens_entrada)} tokens enviados, ${esc(ex.tokens_saida)} recebidos` : '—'}</dd>
         <dt>Modelo da última chamada</dt><dd>${esc(ex.modelo || '—')}${ex.quando ? ` · ${esc(dataCurta(ex.quando, true))}` : ''}</dd></dl></section>
     <p class="so-celular"><button class="btn link" id="sair-celular">Sair</button></p>
   </div>`;
@@ -640,9 +640,9 @@ const PASSOS_TUTORIAL = [
     alvo: () => primeiroVisivel('#hoje .prisma-cartao'),
     corpo: () => {
       const p = prismasLuz()[0];
-      const ex = p ? `<p>Por exemplo: ${curto(p.nome)} está em ${p.pct}%, ou ${p.contado} de ${p.alvo_lm} lm do alvo.</p>` : '';
-      return `<p>Cada prisma tem um alvo em lm. O % é quanto desse alvo já é luz própria.</p>${ex}
-      <p>"Da luz coletada é sua" compara a sua luz com a que veio do agente. Se o agente fizer por você, esse número cai: é um aviso, não uma punição.</p>`;
+      const ex = p ? `<p>Neste cartão, ${curto(p.nome)} está em ${p.pct}% (${suas(p)}). Abrindo o prisma, você vê o alvo: ${p.contado} de ${p.alvo_lm} lm.</p>` : '';
+      return `<p>Cada prisma tem um alvo em lm, e o % é quanto dele já é luz própria. Esse % só sobe.</p>${ex}
+      <p>Quando houver luz coletada, aparece também "da luz coletada é sua": se o agente fizer por você, ele cai. É um aviso, não uma punição.</p>`;
     } },
   { titulo: 'Centelhas são as oportunidades', alvo: () => primeiroVisivel('[data-tela="centelhas"]'),
     corpo: () => `<ul class="tt-legenda">
@@ -650,12 +650,12 @@ const PASSOS_TUTORIAL = [
         <li>${orbe('refletida')}<span><b>Luz refletida</b>: o agente usou no seu código.</span></li>
         <li>${orbe('convertendo')}<span><b>Convertendo</b>: você está explicando para a Luzia; falta a nota e o seu sim.</span></li>
         <li>${orbe('propria')}<span><b>Luz própria</b>: é sua.</span></li></ul>
-      <p>Cada centelha vale lm fixos. Abra uma e toque em <b>Por que N lm</b> para ver a conta.</p>` },
+      <p>Na tela Centelhas, a aba <b>Para converter</b> junta luz refletida e convertendo. Abra uma centelha e toque em <b>Por que N lm</b> para ver a conta.</p>` },
   { titulo: 'Entregas: o que você entregou é seu?', alvo: () => primeiroVisivel('[data-tela="entregas"]'),
     corpo: () => `<p>A Luzia lê os seus commits e mede quatro coisas em cada entrega:</p>
-      <ul class="tt-modos"><li><b>P1</b>: a direção que você deu ao agente nos prompts.</li><li><b>P2</b>: o foco da entrega.</li>
-        <li><b>P3</b>: o conceito aplicado, que você explicou.</li><li><b>P4</b>: a decisão que você defendeu.</li></ul>
-      <p>P3 e P4 só sobem com centelhas convertidas daquela entrega.</p>` },
+      <ul class="tt-modos"><li><b>P1</b>: a direção que você deu ao agente.</li><li><b>P2</b>: a coesão (poucos arquivos e áreas).</li>
+        <li><b>P3</b>: o conceito que você explicou.</li><li><b>P4</b>: a decisão que você defendeu.</li></ul>
+      <p>P3 e P4 sobem com centelhas convertidas daquela entrega.</p>` },
   { titulo: 'Você escolhe quando a Luzia fala', alvo: () => primeiroVisivel('[data-tela="ajustes"]'),
     corpo: () => `<ul class="tt-modos"><li><b>Em foco</b>: mostra centelhas no fim das respostas do agente.</li>
         <li><b>Em silêncio</b>: só anota, sem interromper.</li><li><b>Fora de foco</b>: só age quando você chama.</li></ul>
@@ -735,7 +735,9 @@ async function fecharTutorial() {
   renderTutorial();
   scrollTo({ top: 0 });
   if (E) E.tutorial_visto = true;
-  if (focoAntesTutorial && document.contains(focoAntesTutorial)) focoAntesTutorial.focus();
+  const volta = focoAntesTutorial && document.contains(focoAntesTutorial) && focoAntesTutorial !== document.body
+    ? focoAntesTutorial : primeiroVisivel('[data-tela="hoje"]');
+  if (volta) volta.focus();
   await api('/api/tutorial', { visto: true });
 }
 function acaoTutorial(acao) {
@@ -746,7 +748,14 @@ function acaoTutorial(acao) {
 addEventListener('resize', () => posicionarTutorial());
 
 // ------------------------------------------------------------------ gavetas
+let focoAntesGaveta = null;
+function fecharGaveta() {
+  $('#gaveta').hidden = true;
+  if (focoAntesGaveta && document.contains(focoAntesGaveta)) focoAntesGaveta.focus();
+  focoAntesGaveta = null;
+}
 function abrirGaveta(html) {
+  if ($('#gaveta').hidden) focoAntesGaveta = document.activeElement;
   $('#gaveta-corpo').innerHTML = `<button class="fechar" data-fechar aria-label="Fechar">${ic('fechar')}</button>${html}`;
   $('#gaveta').hidden = false;
   const tituloGaveta = $('#gaveta-corpo').querySelector('h2, h3');
@@ -992,7 +1001,7 @@ async function aoClicar(t, ev) {
   if (t.closest('summary') && t.tagName === 'BUTTON') ev.preventDefault();  // botões no resumo da entrega não abrem/fecham
 
   if (ds.tela || ds.ir) {
-    $('#gaveta').hidden = true;
+    fecharGaveta();
     return irPara(ds.tela || ds.ir);
   }
   if (ds.filtroIr) {
@@ -1004,7 +1013,7 @@ async function aoClicar(t, ev) {
   if (ds.prisma) return abrirPrisma(ds.prisma);
   if (ds.lumen !== undefined) return abrirLumen(Number(ds.lumen));
   if (ds.fechar !== undefined) {
-    $('#gaveta').hidden = true;
+    fecharGaveta();
     return;
   }
   if (ds.enviar) {
@@ -1031,7 +1040,7 @@ async function aoClicar(t, ev) {
     return;
   }
   if (ds.confirmar) {
-    $('#gaveta').hidden = true;
+    fecharGaveta();
     conquista = { id: ds.confirmar, fase: 'pronta', c: cPorId(ds.confirmar) };
     return renderConquista();
   }
@@ -1055,13 +1064,13 @@ async function aoClicar(t, ev) {
   if (ds.descartar) {
     const id = ds.descartar;
     const r = await api('/api/descartar', { id, motivo: ds.motivo });
-    $('#gaveta').hidden = true;
+    fecharGaveta();
     toast(r.erro ? `Não descartou: ${r.erro}` : 'Descartada', 'neutro', r.erro ? null : { rotulo: 'Desfazer', dados: { restaurar: id } });
     return carregar();
   }
   if (ds.restaurar) {
     await api('/api/restaurar', { id: ds.restaurar });
-    $('#gaveta').hidden = true;
+    fecharGaveta();
     toast('Restaurada', 'neutro');
     return carregar();
   }
@@ -1245,7 +1254,7 @@ document.addEventListener('keydown', (ev) => {
   }
   const dialogo = tutorial !== null ? $('#tutorial .tt-cartao') : conquista ? $('#conquista') : (!$('#gaveta').hidden ? $('#gaveta-corpo') : null);
   if (ev.key === 'Escape') {
-    if (conquista) fecharConquista(); else $('#gaveta').hidden = true;
+    if (conquista) fecharConquista(); else if (!$('#gaveta').hidden) fecharGaveta();
     return;
   }
   if (ev.key !== 'Tab' || !dialogo) return;
@@ -1288,7 +1297,7 @@ function limparPainel() {
   conquista = null;
   leiturasAutoPedidas = false;
   entregasAbertas.clear();
-  $('#gaveta').hidden = true;
+  fecharGaveta();
   $('#gaveta-corpo').innerHTML = '';
   $('#conquista').hidden = true;
   document.querySelectorAll('.tela').forEach((s) => (s.innerHTML = ''));

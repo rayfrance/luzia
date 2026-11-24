@@ -210,6 +210,17 @@ def _pedir_centelhas(plan: dict, skill: str, pct: int, rotulo: str) -> tuple[lis
 META_MINIMA = 3  # toda meta nasce com pelo menos 3 centelhas por prisma (o alvo é o lm delas)
 
 
+def prismas_com_meta_curta(plan: dict | None = None) -> list[str]:
+    """Prismas ativos com menos de 3 centelhas da meta (sem contar as do chat e as descartadas)."""
+    plan = plan if plan is not None else pipeline.load_state().get('plano', {})
+    jogo.sincronizar(plan)
+    with trajetoria.abrir() as con:
+        n_meta = {r['prisma']: int(r['n']) for r in con.execute(
+            "SELECT prisma, COUNT(*) AS n FROM avanco WHERE estado != 'descartada' AND COALESCE(origem, '') != 'chat' "
+            'AND prisma IS NOT NULL GROUP BY prisma')}
+        return [n for n in jogo.ativos(plan, con) if n_meta.get(n, 0) < META_MINIMA]
+
+
 def completar_meta(rotulo: str = 'triage-meta') -> list[str]:
     """Depois da triagem: completa os prismas com menos de 3 centelhas da meta e fixa os alvos de novo.
 
@@ -219,12 +230,7 @@ def completar_meta(rotulo: str = 'triage-meta') -> list[str]:
     from concurrent.futures import ThreadPoolExecutor
 
     plan = pipeline.load_state().get('plano', {})
-    jogo.sincronizar(plan)
-    with trajetoria.abrir() as con:
-        n_meta = {r['prisma']: int(r['n']) for r in con.execute(
-            "SELECT prisma, COUNT(*) AS n FROM avanco WHERE estado != 'descartada' AND COALESCE(origem, '') != 'chat' "
-            'AND prisma IS NOT NULL GROUP BY prisma')}
-        faltam = [n for n in jogo.ativos(plan, con) if n_meta.get(n, 0) < META_MINIMA]
+    faltam = prismas_com_meta_curta(plan)
 
     def pedir(skill: str):
         try:
@@ -235,7 +241,7 @@ def completar_meta(rotulo: str = 'triage-meta') -> list[str]:
 
     feitos, trechos, record = [], list(plan.get('trechos', [])), None
     if faltam:
-        with ThreadPoolExecutor(max_workers=min(4, len(faltam))) as ex:
+        with ThreadPoolExecutor(max_workers=min(2, len(faltam))) as ex:  # 2: cabe no limite por minuto de chaves gratuitas
             for skill, novas, rec in ex.map(pedir, faltam):
                 if novas and rec:
                     trechos.append({'skill': skill, 'quando': rec['quando'], 'acoes': novas})
@@ -804,7 +810,7 @@ def _print_proposta(p: dict) -> None:
     alvo = int(proposta.get('alvo_estimado_lm') or 0) or jogo.ALVO_PADRAO
     origem = 'a soma das centelhas iniciais' if proposta.get('acoes') else 'o alvo padrão de um prisma novo'
     print(f"- **Proposta da Luzia:** o alvo da trajetória cresce cerca de **{alvo} lm** ({origem}). "
-          'Ao aceitar nasce uma nova versão e o avanço é recalculado.')
+          'O valor exato sai ao aceitar, quando as centelhas entram no catálogo; nasce uma nova versão e o avanço é recalculado.')
     if proposta.get('nota'):
         print(f"- **Sua nota:** {proposta['nota']}")
     if p.get('tipo') in ('incluir', 'mudar_meta'):
@@ -869,7 +875,7 @@ def cmd_pedido(args, restantes: list[str], plan: dict) -> None:
             abertos = [x for x in pedidos.listar(con)  # o pedido que já está aberto para este prisma, se for o caso
                        if x['estado'] in ('aberto', 'proposto') and str(e).endswith(f"prisma {x['prisma']}")]
             bts = _botoes_pedido(abertos[0]['id'], abertos[0]) if abertos else []
-            botoes(bts + [BT_TRAJETORIA, BT_PAINEL], 'Decide o pedido?')
+            botoes(bts + [BT_TRAJETORIA, BT_PAINEL], 'Decide o pedido?' if bts else 'Como seguimos?')
 
 
 def _pedido(con, sub: str, extras: list[str], args) -> None:
@@ -1579,6 +1585,7 @@ def main() -> None:
             completar_meta(rotulo + '-meta')
         except Exception as e:  # a triagem já valeu; sem completar, os prismas ficam com o que vieram (alvo padrão)
             arquivos.registrar_erro('cli triage completar meta', e)
+        incompletos = prismas_com_meta_curta()
         state = pipeline.load_state()
         plan = state.get('plano', {})
         print('## Luzia · Triagem')
@@ -1597,8 +1604,15 @@ def main() -> None:
         print('\n**Primeiras centelhas:**')
         for a in primeiros[:3]:
             print(feixe_linha(a))
+        if incompletos:  # o modelo não respondeu para estes (ex.: limite por minuto da chave gratuita)
+            print()
+            print(f"◐ {plural(len(incompletos), 'prisma ficou', 'prismas ficaram')} com menos de 3 centelhas: "
+                  f"{', '.join(nome_prisma(n) for n in incompletos)}. Daqui a 1 minuto, acenda mais com "
+                  f"`/luzia:acender <prisma>`; o alvo já está fixado e não muda.")
         footer(rec, hits)
-        botoes([bt_feixe(a) for a in primeiros] + [BT_TRAJETORIA, BT_PAINEL], 'Próximo passo?')
+        bts_inc = [{'rotulo': f'Acender: {nome_prisma(n)}', 'descricao': '3 centelhas novas', 'rodar': f'acender {n}'}
+                   for n in incompletos[:1]]
+        botoes([bt_feixe(a) for a in primeiros] + bts_inc + [BT_TRAJETORIA, BT_PAINEL], 'Próximo passo?')
         return
 
     if args.comando == 'feedback-skills-opportunities':
@@ -1733,6 +1747,8 @@ def main() -> None:
             resto[a['estado']] = resto.get(a['estado'], 0) + 1
         for est in sorted(resto, key=lambda e: ORDEM_LISTA.get(e, 9)):
             print(f"{ESTADO_IC[est]} mais {resto[est]} {MAIS_TXT[est]}")
+        if resto:  # o chat mostra 3 para não alongar; a lista completa, com filtros, fica no painel
+            print('_A lista completa, com filtros, fica no painel (aba Centelhas)._')
         bts = [bt_converter(a) for a in lista if a.get('estado') in jogo.ABERTOS][:2]
         bts.append({'rotulo': 'Ver o que falta acender', 'descricao': 'centelhas ainda sem luz', 'rodar': 'centelhas --estado apagada'}
                    if est_f == 'converter' else BT_CONVERTER)

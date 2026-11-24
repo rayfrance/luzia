@@ -124,6 +124,13 @@ GENERICOS = {w.lower() for w in ('Domain', 'Interface', 'Application', 'Test', '
 GENERICOS |= {'def', 'class', 'import', 'from', 'return', 'function', 'const', 'let', 'var', 'self', 'this', 'async',
               'await', 'print', 'pass', 'public', 'private', 'static', 'void', 'new', 'null', 'none', 'true', 'false',
               'commit', 'push', 'pull', 'git', 'feat', 'fix', 'docs', 'chore', 'código', 'code', 'arquivo', 'file'}
+# Palavras de toda conversa com um agente (e prefixos de commit): nunca casam nem fazem nascer centelha, mesmo quando o
+# modelo as pôs nas palavras de um prisma (ex.: "Agente" em Programação Agêntica dava +36 lm a qualquer prompt; 24/11).
+COMUNS = {'agente', 'agentes', 'agent', 'agents', 'agêntico', 'agêntica', 'prompt', 'prompts', 'ia', 'ai', 'llm', 'claude',
+          'codex', 'gemini', 'modelo', 'model', 'contexto', 'context', 'critério', 'critérios', 'princípio', 'princípios',
+          'pacote', 'package', 'tarefa', 'task', 'pedido', 'resposta', 'pergunta', 'refactor', 'test', 'tests', 'style',
+          'perf', 'build', 'ci', 'revert', 'wip'}
+GENERICOS |= COMUNS
 
 
 def detectar(texto: str, gaps: dict) -> list[str]:
@@ -270,6 +277,7 @@ def reconhecer_em(texto: str, origem: str, sid: str, modo: str, ext: str, ferram
     # o nome de um prisma (de qualquer prisma da trajetória) sozinho não é um conceito: "o que é DDD?" não acende nada
     nomes = {n for p in gaps for n in (p.lower(), prismas.nome_curto(p).lower())}
     nomes |= {w for p in gaps for w in re.findall(r'[a-zà-ÿ0-9#+]+', p.lower()) if len(w) >= 4}  # "qualidade" sozinha
+    nomes |= COMUNS  # "agente", "prompt", "contexto"...: de toda conversa, não provam conceito nenhum
     for prisma, info in gaps.items():
         acertos = [c for c in info.get('centelhas', [])
                    if any(_casa(texto, w) for w in c['palavras'] if w.lower() not in nomes)]
