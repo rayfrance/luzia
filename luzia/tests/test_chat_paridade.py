@@ -77,7 +77,7 @@ def test_agente_mostra_e_troca(privado, monkeypatch):
 
 
 # ------------------------------------------------------------------ pedidos
-def test_ajustar_sem_valores_pergunta_nivel_e_meta_em_vez_de_reenviar_os_mesmos(privado, monkeypatch):
+def test_ajustar_sem_valores_pergunta_palavras_ou_dica_em_vez_de_reenviar(privado, monkeypatch):
     chamadas = _modelo_falso(monkeypatch)
     abrir = rodar(monkeypatch, 'pedido', 'abrir', 'incluir', 'Observabilidade')
     ajustar = next(b for b in botoes_de(abrir) if 'Ajustar' in b['rotulo'])
@@ -86,10 +86,11 @@ def test_ajustar_sem_valores_pergunta_nivel_e_meta_em_vez_de_reenviar_os_mesmos(
     saida = rodar(monkeypatch, *ajustar['rodar'].split())
     assert len(chamadas) == n  # nada foi recalculado com os mesmos valores
     v = visivel(saida)
-    assert 'nível' in v and 'meta' in v and '--nivel' in v and '--meta' in v
+    proprio = ' '.join(l for l in v.splitlines() if 'nálise da Luzia' not in l)
+    assert '--palavras' in v and '--motivo' in v and 'nível' not in proprio.lower()  # a análise é texto do modelo falso
     assert botoes_de(saida)
-    saida = rodar(monkeypatch, 'pedido', 'ajustar', '1', '--nivel', '2', '--meta', '4')
-    assert len(chamadas) == n + 1 and 'Nível 2, meta 4' in saida
+    saida = rodar(monkeypatch, 'pedido', 'ajustar', '1', '--palavras', 'logs, métricas, tracing')
+    assert len(chamadas) == n + 1 and 'logs, métricas, tracing' in saida
 
 
 def test_arquivar_e_reativar_nao_oferecem_ajustar_com_valores_inventados(privado, monkeypatch):
@@ -100,7 +101,7 @@ def test_arquivar_e_reativar_nao_oferecem_ajustar_com_valores_inventados(privado
     assert not any('Ajustar' in r for r in rotulos)
     assert not any('--nivel' in b['rodar'] for b in botoes_de(saida))
     saida = rodar(monkeypatch, 'pedido', 'ajustar', '1')
-    assert 'não tem nível' in visivel(saida) and botoes_de(saida)
+    assert 'não tem o que ajustar' in visivel(saida) and botoes_de(saida)
 
 
 # ------------------------------------------------------------------ arquivos de comando

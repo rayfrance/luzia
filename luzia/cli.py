@@ -760,10 +760,11 @@ def _botoes_pedido(pid: int, p: dict) -> list[dict]:
         bts.append({'rotulo': f'Ajustar pedido #{pid}',
                     'descricao': 'renomear uma habilidade ou mover uma centelha para outra',
                     'rodar': f'pedido ajustar {pid}'})  # sem valores: a Luzia pergunta o que mudar
-    if p.get('tipo') in ('incluir', 'mudar_meta'):  # arquivar e reativar não têm nível nem meta a ajustar
+    if p.get('tipo') in ('incluir', 'mudar_meta'):  # arquivar e reativar não têm o que ajustar
+        n = len(prop.get('palavras_chave') or [])
         bts.append({'rotulo': f'Ajustar pedido #{pid}',
-                    'descricao': f"proposta: {prop.get('nivel_partida', 1)} → meta {prop.get('meta', 3)}",
-                    'rodar': f'pedido ajustar {pid}'})  # sem valores: a Luzia pergunta o novo nível e a nova meta
+                    'descricao': f"{plural(n, 'palavra-chave', 'palavras-chave')} · trocar palavras ou dar uma dica",
+                    'rodar': f'pedido ajustar {pid}'})  # sem valores: a Luzia pergunta as palavras ou a dica
     bts.append({'rotulo': f'Recusar pedido #{pid}', 'descricao': 'a trajetória fica como está',
                 'rodar': f'pedido recusar {pid}'})
     return bts
@@ -781,22 +782,36 @@ def _print_proposta(p: dict) -> None:
         return
     if p.get('tipo') == 'dividir':
         partes = proposta.get('partes') or []
-        print(f"- **Proposta da Luzia:** {len(partes)} prismas de uma habilidade só, cada um herda o "
-              f"**nível {proposta.get('nivel_partida')} → meta {proposta.get('meta')}/5**; o prisma antigo é arquivado "
-              'com os lúmens dele (o progresso do nível novo conta a partir do aceite)')
+        print(f"- **Proposta da Luzia:** {len(partes)} prismas de uma habilidade só; o prisma antigo é arquivado "
+              'com os lúmens dele e a luz já ganha passa para as partes')
         for x in partes:
-            print(f"  - **{x['nome']}** · nível {x['nivel']} → meta {x['meta']} · palavras: {', '.join(x.get('palavras', [])[:6])}")
+            print(f"  - **{x['nome']}** · palavras: {', '.join(x.get('palavras', [])[:6])}")
         for a in proposta.get('avancos') or []:
             print(f"  - Centelha `#{a['id']}` {a.get('titulo', '')} ({a.get('estado', '')}) → **{a['para']}**"
                   + (' (você moveu)' if a.get('movido') else ''))
         return
-    ganho = int(proposta.get('ganho_niveis') or 0)
-    print(f"- **Proposta da Luzia:** nível **{proposta.get('nivel_partida')} → meta {proposta.get('meta')}/5**"
-          f" · a trajetória {'ganha' if ganho >= 0 else 'perde'} {plural(abs(ganho), 'nível', 'níveis')}")
+    if p.get('tipo') == 'arquivar':
+        print('- **Proposta da Luzia:** a luz deste prisma sai da trajetória e do avanço; nada se perde e ela volta '
+              'se você reativar o prisma')
+        return
+    if p.get('tipo') == 'reativar':
+        print('- **Proposta da Luzia:** o prisma volta à trajetória com a luz que já tinha; ao aceitar nasce uma nova '
+              'versão e o avanço é recalculado')
+        return
+    palavras = proposta.get('palavras_chave') or []
+    if palavras:
+        print(f"- **Palavras-chave:** {', '.join(palavras[:12])}")  # todas: o botão de ajustar conta as mesmas
+    alvo = int(proposta.get('alvo_estimado_lm') or 0) or jogo.ALVO_PADRAO
+    origem = 'a soma das centelhas iniciais' if proposta.get('acoes') else 'o alvo padrão de um prisma novo'
+    print(f"- **Proposta da Luzia:** o alvo da trajetória cresce cerca de **{alvo} lm** ({origem}). "
+          'Ao aceitar nasce uma nova versão e o avanço é recalculado.')
+    if proposta.get('nota'):
+        print(f"- **Sua nota:** {proposta['nota']}")
     if p.get('tipo') in ('incluir', 'mudar_meta'):
         print('- **Análise do pedido:** ' + leitura_txt(p.get('leitura'), indisponivel=proposta.get('leitura_indisponivel', '')))
     for a in (proposta.get('acoes') or [])[:3]:
-        print(f"  - Centelha inicial sugerida: **{a.get('titulo', '')}** ({a.get('tipo', '')})")
+        lm = f" · ~{a['lm_estimado']} lm" if a.get('lm_estimado') else ''
+        print(f"  - Centelha inicial: **{a.get('titulo', '')}** ({a.get('tipo', '')}{lm})")
 
 
 def _mover_de(itens: list[str] | None) -> dict[str, str]:
@@ -866,8 +881,8 @@ def _pedido(con, sub: str, extras: list[str], args) -> None:
         tipo, nome_pedido = extras[0], extras[1]
         motivo = args.motivo if args.motivo != 'nao_faz_sentido' else ''
         p = pedidos.abrir(con, tipo, nome_pedido, motivo)
-        if tipo in ('incluir', 'mudar_meta', 'dividir'):
-            p = pedidos.propor(con, p['id'], nivel=args.nivel, meta=args.meta)
+        if tipo in ('incluir', 'mudar_meta', 'dividir', 'arquivar', 'reativar'):
+            p = pedidos.propor(con, p['id'])
         print(f"✦ **Pedido `#{p['id']}` aberto** · {p['tipo']} · **{nome_prisma(p['prisma'])}** · {p['estado']}")
         if p.get('motivo'):
             print(f"- **Motivo:** {p['motivo']}")
@@ -896,18 +911,25 @@ def _pedido(con, sub: str, extras: list[str], args) -> None:
             return
         if atual is not None and atual['estado'] in ('aberto', 'proposto'):
             if atual['tipo'] not in ('incluir', 'mudar_meta'):
-                print(f"O pedido `#{pid}` ({atual['tipo']}) não tem nível nem meta a ajustar: aceite ou recuse.")
+                print(f"O pedido `#{pid}` ({atual['tipo']}) não tem o que ajustar: aceite ou recuse.")
                 botoes(_botoes_pedido(pid, atual), 'Decide o pedido?')
                 return
-            if args.nivel is None and args.meta is None:  # nunca reenvia os mesmos valores: pergunta os novos
-                prop = atual.get('proposta') or {}
-                print(f"Qual nível de partida (0 a 5) e qual meta (1 a 5) você quer para o {atual['prisma']}? "
-                      f"Hoje a proposta é nível {prop.get('nivel_partida', '?')} → meta {prop.get('meta', '?')}. "
-                      f"Diga os dois números e a Luzia roda `pedido ajustar {pid} --nivel <0-5> --meta <1-5>`.")
+            palavras = [w.strip() for w in (args.palavras or '').split(',') if w.strip()]
+            nota = (args.motivo if args.motivo != 'nao_faz_sentido' else '').strip()
+            if not palavras and not nota:  # nunca refaz a mesma proposta: pergunta o que mudar
+                _print_proposta(atual)
+                print(f"O que você quer mudar no {atual['prisma']}? Diga as palavras-chave que descrevem o prisma, ou uma "
+                      f"dica em uma frase, e a Luzia roda `pedido ajustar {pid} --palavras 'a, b, c'` "
+                      f"ou `pedido ajustar {pid} --motivo '...'`.")
                 botoes([b for b in _botoes_pedido(pid, atual) if 'Ajustar' not in b['rotulo']],
-                       'Ajustar para qual nível e meta? Responda no chat, ou decida já:')
+                       'Ajustar como? Responda no chat, ou decida já:')
                 return
-        p = pedidos.propor(con, pid, nivel=args.nivel, meta=args.meta)
+            p = pedidos.propor(con, pid, palavras=palavras or None, nota=nota or None)
+            print(f"✦ **Pedido `#{pid}` ajustado** · **{p['prisma']}** (estado: **{p['estado']}**)")
+            _print_proposta(p)
+            botoes(_botoes_pedido(pid, p), 'Decide o pedido?')
+            return
+        p = pedidos.propor(con, pid)
         print(f"✦ **Pedido `#{pid}` ajustado** · **{p['prisma']}** (estado: **{p['estado']}**)")
         _print_proposta(p)
         botoes(_botoes_pedido(pid, p), 'Decide o pedido?')
@@ -915,10 +937,19 @@ def _pedido(con, sub: str, extras: list[str], args) -> None:
 
     if sub == 'aceitar':
         pid = _id_pedido(extras, sub)
+        antes = jogo.luz(pipeline.load_state().get('plano', {}), con)
         p = pedidos.aceitar(con, pid)
         plan = pipeline.load_state().get('plano', {})
+        jogo.sincronizar(plan)  # prisma novo ganha o alvo agora, para o antes e depois serem os reais
+        depois = jogo.luz(plan, con)
         print(f"✦ **Pedido `#{pid}` aceito** · trajetória v{p.get('versao', '?')} criada ({p['tipo']} · "
               f"{nome_prisma(p['prisma'])}).")
+        novo = depois['por_prisma'].get(p['prisma'])
+        if novo and p['prisma'] not in antes['por_prisma']:
+            print(f"**{nome_prisma(p['prisma'])}** entrou com alvo de **{novo['alvo_lm']} lm**.")
+        if (antes['alvo_lm'], antes['pct']) != (depois['alvo_lm'], depois['pct']):  # o alvo total mudou: diz o efeito
+            print(f"Avanço da trajetória: {antes['pct']}% → **{depois['pct']}%** (o alvo foi de {antes['alvo_lm']} "
+                  f"para {depois['alvo_lm']} lm; a luz que você já tem continua toda sua).")
         botoes([BT_TRAJETORIA, *proximos_botoes(plan)[:2]], 'Próximo passo?')
         return
 
@@ -1368,7 +1399,22 @@ def cmd_diagnostico() -> None:
 def main() -> None:
     if hasattr(sys.stdout, 'reconfigure'):
         sys.stdout.reconfigure(encoding='utf-8')
-    ap = argparse.ArgumentParser(description='Luzia CLI')
+    class _Parser(argparse.ArgumentParser):
+        """Erro de argumento em português, com botões, no lugar do `usage:` cru do argparse (teste com testadores, 24/11)."""
+
+        def error(self, message: str):
+            tentou = next((a for a in sys.argv[1:] if not a.startswith('-')), '')
+            if tentou in ('arquivar', 'reativar', 'incluir', 'mudar_meta'):
+                print(f"Para {tentou} um prisma, abra um pedido de mudança: `pedido abrir {tentou} <prisma> --motivo '...'`.")
+            elif tentou and tentou not in COMANDOS:
+                print(f"`{tentou}` não é um comando da Luzia. Comece por `hoje`.")
+            else:
+                print(f"Não entendi os argumentos ({message.replace('argument ', '')}).")
+            botoes([{'rotulo': 'Ver hoje', 'descricao': 'onde você está e o próximo passo', 'rodar': 'hoje'},
+                    BT_TRAJETORIA], 'Como seguimos?')
+            sys.exit(2)
+
+    ap = _Parser(description='Luzia CLI')
     ap.add_argument('comando', choices=COMANDOS)
     ap.add_argument('valor', nargs='?', default='')
     ap.add_argument('--entrada', default=str(pipeline.PRIVATE / 'entrada.json'))
@@ -1383,8 +1429,9 @@ def main() -> None:
     ap.add_argument('--motivo', default='nao_faz_sentido')
     ap.add_argument('--onde', default='', help='Onde a centelha foi aberta (ex.: "sessão nova", "aqui")')
     ap.add_argument('--ampliar', type=int, default=0)
-    ap.add_argument('--nivel', type=int, default=None)
-    ap.add_argument('--meta', type=int, default=None)
+    ap.add_argument('--nivel', type=int, default=None, help=argparse.SUPPRESS)  # legado: aceito e ignorado
+    ap.add_argument('--meta', type=int, default=None, help=argparse.SUPPRESS)  # legado: aceito e ignorado
+    ap.add_argument('--palavras', default='')
     ap.add_argument('--partes', nargs='+', default=None, help='pedido ajustar (dividir): nomes das habilidades')
     ap.add_argument('--mover', action='append', default=None, help='pedido ajustar (dividir): <avanço>=<habilidade>')
     ap.add_argument('--base-url', default='', help='modelo usar: endereço do provedor compatível com OpenAI')

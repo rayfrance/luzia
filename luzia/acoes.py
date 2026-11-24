@@ -11,7 +11,6 @@ import hashlib
 import json
 import sqlite3
 from datetime import datetime
-from urllib.parse import quote
 
 from . import arquivos, banco, trajetoria
 
@@ -193,6 +192,8 @@ def find(plan: dict, acao_id: str) -> dict | None:
 
 def deep_link(acao_id: str, cwd: str) -> str:
     """Claude Code em terminal (claude-cli://): abre uma sessão com /luzia:fazer <id> pronto para Enter."""
+    from urllib.parse import quote  # import tardio: só o link de abrir sessão usa
+
     return f'claude-cli://open?cwd={quote(cwd, safe="")}&q={quote(f"/luzia:fazer {acao_id}", safe="")}'
 
 

@@ -18,7 +18,6 @@ import json
 import os
 import sqlite3
 import time
-import traceback
 from contextlib import contextmanager
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -738,6 +737,8 @@ def _bloqueio(arquivo: Path | None, versao: str) -> dict | None:
 
 def _onde(erro: BaseException) -> str:
     """Arquivo, linha e função onde a migração quebrou (nunca o dado que a quebrou)."""
+    import traceback  # import tardio: só quando um erro precisa ser descrito
+
     quadros = traceback.extract_tb(erro.__traceback__)
     if not quadros:
         return 'desconhecido'

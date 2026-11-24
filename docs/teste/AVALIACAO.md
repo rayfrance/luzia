@@ -26,6 +26,8 @@ A participação é voluntária e anônima: não precisa de nome. As respostas v
 | Confio nos valores em lúmens (lm). | | | | | |
 | Confio nas notas de propriedade (P1 a P4) das entregas. | | | | | |
 | O painel é fácil de entender. | | | | | |
+| O tutorial do painel me ensinou o suficiente para começar. | | | | | |
+| Entendi a diferença entre o avanço (o % que só sobe) e a parte da luz coletada que é minha. | | | | | |
 | A trajetória e os prismas refletem o meu trabalho real. | | | | | |
 | Eu continuaria usando a Luzia no meu dia a dia. | | | | | |
 

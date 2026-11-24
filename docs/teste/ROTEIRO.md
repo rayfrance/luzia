@@ -18,7 +18,7 @@ Frases curtas bastam. Isso vira a sua avaliação no final. Não cole código da
 
 **Objetivo:** deixar tudo funcionando e entender onde você está na sua trajetória.
 
-1. Siga o [INSTALAR.md](INSTALAR.md) até o passo 9.
+1. Siga o [INSTALAR.md](INSTALAR.md) até o passo 10, incluindo o tutorial do painel.
 2. Rode `/luzia:hoje` e leia o que ela sugere.
 3. No painel, abra as abas **Hoje** e **Trajetória**.
 
@@ -26,6 +26,7 @@ Frases curtas bastam. Isso vira a sua avaliação no final. Não cole código da
 
 - A trajetória fez sentido para o seu cargo e a sua meta?
 - Os prismas são habilidades reais do seu trabalho?
+- O tutorial explicou o suficiente para você saber o que fazer depois?
 - Alguma coisa na instalação ou na triagem travou ou confundiu?
 
 ## Missão 2 · Trabalho normal com o agente

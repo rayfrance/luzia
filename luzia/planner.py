@@ -35,6 +35,7 @@ Os prompts nunca citam nomes de empresa, clientes ou colegas.
 
 Estilo: visual e curto. Títulos com no máximo 8 palavras; demais textos livres com no máximo 18 palavras.
 Português do Brasil. Se aparecerem marcadores como [EMPRESA/PRODUTO] ou [COLEGA] (mascaramento local), mantenha-os assim.
+Não existem níveis na Luzia: nunca escreva "nível" nos textos para a pessoa (use "senioridade", "Júnior", "Plena" etc.).
 Use só as evidências fornecidas. Responda só com o JSON."""
 
 # Os prismas saem da meta e das evidências de cada pessoa (24/11/2026). Só a Programação Agêntica entra sempre:
@@ -122,9 +123,9 @@ TRECHO_SCHEMA = f"""Devolva exatamente este JSON:
     {ACAO_SCHEMA}
   ]
 }}
-3 ações NOVAS só para a skill recebida em "skill", do nível atual para o próximo ("para"): "skill" de cada ação copia
+3 ações NOVAS só para a skill recebida em "skill", para a pessoa avançar nela rumo à meta: "skill" de cada ação copia
 esse nome. Nada parecido com os feixes já existentes ou descartados recebidos. Pelo menos uma "explicar" ou "praticar"
-no repositório de trabalho; dificuldade compatível com o próximo nível.
+no repositório de trabalho; dificuldade compatível com a luz própria que ela já tem nessa skill.
 {REGRAS_ACOES}"""
 
 OPPORTUNITIES_SCHEMA = f"""Devolva exatamente este JSON:
@@ -134,7 +135,7 @@ OPPORTUNITIES_SCHEMA = f"""Devolva exatamente este JSON:
     {OPORTUNIDADE_SCHEMA}
   ]
 }}
-3 oportunidades, priorizando as skills detectadas nos eventos da sessão e as maiores lacunas (alvo - nível).
+3 oportunidades, priorizando as skills detectadas nos eventos da sessão e as de menor luz própria.
 {REGRAS_ACOES}"""
 
 ENTREGA_SCHEMA = f"""Devolva exatamente este JSON:
@@ -166,17 +167,13 @@ Para cada item recebido em "alvos", devolva um item em "leituras" copiando exata
 
 PEDIDO_SCHEMA = f"""Devolva exatamente este JSON:
 {{
-  "nivel_partida": int,
-  "meta": int,
   "palavras_chave": [str],
   "acoes": [
     {ACAO_SCHEMA}
   ],
   "analise": str
 }}
-"nivel_partida": 0 a 5 (se a pessoa pediu um nível específico, respeite-o; em mudança de meta, mantenha o nível atual).
-"meta": 0 a 5 (se a pessoa pediu uma meta específica, respeite-a).
-"palavras_chave": 8 a 12 termos em português e em inglês que aparecem em código, arquivos ou prompts quando este prisma está em jogo.
+"palavras_chave": 8 a 12 termos (se "palavras_pedidas" vier no pedido, parta dessas palavras; se vier "nota_da_pessoa", leve-a em conta) em português e em inglês que aparecem em código, arquivos ou prompts quando este prisma está em jogo.
 "acoes": 3 avanços iniciais concretos para este prisma ("skill" copia o nome do prisma, "dimensao" = null).
 "analise": até 3 frases curtas analisando o pedido somente a partir dos fatos da trajetória recebidos, sem citar nomes da empresa, produtos internos, clientes ou colegas.
 {REGRAS_ACOES}"""

@@ -21,7 +21,6 @@ import hashlib
 import json
 import os
 import re
-import subprocess
 import sys
 from datetime import date, datetime
 from pathlib import Path
@@ -30,7 +29,7 @@ HERE = Path(__file__).resolve().parent
 if 'luzia' not in sys.modules:  # checkout de desenvolvimento; pelo lz.py o pacote já foi carregado
     sys.path.insert(0, str(HERE.parent))
 
-from luzia import acoes, arquivos, banco, jogo, prismas, trajetoria  # noqa: E402
+from luzia import acoes, arquivos, banco, jogo, porteiro, prismas, trajetoria  # noqa: E402
 
 PRIVATE = arquivos.PRIVATE
 CFG = PRIVATE / 'observer.json'
@@ -139,14 +138,7 @@ def detectar(texto: str, gaps: dict) -> list[str]:
 
 def authorized(cwd, cfg: dict) -> bool:
     """O cwd é um repositório autorizado ou uma subpasta dele (nunca uma pasta irmã com o mesmo prefixo)."""
-    if not isinstance(cwd, str) or not cwd:
-        return False
-    cwd_n = cwd.replace('\\', '/').rstrip('/').lower()
-    for r in cfg.get('autorizados') or []:
-        r_n = str(r).replace('\\', '/').rstrip('/').lower()
-        if r_n and (cwd_n == r_n or cwd_n.startswith(r_n + '/')):
-            return True
-    return False
+    return porteiro.autorizado(cwd, cfg)
 
 
 
@@ -165,7 +157,9 @@ def sessao_do_foco(cwd: str, sessao: str = '') -> str:
     return sessao_id({'session_id': bruto})
 
 
-def _git(cwd: str, *args: str) -> subprocess.CompletedProcess:
+def _git(cwd: str, *args: str):
+    import subprocess  # import tardio: só o comando `foco` chama o git; o hook não paga por isso
+
     return subprocess.run(['git', '-C', cwd, *args], capture_output=True, timeout=20, encoding='utf-8', errors='replace')
 
 
@@ -174,6 +168,8 @@ def adicionado_nos_arquivos(caminhos: list[str], cwd: str) -> str:
 
     O código é lido em memória e nunca gravado. Levanta RuntimeError com a mensagem para a pessoa se não for um repositório git.
     """
+    import subprocess
+
     try:
         dentro = _git(cwd, 'rev-parse', '--is-inside-work-tree')
     except (OSError, subprocess.SubprocessError) as e:
@@ -408,11 +404,21 @@ def ao_iniciar_sessao(event: dict, cfg: dict) -> None:
     if partes:
         saida('SessionStart', f"[Luzia · em foco · início] {'; '.join(partes)}. Não interrompa o que a pessoa pedir. No FIM da sua "
                               'primeira resposta, em UMA linha: "✦ Luzia (em foco): <resumo curto disso> · /luzia:hoje para continuar."')
+        return
+    apagadas = sum(p['n_apagada'] for p in t['prismas'])
+    if apagadas and not t['propria']:  # logo depois da triagem: só centelhas apagadas e nenhuma luz própria ainda
+        frase = f"{apagadas} {'centelha' if apagadas == 1 else 'centelhas'} na sua meta para acender"
+        saida('SessionStart', f'[Luzia · em foco · início] A trajetória está pronta e ainda não há luz própria: {frase}. Não interrompa '
+                              'o que a pessoa pedir. No FIM da sua primeira resposta, em UMA linha, exatamente assim: '
+                              f'"✦ Luzia (em foco): {frase} · /luzia:hoje para começar."')
 
 
-def main() -> None:
+def main(bruto: bytes | None = None) -> None:
+    """`bruto`: o evento já lido do stdin (o `lz.py` lê antes, para o porteiro barrar sem importar o resto)."""
     try:  # o Claude Code envia UTF-8; o pipe do Windows usaria a página de código local e estragaria os acentos
-        event = json.loads(sys.stdin.buffer.read().decode('utf-8', errors='replace'))
+        if bruto is None:
+            bruto = sys.stdin.buffer.read()
+        event = json.loads(bruto.decode('utf-8', errors='replace'))
     except Exception:
         return
     if not isinstance(event, dict):  # o Claude Code manda um objeto; qualquer outra coisa é ignorada em silêncio

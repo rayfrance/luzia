@@ -390,3 +390,33 @@ details summary::-webkit-details-marker { display: none; }
 .toast::before { content: ""; width: 10px; height: 10px; border-radius: 50%; background: var(--propria); box-shadow: var(--halo-orbe); flex: none; }
 .toast.refletida::before { background: var(--refletida); box-shadow: 0 0 10px var(--refletida); }
 .toast.neutro::before { background: var(--texto-3); box-shadow: none; }
+
+/* ---- tutorial de primeiro uso: recorte sobre a parte real da tela e um cartão perto dela ---- */
+.tutorial { position: fixed; inset: 0; z-index: 70; }
+.tutorial.sem-alvo { background: rgba(8, 6, 12, .82); display: flex; align-items: center; justify-content: center; padding: 24px; }
+.tt-foco { position: fixed; border-radius: 18px; box-shadow: 0 0 0 9999px rgba(8, 6, 12, .78), 0 0 0 2px var(--texto-3); pointer-events: none;
+  transition: top var(--medio) var(--curva), left var(--medio) var(--curva), width var(--medio) var(--curva), height var(--medio) var(--curva); }
+.tt-cartao { position: fixed; width: min(380px, calc(100vw - 32px)); background: var(--sup-2); border: 1px solid var(--linha-3); border-radius: var(--r-cartao);
+  padding: 22px 22px 18px; box-shadow: var(--sombra); display: flex; flex-direction: column; gap: 12px; animation: entrar var(--medio) ease-out;
+  max-height: calc(100vh - 32px); overflow: auto; }
+.tutorial.sem-alvo .tt-cartao { position: relative; width: min(460px, 100%); padding: 30px 30px 22px; }
+.tt-conta { font-size: 13px; color: var(--texto-4); }
+.tt-cartao h2 { font-size: 21px; line-height: 1.25; text-wrap: balance; outline: none; }
+.tutorial.sem-alvo .tt-cartao h2 { font-size: 26px; }
+.tt-corpo { display: flex; flex-direction: column; gap: 10px; color: var(--texto-2); font-size: 15px; line-height: 1.55; }
+.tt-corpo b { color: var(--texto); font-weight: 650; }
+.tt-corpo code { font-size: 13px; padding: 1px 6px; border-radius: 6px; background: var(--bg); color: var(--texto); }
+.tt-legenda, .tt-passos, .tt-modos { margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.tt-legenda { list-style: none; }
+.tt-legenda li { display: flex; gap: 12px; align-items: flex-start; }
+.tt-legenda .orbe { margin-top: 4px; }
+.tt-passos { padding-left: 20px; }
+.tt-modos { padding-left: 18px; }
+.tt-trilha { display: flex; gap: 8px; align-items: center; padding: 4px 0 2px; }
+.tt-trilha .orbe { width: 12px; height: 12px; transition: background var(--lento) ease, box-shadow var(--lento) ease, border-color var(--lento) ease; }
+.tt-acoes { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.tt-acoes .btn.link { min-height: var(--alvo); }
+.tt-nav { display: flex; gap: 8px; margin-left: auto; }
+@media (max-width: 960px) {
+  .tutorial:not(.sem-alvo) .tt-cartao { left: 12px; right: 12px; bottom: 88px; width: auto; max-height: 52vh; overflow: auto; }
+}

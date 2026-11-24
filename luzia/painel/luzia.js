@@ -84,10 +84,12 @@ function nomeCurto(nome) {
   const m = /^(.*?)\s*\(([^()]+)\)\s*$/.exec(n);
   if (m && /^[\wÀ-ÿ.#+-]{2,10}$/.test(m[2].trim())) return m[2].trim();
   const base = (m ? m[1] : n).trim();
-  if (base.length <= 20) return base;
+  if (base.length <= 24) return base;
   const ultimo = base.split(/\s+\/\s+/).pop().trim();
-  if (ultimo !== base && ultimo.length >= 2 && ultimo.length <= 20) return ultimo;
-  return base.slice(0, 18).trim() + '…';
+  if (ultimo !== base && ultimo.length >= 2 && ultimo.length <= 24) return ultimo;
+  let corte = '';  // palavras inteiras que cabem em 22 caracteres (mesma regra de prismas.nome_curto)
+  for (const w of base.split(' ')) { if (`${corte} ${w}`.trim().length > 22) break; corte = `${corte} ${w}`.trim(); }
+  return (corte || base.slice(0, 22)).replace(/[\s,/-]+$|\s+e$/, '') + '…';
 }
 const curto = (s) => esc(nomeCurto(s));
 function dataCurta(iso, comAno = false) {
@@ -140,9 +142,12 @@ function segs(lista, { foco = '', classe = '', rotulo = '' } = {}) {
   return `<span class="segs ${classe}" ${rotulo ? `role="img" aria-label="${esc(rotulo)}"` : 'aria-hidden="true"'}>${partes}</span>`;
 }
 // barra da trajetória rumo ao alvo: própria contada, convertendo, refletida e o que falta do alvo (como no chat)
+// vale para a trajetória (por_estado) e para um prisma (refletida já inclui convertendo)
 const rumoAoAlvo = (t) => {
-  const pe = t?.por_estado || {};
-  const feito = { propria: t?.contado ?? pe.propria ?? 0, convertendo: pe.convertendo || 0, refletida: pe.refletida || 0 };
+  const pe = t?.por_estado;
+  const conv = pe ? pe.convertendo || 0 : t?.convertendo || 0;
+  const refl = pe ? pe.refletida || 0 : Math.max(0, (t?.refletida || 0) - conv);
+  const feito = { propria: t?.contado ?? t?.propria ?? 0, convertendo: conv, refletida: refl };
   const falta = Math.max(0, (t?.alvo_lm || 0) - feito.propria - feito.convertendo - feito.refletida);
   return [...Object.entries(feito).map(([estado, lm]) => ({ estado, lm })), { estado: 'apagada', lm: falta }];
 };
@@ -338,7 +343,7 @@ function telaHoje() {
     <h3 class="secao">Seus prismas</h3>
     <div class="grade">${prismasLuz().map((p) => `<button class="prisma-cartao" data-prisma="${esc(p.nome)}">
       <span class="cab">${tri(p)}<span><b title="${esc(p.nome)}">${curto(p.nome)}</b><small>${suas(p)}</small></span><b class="pct">${p.pct}%</b></span>
-      ${segs(p.lista || [], { rotulo: ariaPrisma(p) })}
+      ${segs(rumoAoAlvo(p), { rotulo: ariaPrisma(p) })}
       <span class="resumo ${p.n_converter ? 'converter' : ''}">${esc(resumoPrisma(p))}</span>
     </button>`).join('') || '<p class="vazio">Nenhum prisma na trajetória.</p>'}</div>
     ${hoje.length ? `<div class="chips"><span class="discreto">Coletadas hoje</span>${hoje.map((c) => `<button class="chip ${esc(c.estado)}" data-centelha="${esc(c.id)}">${orbe(c.estado)}<b>${c.lm} lm</b> ${curto(c.prisma)} · ${esc(CURTO[c.estado])}</button>`).join('')}</div>` : ''}
@@ -424,7 +429,7 @@ function telaTrajetoria() {
       const base = (E.prismas || []).find((x) => x.nome === p.nome) || {};
       return `<section class="prisma-secao">
         <div class="cab">${tri(p, true)}<span><h2 title="${esc(p.nome)}">${curto(p.nome)}</h2><small>${p.contado} de ${p.alvo_lm} lm do alvo · ${suas(p)}${p.coletada ? ` · ${composicao(p)}` : ''}</small></span><b class="pct">${p.pct}%</b></div>
-        ${segs(p.lista || [], { classe: '', rotulo: ariaPrisma(p) })}
+        ${segs(rumoAoAlvo(p), { classe: '', rotulo: ariaPrisma(p) })}
         <h4>Centelhas da meta</h4>
         ${(p.lista || []).length ? `<ul class="lista-c">${p.lista.map(itemLista).join('')}</ul>` : '<p class="vazio">Nenhuma centelha ainda.</p>'}
         <div class="acoes-bt" style="margin-top:14px">${p.na_meta ? '' : `<button class="btn sec mini" data-acender="${esc(p.nome)}">${ic('raio', 'p')}Acender 3 centelhas</button>`}
@@ -459,8 +464,18 @@ function telaCentelhas() {
       <label class="menu">Tipo:<select data-filtro-select="tipo" aria-label="Filtrar por tipo"><option value="todos">todos</option>
         ${TIPOS.map((t) => `<option value="${t}" ${filtroTipo === t ? 'selected' : ''}>${t}</option>`).join('')}</select></label>
     </div>
-    ${lista.length ? `<div class="grade largo">${lista.map(cartaoCentelha).join('')}</div>`
-      : '<div class="vazio-bloco"><span>Nada com esses filtros.</span><button class="btn sec" data-limpar-filtros="1">Limpar filtros</button></div>'}`;
+    ${lista.length ? `<div class="grade largo">${lista.map(cartaoCentelha).join('')}</div>` : vazioCentelhas(todas)}`;
+}
+// Vazio que orienta: sem filtro de prisma ou tipo, "Para converter" vazio é o normal do começo, não um erro de filtro.
+function vazioCentelhas(todas) {
+  const semFiltro = filtroPrisma === 'todos' && filtroTipo === 'todos';
+  if (semFiltro && filtroEstado === 'converter') {
+    const n = todas.filter((c) => c.estado === 'apagada').length;
+    return `<div class="vazio-bloco"><span>Nada para converter ainda. A luz refletida aparece quando o agente aplica um conceito no seu código; aí você converte aqui.${n ? ` Enquanto isso, ${plural(n, 'centelha espera', 'centelhas esperam')} por você.` : ''}</span>
+      ${n ? '<button class="btn sec" data-filtro-estado="apagada">Ver as por acender</button>' : ''}</div>`;
+  }
+  if (semFiltro) return '<div class="vazio-bloco"><span>Nenhuma centelha neste estado ainda.</span></div>';
+  return '<div class="vazio-bloco"><span>Nada com esses filtros.</span><button class="btn sec" data-limpar-filtros="1">Limpar filtros</button></div>';
 }
 
 // ------------------------------------------------------------------ Entregas
@@ -590,6 +605,9 @@ function telaAjustes() {
       <div class="opcoes">${opcao('privacidade', 'off', ['olho', 'Dados reais', 'Padrão'], !mascarar)}${opcao('privacidade', 'on', ['info', 'Mascarar', 'E-mails, tickets e nomes viram marcadores'], mascarar)}</div>
       ${mascarar && !E.privacidade?.termos ? '<p class="aviso fino" style="margin-top:12px">Liste empresa e clientes em termos.txt, na pasta de dados da Luzia.</p>' : ''}
       <p class="dica">Vale só para as chamadas da Luzia. Seu agente vê os dados reais.</p></section>
+    <section><div class="titulo-sec"><h2>Tutorial</h2></div>
+      <p class="dica" style="margin-bottom:12px">Um passeio de 2 minutos pelo painel e pelas ideias da Luzia.</p>
+      <button class="btn sec" data-tutorial="1">Rever o tutorial</button></section>
     <section><div class="titulo-sec"><h2>Sobre</h2></div>
       <dl class="sobre-lista"><dt>Versão</dt><dd>${esc(ex.versao || '—')}</dd>
         <dt>Última chamada</dt><dd>${ex.tempo_total_s ? `${esc(ex.tempo_total_s)} s · ${esc(ex.pico_memoria_mib)} MiB · ${esc(ex.tokens_entrada)}→${esc(ex.tokens_saida)} tokens` : '—'}</dd>
@@ -598,10 +616,144 @@ function telaAjustes() {
   </div>`;
 }
 
+// ------------------------------------------------------------------ tutorial de primeiro uso
+// Abre sozinho uma vez, depois da triagem (até a pessoa terminar ou pular: `/api/tutorial` grava no perfil) e de novo
+// por Ajustes. Cada passo ilumina a parte real da tela. A trilha de orbes é a própria ideia da Luzia: o que você já viu
+// vira luz própria (laranja), o passo atual está convertendo e o resto ainda é luz refletida.
+const visivel = (el) => el && el.offsetParent !== null && el.getBoundingClientRect().width > 0;
+const primeiroVisivel = (sel) => [...document.querySelectorAll(sel)].find(visivel) || null;
+const PASSOS_TUTORIAL = [
+  { titulo: 'A Luzia separa o que é seu do que veio do agente',
+    corpo: () => `<ul class="tt-legenda">
+        <li>${orbe('refletida')}<span><b>Luz refletida</b> é o que o agente fez e você ainda não domina.</span></li>
+        <li>${orbe('propria')}<span><b>Luz própria</b> é o que você explica, decide e defende.</span></li></ul>
+      <p>Seu caminho até a meta é transformar uma na outra, sem deixar de usar IA. A luz se mede em lúmens (lm): cada conceito vale um número fixo de lm.</p>` },
+  { titulo: 'Seu caminho até a meta', tela: 'hoje', alvo: () => primeiroVisivel('#hoje .linha-traj'),
+    corpo: () => `<p>Este número mostra quanto do alvo da sua meta já é luz própria. Ele só sobe.</p>
+      <p>Acender centelhas novas cria oportunidades e nunca tira nada do que você já conquistou.</p>` },
+  { titulo: 'O próximo passo', tela: 'hoje', alvo: () => primeiroVisivel('#hoje .destaque .texto, #hoje .vazio-destaque'),
+    corpo: () => `<ol class="tt-passos">
+        <li>Leve a centelha para o seu agente: <b>Acender no Claude Code</b> ou <b>Copiar prompt</b>.</li>
+        <li>Explique com as suas palavras. A Luzia pergunta uma coisa por vez e dá uma nota de 0 a 4.</li>
+        <li>Com nota 3 ou 4, aparece o botão <b>Acender luz própria</b>. Só o seu sim acende a luz.</li></ol>` },
+  { titulo: 'Prismas são as habilidades da sua meta', tela: 'hoje',
+    alvo: () => primeiroVisivel('#hoje .prisma-cartao'),
+    corpo: () => {
+      const p = prismasLuz()[0];
+      const ex = p ? `<p>Por exemplo: ${curto(p.nome)} está em ${p.pct}%, ou ${p.contado} de ${p.alvo_lm} lm do alvo.</p>` : '';
+      return `<p>Cada prisma tem um alvo em lm. O % é quanto desse alvo já é luz própria.</p>${ex}
+      <p>"Da luz coletada é sua" compara a sua luz com a que veio do agente. Se o agente fizer por você, esse número cai: é um aviso, não uma punição.</p>`;
+    } },
+  { titulo: 'Centelhas são as oportunidades', alvo: () => primeiroVisivel('[data-tela="centelhas"]'),
+    corpo: () => `<ul class="tt-legenda">
+        <li>${orbe('apagada')}<span><b>Por acender</b>: ainda ninguém tocou.</span></li>
+        <li>${orbe('refletida')}<span><b>Luz refletida</b>: o agente usou no seu código.</span></li>
+        <li>${orbe('convertendo')}<span><b>Convertendo</b>: você está explicando para a Luzia; falta a nota e o seu sim.</span></li>
+        <li>${orbe('propria')}<span><b>Luz própria</b>: é sua.</span></li></ul>
+      <p>Cada centelha vale lm fixos. Abra uma e toque em <b>Por que N lm</b> para ver a conta.</p>` },
+  { titulo: 'Entregas: o que você entregou é seu?', alvo: () => primeiroVisivel('[data-tela="entregas"]'),
+    corpo: () => `<p>A Luzia lê os seus commits e mede quatro coisas em cada entrega:</p>
+      <ul class="tt-modos"><li><b>P1</b>: a direção que você deu ao agente nos prompts.</li><li><b>P2</b>: o foco da entrega.</li>
+        <li><b>P3</b>: o conceito aplicado, que você explicou.</li><li><b>P4</b>: a decisão que você defendeu.</li></ul>
+      <p>P3 e P4 só sobem com centelhas convertidas daquela entrega.</p>` },
+  { titulo: 'Você escolhe quando a Luzia fala', alvo: () => primeiroVisivel('[data-tela="ajustes"]'),
+    corpo: () => `<ul class="tt-modos"><li><b>Em foco</b>: mostra centelhas no fim das respostas do agente.</li>
+        <li><b>Em silêncio</b>: só anota, sem interromper.</li><li><b>Fora de foco</b>: só age quando você chama.</li></ul>
+      <p>Em Ajustes também ficam o modelo e este tutorial, para rever quando quiser.</p>` },
+  { titulo: 'No dia a dia, é só trabalhar',
+    corpo: () => `<p>Use o agente como sempre. Quando aparecer uma centelha, converta na hora ou depois.</p>
+      <p>No chat, <code>/luzia:hoje</code> mostra onde você está. Este painel mostra o mapa inteiro.</p>` },
+];
+let tutorial = null;  // índice do passo aberto
+let tutorialAutoAberto = false;
+let focoAntesTutorial = null;
+
+function abrirTutorial(i = 0) {
+  if (tutorial === null) focoAntesTutorial = document.activeElement;
+  tutorial = Math.max(0, Math.min(PASSOS_TUTORIAL.length - 1, i));
+  const passo = PASSOS_TUTORIAL[tutorial];
+  if (passo.tela) irPara(passo.tela);
+  renderTutorial();
+}
+function renderTutorial() {
+  const raiz = $('#tutorial');
+  if (tutorial === null) { raiz.hidden = true; return; }
+  const passo = PASSOS_TUTORIAL[tutorial];
+  const ultimo = tutorial === PASSOS_TUTORIAL.length - 1;
+  const trilha = PASSOS_TUTORIAL.map((_, i) => `<i class="orbe ${i < tutorial ? 'propria' : i === tutorial ? 'convertendo' : 'refletida'}" aria-hidden="true"></i>`).join('');
+  raiz.innerHTML = `<div class="tt-foco" aria-hidden="true"></div>
+    <div class="tt-cartao">
+      <p class="tt-conta">Passo ${tutorial + 1} de ${PASSOS_TUTORIAL.length}</p>
+      <h2 id="tt-titulo" tabindex="-1">${esc(passo.titulo)}</h2>
+      <div class="tt-corpo">${passo.corpo()}</div>
+      <div class="tt-trilha" aria-hidden="true">${trilha}</div>
+      <div class="tt-acoes">
+        ${ultimo ? '' : '<button class="btn link" data-tt="pular">Pular tutorial</button>'}
+        <span class="tt-nav">${tutorial ? '<button class="btn sec" data-tt="voltar">Voltar</button>' : ''}
+        <button class="btn neutro" data-tt="${ultimo ? 'fim' : 'proximo'}">${ultimo ? 'Começar' : 'Próximo'}</button></span>
+      </div>
+    </div>`;
+  raiz.hidden = false;
+  posicionarTutorial(true);
+  $('#tt-titulo').focus({ preventScroll: true });
+}
+// Ilumina o alvo do passo (recorte com sombra) e põe o cartão perto dele; no celular o cartão fica acima da barra inferior.
+function posicionarTutorial(rolar = false) {
+  if (tutorial === null) return;
+  const passo = PASSOS_TUTORIAL[tutorial];
+  const foco = $('#tutorial .tt-foco');
+  const cartao = $('#tutorial .tt-cartao');
+  const alvo = passo.alvo ? passo.alvo() : null;
+  const celular = matchMedia('(max-width: 960px)').matches;
+  $('#tutorial').classList.toggle('sem-alvo', !alvo);
+  cartao.style.cssText = '';
+  if (!alvo) { foco.style.cssText = 'display:none'; return; }
+  if (rolar && !alvo.closest('.rail, .nav-baixo')) alvo.scrollIntoView({ block: celular ? 'start' : 'center', behavior: 'instant' });
+  const r = alvo.getBoundingClientRect();
+  const m = 8;
+  foco.style.cssText = `display:block;top:${r.top - m}px;left:${r.left - m}px;width:${r.width + 2 * m}px;height:${r.height + 2 * m}px`;
+  if (celular) return;  // o CSS prende o cartão embaixo
+  const c = cartao.getBoundingClientRect();
+  const lado = r.right + m + 16;  // alvo estreito (trilho): cartão ao lado
+  if (r.width < 140 && lado + c.width <= innerWidth - 16) {
+    cartao.style.cssText = `top:${Math.max(16, Math.min(r.top, innerHeight - c.height - 16))}px;left:${lado}px`;
+    return;
+  }
+  const esq = Math.max(16, Math.min(r.left, innerWidth - c.width - 16));
+  const vert = Math.max(16, Math.min(r.top, innerHeight - c.height - 16));
+  const opcoes = [  // abaixo, acima, à direita, à esquerda; sem espaço, o canto inferior direito (o começo do alvo fica à vista)
+    [r.bottom + m + 16 + c.height <= innerHeight - 16, r.bottom + m + 16, esq],
+    [r.top - m - 16 - c.height >= 16, r.top - m - 16 - c.height, esq],
+    [r.right + m + 16 + c.width <= innerWidth - 16, vert, r.right + m + 16],
+    [r.left - m - 16 - c.width >= 16, vert, r.left - m - 16 - c.width],
+  ];
+  const [, top, left] = opcoes.find(([cabe]) => cabe) || [true, innerHeight - c.height - 16, innerWidth - c.width - 16];
+  cartao.style.cssText = `top:${top}px;left:${left}px`;
+}
+async function fecharTutorial() {
+  tutorial = null;
+  renderTutorial();
+  scrollTo({ top: 0 });
+  if (E) E.tutorial_visto = true;
+  if (focoAntesTutorial && document.contains(focoAntesTutorial)) focoAntesTutorial.focus();
+  await api('/api/tutorial', { visto: true });
+}
+function acaoTutorial(acao) {
+  if (acao === 'proximo') return abrirTutorial(tutorial + 1);
+  if (acao === 'voltar') return abrirTutorial(tutorial - 1);
+  return fecharTutorial();  // pular ou começar: os dois contam como visto
+}
+addEventListener('resize', () => posicionarTutorial());
+
 // ------------------------------------------------------------------ gavetas
 function abrirGaveta(html) {
   $('#gaveta-corpo').innerHTML = `<button class="fechar" data-fechar aria-label="Fechar">${ic('fechar')}</button>${html}`;
   $('#gaveta').hidden = false;
+  const tituloGaveta = $('#gaveta-corpo').querySelector('h2, h3');
+  if (tituloGaveta) {
+    tituloGaveta.id = 'gaveta-titulo';
+    $('#gaveta-corpo').setAttribute('aria-labelledby', 'gaveta-titulo');
+  } else $('#gaveta-corpo').removeAttribute('aria-labelledby');
   $('#gaveta-corpo').focus();
 }
 function guiaPadrao(c) {
@@ -665,7 +817,7 @@ function abrirPrisma(nome) {
   abrirGaveta(`
     <div class="prisma-g">${tri(p, true)}<span><small>Prisma</small><h2>${curto(nome)}</h2>${temSub ? `<small>${esc(nome)}</small>` : ''}</span></div>
     <div class="pct-g"><b>${p.pct}%</b><span>do alvo · ${p.contado} de ${p.alvo_lm} lm${p.coletada ? ` · ${composicao(p)}` : ''}</span></div>
-    ${segs(p.lista || [], { classe: 'grossa', rotulo: ariaPrisma(p) })}
+    ${segs(rumoAoAlvo(p), { classe: 'grossa', rotulo: ariaPrisma(p) })}
     <p class="resumo ${p.n_converter ? 'converter' : ''}" style="margin-top:10px">${esc(resumoPrisma(p))}</p>
     ${px ? `<p style="margin-top:18px"><button class="btn acender" data-centelha="${esc(px.id)}">${px.estado === 'apagada' ? 'Acender a próxima' : 'Converter a próxima'} · +${px.lm} lm</button></p>` : ''}
     <h4>Centelhas da meta</h4>
@@ -809,6 +961,11 @@ function render(tela = document.querySelector('.tela.ativa')?.id || 'hoje') {
   telaAjustes();
   irPara(TELAS.some(([id]) => id === tela) ? tela : 'hoje');
   if (conquista) renderConquista();
+  if (tutorial !== null) posicionarTutorial();
+  else if (!E.tutorial_visto && !tutorialAutoAberto && !conquista) {  // primeira vez depois da triagem
+    tutorialAutoAberto = true;
+    abrirTutorial(0);
+  }
 }
 
 function irPara(tela) {
@@ -827,7 +984,7 @@ const SELETOR = [
   '[data-privacidade]', '#m-salvar', '#m-testar', '[data-acender]', '[data-gerar-leituras]', '[data-ampliar-entregas]',
   '[data-acender-entrega]', '[data-entrega-detalhe]', '#ent-identidade-salvar', '[data-abrir-pedido-form]', '#ped-enviar',
   '[data-pedido-aceitar]', '[data-pedido-recusar]', '[data-dividir-prisma]', '[data-dividir-todos]', '[data-pedido-dividir-ajustar]',
-  '[data-reativar-prisma]', '#sair-celular',
+  '[data-reativar-prisma]', '#sair-celular', '[data-tt]', '[data-tutorial]',
 ].join(',');
 
 async function aoClicar(t, ev) {
@@ -949,6 +1106,11 @@ async function aoClicar(t, ev) {
     return carregar();
   }
   if (t.id === 'sair-celular') return sair();
+  if (ds.tt) return acaoTutorial(ds.tt);
+  if (ds.tutorial) {
+    irPara('hoje');
+    return abrirTutorial(0);
+  }
   if (ds.acender) {
     t.disabled = true;
     toast('Acendendo…', 'neutro');
@@ -1076,7 +1238,12 @@ document.addEventListener('change', (ev) => {
 });
 // Esc fecha a sobreposição ("Agora não") ou a gaveta; Tab fica preso dentro do diálogo aberto.
 document.addEventListener('keydown', (ev) => {
-  const dialogo = conquista ? $('#conquista') : (!$('#gaveta').hidden ? $('#gaveta-corpo') : null);
+  if (tutorial !== null) {
+    if (ev.key === 'Escape') { ev.preventDefault(); return fecharTutorial(); }
+    if (ev.key === 'ArrowRight' && tutorial < PASSOS_TUTORIAL.length - 1) { ev.preventDefault(); return abrirTutorial(tutorial + 1); }
+    if (ev.key === 'ArrowLeft' && tutorial > 0) { ev.preventDefault(); return abrirTutorial(tutorial - 1); }
+  }
+  const dialogo = tutorial !== null ? $('#tutorial .tt-cartao') : conquista ? $('#conquista') : (!$('#gaveta').hidden ? $('#gaveta-corpo') : null);
   if (ev.key === 'Escape') {
     if (conquista) fecharConquista(); else $('#gaveta').hidden = true;
     return;

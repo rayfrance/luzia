@@ -8,22 +8,20 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
 import os
-import shutil
-import tempfile
 import time
 from datetime import datetime
 from pathlib import Path
+
+from . import porteiro  # noqa: E402  (só os, json e sys: a mesma regra de pasta privada serve ao porteiro do lz.py)
 
 HERE = Path(__file__).resolve().parent
 # Pasta dos dados pessoais (fora do git e fora do plugin, para sobreviver a atualizações). Ordem:
 # 1. LUZIA_PRIVATE, se definida (os testes apontam para uma pasta temporária);
 # 2. `private/` ao lado do código, se já existir (checkout de desenvolvimento com dados);
 # 3. `~/.luzia` (plugin instalado pelo marketplace).
-PRIVATE = (Path(os.environ['LUZIA_PRIVATE']) if os.environ.get('LUZIA_PRIVATE')
-           else HERE / 'private' if (HERE / 'private').is_dir() else Path.home() / '.luzia')
+PRIVATE = Path(porteiro.privado())
 ERROS = PRIVATE / 'erros.log'
 # Estado vivo da carreira (plano, entregas, trechos): privado, muda a cada chamada.
 ESTADO = PRIVATE / 'career_state.json'
@@ -36,6 +34,8 @@ CLI = f'python "{HERE.as_posix()}/lz.py" cli'
 def versao_codigo() -> str:
     """Impressão digital do código da Luzia (os .py desta pasta): o painel informa a dele no ping autenticado e o
     `career-map` reinicia um painel que ficou rodando com código de antes de uma atualização."""
+    import hashlib  # import tardio: o hook não calcula a versão do código
+
     h = hashlib.sha256()
     for arq in sorted(HERE.glob('*.py')):
         h.update(arq.name.encode('utf-8'))
@@ -58,6 +58,8 @@ def _guardar_corrompido(path: Path) -> str:
     """Copia o arquivo ruim uma vez (o nome usa a data da última alteração, então não repete a cada leitura)."""
     try:
         marca = datetime.fromtimestamp(path.stat().st_mtime).strftime('%Y%m%d-%H%M%S')
+        import shutil
+
         copia = path.with_name(f'{path.name}.corrompido-{marca}')
         if not copia.exists():
             shutil.copy2(path, copia)
@@ -82,6 +84,8 @@ def ler_json(path: Path, padrao):
 
 
 def gravar_texto(path: Path, texto: str) -> None:
+    import tempfile
+
     path.parent.mkdir(parents=True, exist_ok=True)
     fd, tmp = tempfile.mkstemp(prefix=f'.{path.name}.', suffix='.tmp', dir=path.parent)
     try:
@@ -111,6 +115,8 @@ def gravar_json(path: Path, dados, indent: int | None = 2) -> None:
 def ler_estado() -> dict:
     """Estado vivo da carreira. Na primeira vez, parte da foto do sem2, se ela estiver na pasta privada."""
     if not ESTADO.exists() and ESTADO_LEGADO.exists():
+        import shutil
+
         PRIVATE.mkdir(parents=True, exist_ok=True)
         shutil.copy2(ESTADO_LEGADO, ESTADO)
     return ler_json(ESTADO, {})

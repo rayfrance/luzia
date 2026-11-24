@@ -363,15 +363,10 @@ def test_pedido_fluxo_completo_pelo_chat(privado, monkeypatch):
     recebidos = []
 
     def fake_run_plan(payload, schema=None, intro='', **kw):
-        recebidos.append(payload)  # o payload é o que o código de verdade monta: pedido.nivel_solicitado / meta_solicitada
-        ped = payload.get('pedido') or {}
-        nivel = ped.get('nivel_solicitado') if ped.get('nivel_solicitado') is not None else 1
-        meta = ped.get('meta_solicitada') if ped.get('meta_solicitada') is not None else 3
+        recebidos.append(payload)  # o payload é o que o código de verdade monta: pedido.palavras_pedidas / nota_da_pessoa
         res = {
-            'nivel_partida': nivel,
-            'meta': meta,
             'palavras_chave': ['opentelemetry', 'tracing', 'metrics'],
-            'analise': f'Partida no nível {nivel} rumo à meta {meta} com foco em telemetria.',
+            'analise': 'Foco em telemetria para ver a latência real.',
             'acoes': [
                 {
                     'titulo': 'Instrumentar endpoint crítico com tracing',
@@ -413,12 +408,13 @@ def test_pedido_fluxo_completo_pelo_chat(privado, monkeypatch):
         assert len(lista) == 1
         pid = lista[0]['id']
 
-    s_ajustar = rodar(monkeypatch, 'pedido', 'ajustar', str(pid), '--nivel', '2', '--meta', '4')
+    s_ajustar = rodar(monkeypatch, 'pedido', 'ajustar', str(pid), '--palavras', 'tracing, logs', '--motivo', 'foco em logs')
     assert tem_rodape_botoes(s_ajustar)
-    # o modelo recebeu o pedido de verdade (nível 2, meta 4) e a proposta impressa traz exatamente esses números
-    assert recebidos[-1]['pedido']['nivel_solicitado'] == 2 and recebidos[-1]['pedido']['meta_solicitada'] == 4
-    assert 'nível **2 → meta 4/5**' in visivel(s_ajustar)
-    assert 'Partida no nível 2 rumo à meta 4' in visivel(s_ajustar)
+    # o modelo recebeu o pedido de verdade (palavras e nota da pessoa) e a proposta impressa não fala de nível
+    assert recebidos[-1]['pedido']['palavras_pedidas'] == ['tracing', 'logs']
+    assert recebidos[-1]['pedido']['nota_da_pessoa'] == 'foco em logs'
+    assert 'nível' not in visivel(s_ajustar).lower() and 'alvo da trajetória' in visivel(s_ajustar)
+    assert 'Foco em telemetria' in visivel(s_ajustar)
 
     s_aceitar = rodar(monkeypatch, 'pedido', 'aceitar', str(pid))
     assert tem_rodape_botoes(s_aceitar)
@@ -527,11 +523,7 @@ def test_entrega_detalhe_mostra_p1_a_p4_com_base(privado, monkeypatch):
 # ------------------------------------------------------------------ pedidos: erros, sem modelo e leitura com base (A6–A8)
 def _modelo_pedido(monkeypatch, modelo_nome='gemini/gemini-2.5-flash'):
     def fake(payload, **kw):
-        ped = payload.get('pedido') or {}
-        nv = ped.get('nivel_solicitado') if ped.get('nivel_solicitado') is not None else 1
-        mt = ped.get('meta_solicitada') if ped.get('meta_solicitada') is not None else 3
-        res = {'nivel_partida': nv, 'meta': mt, 'palavras_chave': ['tracing'], 'acoes': [],
-               'analise': f'Partida no nível {nv} rumo à meta {mt}.'}
+        res = {'palavras_chave': ['tracing'], 'acoes': [], 'analise': 'Telemetria rumo à meta.'}
         return SimpleNamespace(plan=res, model=modelo_nome), {'quando': '2026-11-12T15:00:00', 'modelo': modelo_nome}
 
     monkeypatch.setattr(pipeline, 'run_plan', fake)
@@ -540,9 +532,9 @@ def _modelo_pedido(monkeypatch, modelo_nome='gemini/gemini-2.5-flash'):
 def test_pedido_mostra_analise_com_base_modelo_e_data(privado, monkeypatch):
     _modelo_pedido(monkeypatch)
     for argv in (('pedido', 'abrir', 'incluir', 'Observabilidade', '--motivo', 'Monitorar'),
-                 ('pedido', 'ajustar', '1', '--nivel', '2', '--meta', '4')):
+                 ('pedido', 'ajustar', '1', '--palavras', 'tracing, logs')):
         v = visivel(rodar(monkeypatch, *argv))
-        linha = next(l for l in v.splitlines() if 'Partida no nível' in l)
+        linha = next(l for l in v.splitlines() if 'Telemetria rumo à meta' in l)
         assert '— Análise da Luzia, 12 nov' in linha and 'base: ' in linha and 'gemini/gemini-2.5-flash' in linha, linha
 
 
@@ -571,16 +563,16 @@ def test_pedido_sem_modelo_nao_trava_a_pessoa(privado, monkeypatch):
         raise RuntimeError('Falta a chave GEMINI_API_KEY: configure em Ajustes > Modelo da Luzia.')
 
     monkeypatch.setattr(pipeline, 'run_plan', sem_modelo)
-    s = rodar(monkeypatch, 'pedido', 'abrir', 'incluir', 'Observabilidade', '--nivel', '2', '--meta', '4')
+    s = rodar(monkeypatch, 'pedido', 'abrir', 'incluir', 'Observabilidade', '--nivel', '2', '--meta', '4')  # legado: ignorados
     v = visivel(s)
-    assert 'proposto' in v and 'nível **2 → meta 4/5**' in v and 'Sem análise: análise indisponível' not in v and 'Sem análise' in v
+    assert 'proposto' in v and 'alvo da trajetória' in v and 'nível' not in v.lower() and 'Sem análise: análise indisponível' not in v and 'Sem análise' in v
     assert any(b['rodar'] == 'pedido aceitar 1' for b in botoes_de(s))
     s = rodar(monkeypatch, 'pedido', 'abrir', 'incluir', 'Observabilidade')  # tentar de novo explica, não trava
     assert 'já existe um pedido em aberto' in visivel(s) and tem_rodape_botoes(s)
     s = rodar(monkeypatch, 'pedido', 'aceitar', '1')
     assert 'aceito' in visivel(s) and tem_rodape_botoes(s)
     with trajetoria.abrir() as con:
-        assert {p['nome']: (p['nivel'], p['meta']) for p in trajetoria.prismas(con)}['Observabilidade'] == (2, 4)
+        assert 'Observabilidade' in {p['nome'] for p in trajetoria.prismas(con)}
 
 
 def test_toda_leitura_impressa_tem_base_modelo_e_data(privado, monkeypatch):

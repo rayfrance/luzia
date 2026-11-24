@@ -288,7 +288,7 @@ def _rodar(monkeypatch, *argv):
 
 def test_chat_dividir_ajustar_e_aceitar(con, monkeypatch):
     texto, bts = _rodar(monkeypatch, 'dividir', TESTES)
-    assert 'Testes e Qualidade' in texto and 'SQL' in texto and 'nível' in texto
+    assert 'Testes e Qualidade' in texto and 'SQL' in texto and 'nível' not in texto.lower()  # sem níveis desde 24/11
     assert not RE_PREFIXO.search(texto)
     pid = next(p['id'] for p in pedidos.listar(con) if p['tipo'] == 'dividir')
     assert {'pedido aceitar %d' % pid, 'pedido ajustar %d' % pid} <= {b['rodar'] for b in bts}
@@ -348,7 +348,8 @@ def test_painel_sem_prefixo_prisma_nos_rotulos():
     ('SQL', 'SQL'),
     ('Front-end (JS / Razor / React)', 'Front-end'),
     ('Arquitetura .NET / Clean Architecture', 'Clean Architecture'),
-    ('Programação Agêntica e Fluxo com IA', 'Programação Agênti…'),
+    ('Programação Agêntica e Fluxo com IA', 'Programação Agêntica…'),  # corta em palavra inteira
+    ('Arquitetura de Software', 'Arquitetura de Software'),  # até 24 caracteres fica inteiro
     ('  Testes e Qualidade  ', 'Testes e Qualidade'),
 ])
 def test_nome_curto_do_prisma(nome, curto):

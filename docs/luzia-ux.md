@@ -7,7 +7,7 @@ Nome real primeiro; a metáfora de luz só onde explica algo.
 
 - **Trajetória**: o caminho do rótulo de carreira atual até a meta (ex.: Júnior 3 até Plena), versionado e ajustável por pedido formal de mudança.
 - **Prisma (skill)**: **uma única habilidade** da trajetória (ex.: *Domain-Driven Design (DDD)*, *SQL*, *React*), nunca um nome que junta assuntos. Nos rótulos aparece só o nome, sem "Prisma" na frente. Cada prisma mostra uma barra: o avanço até o alvo da meta.
-- **Dividir um prisma composto** (`dividir "<prisma>"`, `dividir-todos` ou "Separar em habilidades" no painel): pedido de mudança formal, sem modelo. Cada habilidade herda a meta do antigo; cada centelha vai para a habilidade que ela trata, **com a luz que já tinha** (você confere, renomeia uma parte ou move uma centelha antes de aceitar); o antigo é arquivado com tudo o que acumulou.
+- **Dividir um prisma composto** (`dividir "<prisma>"`, `dividir-todos` ou "Separar em habilidades" no painel): pedido de mudança formal, sem modelo. Cada habilidade ganha o próprio alvo; cada centelha vai para a habilidade que ela trata, **com a luz que já tinha** (você confere, renomeia uma parte ou move uma centelha antes de aceitar); o antigo é arquivado com tudo o que acumulou.
 - **Centelha**: uma oportunidade de 5 a 30 min ligada a um conceito de um prisma. Nasce na sessão, na triagem, numa entrega ou num pedido de mudança. A origem aparece numa etiqueta curta: *da sessão*, *da triagem*, *da entrega*. Tipos: `praticar`, `explicar`, `estudar`, `explorar`. (No código e no banco, o nome continua `avanco`.) Toda centelha está num de quatro estados:
   - **Por acender** (`apagada`): a Luzia a captou; ninguém aplicou nem explicou o conceito ainda.
   - **Luz refletida** (`refletida`): o agente aplicou o conceito; a luz ainda é dele. Esta é a que você pode converter.
@@ -29,7 +29,7 @@ Nome real primeiro; a metáfora de luz só onde explica algo.
 - A trajetória soma os prismas ativos. O rótulo de carreira (ex.: Júnior 3 → Plena) vem do plano.
 - A luz só muda com o seu sim: a Luzia confirma o entendimento, você decide acender.
 - O **prazo** declarado apenas calibra o ritmo sugerido. Não cria datas obrigatórias nem trava o progresso.
-- Em 1/3, 2/3 e 100% do lm próprio da trajetória, a Luzia gera um **dossiê de evidências** local (centelhas próprias com nota, onde e data, e os pedidos de mudança aceitos). O que se conquistou no modelo anterior aparece como "Histórico (modelo anterior)".
+- Em 1/3, 2/3 e 100% do avanço da trajetória, a Luzia gera um **dossiê de evidências** local (centelhas próprias com nota, onde e data, e os pedidos de mudança aceitos). O que se conquistou no modelo anterior aparece como "Histórico (modelo anterior)".
 - Quando um prisma fica sem centelha por converter ou por acender, a Luzia oferece **acender 3 centelhas novas** dele (`/luzia:acender`).
 
 ## Sempre uma ação (paridade chat × painel)
@@ -59,9 +59,9 @@ O foco reconhece por **centelha**, não por prisma, com as palavras de cada uma.
 ## Trajetória flexível (pedido de mudança)
 Qualquer ajuste na trajetória — **incluir prisma**, **mudar meta**, **arquivar** ou **reativar** — segue um fluxo formal no chat ou no painel:
 1. A pessoa abre o pedido informando o motivo.
-2. Para inclusões e mudanças de meta, a Luzia analisa contra a meta final e propõe a meta, as palavras-chave, 3 centelhas iniciais (por acender) e a Análise da Luzia.
-3. A pessoa escolhe **Aceitar**, **Ajustar** (alterando a meta ou as partes para nova proposta, registrado no histórico do pedido) ou **Recusar**.
-4. Ao aceitar, nasce uma nova **versão imutável da trajetória**; nenhum progresso anterior (lúmens e centelhas, com a luz que cada uma tem) é perdido. Prismas arquivados preservam tudo e podem ser reativados.
+2. Para inclusões e mudanças de meta, a Luzia analisa contra a meta final e propõe as palavras-chave, 3 centelhas iniciais (por acender), quanto o alvo da trajetória cresce e a Análise da Luzia. Não há níveis.
+3. A pessoa escolhe **Aceitar**, **Ajustar** (troca as palavras-chave ou dá uma dica em uma frase, `pedido ajustar <id> --palavras 'a, b'` ou `--motivo '...'`; na divisão, as partes; registrado no histórico do pedido) ou **Recusar**.
+4. Ao aceitar, nasce uma nova **versão imutável da trajetória**; nenhum progresso anterior (lúmens e centelhas, com a luz que cada uma tem) é perdido. Como o alvo total muda (um prisma entra ou sai), a Luzia mostra o avanço antes e depois. Prismas arquivados preservam tudo e podem ser reativados.
 
 ## Entregas (detecção local no git + P1–P4)
 - Rastreia entregas localmente nos repositórios autorizados (apenas commits da pessoa): merge commits de PR (`Merged PR ...`, `Merge pull request #...`), commits agrupados por id de ticket (`AB#...`, `#...`) ou commits isolados.

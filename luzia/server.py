@@ -56,7 +56,8 @@ ROTAS_GET = ('/api/estado', '/api/sessao', '/api/avancos', '/api/entrega')
 ROTAS_POST = ('/api/pedido', '/api/leituras', '/api/identidade',
               '/api/entrega/acender', '/api/entregas/ampliar', '/api/modo', '/api/agente', '/api/enviar', '/api/modelo',
               '/api/modelo/testar', '/api/descartar', '/api/restaurar', '/api/acender', '/api/trecho',
-              '/api/iniciar', '/api/converter', '/api/confirmar', '/api/privacidade')
+              '/api/iniciar', '/api/converter', '/api/confirmar', '/api/privacidade', '/api/tutorial')
+TUTORIAL = 'tutorial_visto_em'  # perfil: quando a pessoa terminou ou pulou o tutorial de primeiro uso do painel
 PORTARIA = acesso.Portaria()  # links e sessões no banco privado; só o limite de links errados fica em memória
 COOKIE_ATTRS = 'HttpOnly; SameSite=Strict; Path=/'  # sem Secure: o painel é http://127.0.0.1
 COOKIE_MAX_AGE = acesso.SESSAO_MAX_S
@@ -191,6 +192,7 @@ def estado() -> dict:
         todos_prismas_db = trajetoria.prismas(con, incluir_arquivados=True)
         leituras_prismas = {p['nome']: leituras.obter(con, 'prisma', p['nome']) for p in todos_prismas_db}
         lista_pedidos = pedidos.listar(con)
+        tutorial_visto = bool(trajetoria.perfil_ler(con, TUTORIAL))
         entregas_git = entregas.listar(con)
         avancos_todos = jogo.avancos(con)  # uma só lista de avanços para todas as entregas
         detalhes_git = [entregas.detalhe(con, e['id'], todos_avancos=avancos_todos) for e in entregas_git[:ENTREGAS_NA_TELA]]
@@ -322,6 +324,7 @@ def estado() -> dict:
         'fila': fila_ids,
         'modo': modo_atual,
         'modo_nome': modo_nome,
+        'tutorial_visto': tutorial_visto,
         'foco_opcoes': observer.NOMES_FOCO,
         'privacidade': {'mascarar_modelo': pipeline.mascarar_modelo(), 'termos': pipeline.termos_configurados()},
         'agente': pipeline.read_json(pipeline.OBSERVER_CFG, {}).get('agente', 'claude-code'),
@@ -614,8 +617,13 @@ class Handler(BaseHTTPRequestHandler):
                 if mover is not None and not (isinstance(mover, dict)
                                               and all(isinstance(v, str) for v in mover.values())):
                     raise ValueError('mover: envie {centelha: habilidade}')
-                return pedidos.propor(con, pid, nivel=numero('nivel', 'nível'), meta=numero('meta', 'meta'),
-                                      partes=partes, mover=mover)
+                palavras = dados.get('palavras')  # sem níveis desde 24/11: troca as palavras ou manda uma dica
+                if isinstance(palavras, str):
+                    palavras = [w.strip() for w in palavras.split(',') if w.strip()]
+                if palavras is not None and not (isinstance(palavras, list) and all(isinstance(x, str) for x in palavras)):
+                    raise ValueError('palavras: envie a lista de palavras-chave')
+                nota = str(dados.get('nota') or '').strip()[:300] or None
+                return pedidos.propor(con, pid, partes=partes, mover=mover, palavras=palavras or None, nota=nota)
             if acao == 'aceitar':
                 return pedidos.aceitar(con, pid)
             return pedidos.recusar(con, pid)
@@ -676,6 +684,12 @@ class Handler(BaseHTTPRequestHandler):
             with trajetoria.abrir() as con:
                 res = entregas.atualizar(con, dias=dias)
             return self._json({'ok': True, 'atualizacao': res})
+
+        if path == '/api/tutorial':  # visto (terminou ou pulou) some até a pessoa pedir de novo em Ajustes
+            with trajetoria.abrir() as con, banco.transacao(con):
+                trajetoria.perfil_gravar(con, TUTORIAL, datetime.now().isoformat(timespec='seconds')
+                                         if dados.get('visto', True) else None)
+            return self._json({'ok': True, 'visto': bool(dados.get('visto', True))})
 
         if path == '/api/modo':
             modo = dados.get('modo')

@@ -85,7 +85,9 @@ Ele abre em http://127.0.0.1:8501, já com a sua sessão aberta. Antes da triage
 /luzia:triage
 ```
 
-A Luzia faz uma entrevista curta: onde você está, aonde quer chegar, em quanto tempo, qual repositório de trabalho, qual e-mail aparece nos seus commits, currículo e GitHub (opcionais) e se pode ler o histórico do Claude Code e do Codex (só com o seu sim). Depois monta a sua trajetória (cerca de 1 minuto).
+A Luzia faz uma entrevista curta: onde você está, aonde quer chegar, em quanto tempo, qual repositório de trabalho, qual e-mail aparece nos seus commits, currículo e GitHub (opcionais) e se pode ler o histórico do Claude Code e do Codex (só com o seu sim). Depois monta a sua trajetória, com pelo menos 3 centelhas em cada prisma (cerca de 1 minuto).
+
+10. Volte ao painel. Na primeira vez depois da triagem, ele abre um tutorial curto que mostra cada parte da tela e as ideias da Luzia. Dá para rever quando quiser em **Ajustes › Tutorial**.
 
 ## Atualizar
 

@@ -85,11 +85,15 @@ def partes(nome: str) -> list[str]:
 _SIGLA = re.compile(r'^[\w.#+-]{2,10}$')
 
 
+LIMITE_CURTO = 24
+
+
 def nome_curto(nome: str) -> str:
     """Rótulo curto do prisma (painel e chat usam o mesmo; o nome completo fica no title ou no detalhe).
 
-    Sigla entre parênteses ("Domain-Driven Design (DDD)" → "DDD"); senão o nome sem os parênteses, se couber em 20
-    caracteres; senão o trecho após o último " / "; senão os 18 primeiros caracteres com "…".
+    Sigla entre parênteses ("Domain-Driven Design (DDD)" → "DDD"); senão o nome sem os parênteses, se couber em 24
+    caracteres ("Arquitetura de Software" inteiro); senão o trecho após o último " / "; senão as palavras inteiras que
+    cabem em 22 caracteres, com "…".
     O painel (`nomeCurto` em painel/luzia.js) só repete esta regra para nomes que não vieram no estado.
     """
     n = _limpo(nome)
@@ -97,12 +101,17 @@ def nome_curto(nome: str) -> str:
     if m and _SIGLA.match(m['dentro'].strip()):
         return m['dentro'].strip()
     base = (m['base'] if m else n).strip()
-    if len(base) <= 20:
+    if len(base) <= LIMITE_CURTO:
         return base
     ultimo = _BARRA.split(base)[-1].strip()
-    if ultimo != base and 2 <= len(ultimo) <= 20:
+    if ultimo != base and 2 <= len(ultimo) <= LIMITE_CURTO:
         return ultimo
-    return base[:18].strip() + '…'
+    corte = ''
+    for palavra in base.split():
+        if len(f'{corte} {palavra}'.strip()) > LIMITE_CURTO - 2:
+            break
+        corte = f'{corte} {palavra}'.strip()
+    return (corte or base[:LIMITE_CURTO - 2]).rstrip(' ,/-e') + '…'
 
 
 def composto(nome: str) -> bool:

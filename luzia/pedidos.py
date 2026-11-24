@@ -2,13 +2,14 @@
 
 Regras (spec, seções 6 e 11):
 - Um único pedido aberto ou proposto por prisma por vez.
-- "Ajustar" (`propor` com novo nível/meta) pode se repetir sem limite; cada proposta fica guardada no histórico.
+- "Ajustar" (`propor` com novas palavras-chave ou uma nota da pessoa) pode se repetir sem limite; cada proposta fica guardada no histórico.
 - Tipos `arquivar` e `reativar` não chamam o modelo.
 - Em `incluir` e `mudar_meta`, a análise da Luzia é gravada como leitura com base (`alvo_tipo='pedido'`).
-  Sem modelo (sem chave, sem internet, erro): a proposta sai do nível/meta pedidos pela pessoa (ou dos atuais),
+  Sem modelo (sem chave, sem internet, erro): a proposta sai das palavras pedidas pela pessoa (ou das atuais),
   sem análise e sem avanços ("leitura indisponível"), fica `proposto` e pode ser aceita.
 - `mudar_meta` nunca altera os lúmens. Níveis e metas numéricas não medem mais o progresso (o progresso é a luz
-  própria das centelhas); as colunas `nivel` e `meta` do prisma ficam só como dado de partida e nada grava `nivel_registro`.
+  própria das centelhas) e a pessoa não os vê: a proposta mostra o alvo estimado em lm (`alvo_estimado_lm`). As colunas
+  `nivel` e `meta` do prisma ficam só como dado legado e nada grava `nivel_registro`.
 - `arquivar` tira o prisma da trajetória, preservando todos os lúmens, avanços e histórico; `reativar` devolve tudo.
 - `aceitar` cria uma nova versão da trajetória (`trajetoria_versao`).
 - `dividir` (13/11/2026, um prisma = uma habilidade): sem modelo, a divisão sai de `prismas.partes` e cada avanço vai
@@ -53,7 +54,7 @@ def _propostas_de(proposta_json: str | None) -> tuple[dict | None, list[dict]]:
     if isinstance(hist, list):
         atual = dados.get('atual') or (hist[-1] if hist else None)
         return atual, hist
-    if any(k in dados for k in ('nivel_partida', 'meta', 'acoes', 'partes')):
+    if any(k in dados for k in ('nivel_partida', 'meta', 'acoes', 'partes', 'palavras_chave')):
         return dados, [dados]
     return None, []
 
@@ -103,14 +104,28 @@ def _nivel(valor, padrao: int) -> int:
     return max(0, min(5, n))
 
 
-def _ganho_niveis(con: sqlite3.Connection, tipo: str, nome: str, nivel_novo: int, meta_nova: int) -> int:
-    """Campo legado da proposta (diferença na soma de max(0, meta − nível)); nada de progresso depende dele."""
-    ativos = {p['nome']: p for p in trajetoria.prismas(con)}
-    antes = sum(max(0, p['meta'] - p['nivel']) for p in ativos.values())
-    depois = sum(max(0, p['meta'] - p['nivel']) for k, p in ativos.items() if k != nome)
-    if tipo != 'arquivar':
-        depois += max(0, meta_nova - nivel_novo)
-    return depois - antes
+def _estimar_alvo(con: sqlite3.Connection, nome: str, acoes_prop: list[dict]) -> int:
+    """Quanto o alvo da trajetória cresce ao incluir o prisma: soma do lm das centelhas iniciais (cada uma recebe
+    `lm_estimado`, pela mesma regra de valor das centelhas reais) ou `jogo.ALVO_PADRAO` se não houver centelhas."""
+    if not acoes_prop:
+        return jogo.ALVO_PADRAO
+    try:
+        plan = trajetoria.perfil_ler(con, 'plano') or {}
+        prog = jogo.luz(plan, con)['por_prisma']
+        nomes = jogo.nomes_de_skills(plan)
+    except Exception as e:  # sem plano legível a estimativa cai no alvo padrão, nunca trava o pedido
+        arquivos.registrar_erro('pedidos estimar alvo', e)
+        return jogo.ALVO_PADRAO
+    total = 0
+    for a in acoes_prop:
+        try:
+            lm = int(a.get('valor_lm') or jogo.valor({**a, 'skill': nome, 'skill_plano': nome}, plan, prog, nomes)[0])
+        except Exception:
+            lm = 0
+        if lm > 0:
+            a['lm_estimado'] = lm
+            total += lm
+    return total or jogo.ALVO_PADRAO
 
 
 def abrir(con: sqlite3.Connection, tipo: str, prisma: str, motivo: str = '') -> dict:
@@ -134,6 +149,16 @@ def abrir(con: sqlite3.Connection, tipo: str, prisma: str, motivo: str = '') -> 
         elif linha is not None and con.execute(
                 "SELECT 1 FROM pedido WHERE tipo = 'dividir' AND estado = 'aceito' AND prisma = ?", (nome,)).fetchone():
             raise ValueError(f'o prisma {nome} foi dividido em habilidades; reative uma delas')
+        elif linha is None:  # reativar só o que existe e está arquivado (teste com testadores, 24/11)
+            raise ValueError(f'prisma desconhecido: {nome}')
+        elif linha['estado'] != 'arquivado':
+            raise ValueError(f'o prisma {nome} já está ativo')
+    elif tipo == 'arquivar':
+        linha = con.execute('SELECT estado FROM prisma WHERE nome = ?', (nome,)).fetchone()
+        if linha is None:
+            raise ValueError(f'prisma desconhecido: {nome}')
+        if linha['estado'] != 'ativo':
+            raise ValueError(f'o prisma {nome} já está arquivado')
     motivo_limpo = _limpar((motivo or '').strip())
     with banco.transacao(con):
         aberto = con.execute(
@@ -211,7 +236,6 @@ def _propor_dividir(con: sqlite3.Connection, r: sqlite3.Row, partes: list[str] |
             raise ValueError(f'a parte {p} não está nesta divisão ({", ".join(nomes)})')
         movidos[a] = p
     palavras = prismas.repartir_palavras(palavras_antigas, nomes)
-    lacuna = max(0, mt - nv)
     prop = {
         'partes': [{'nome': n, 'nivel': nv, 'meta': mt, 'palavras': palavras[n]} for n in nomes],
         'avancos': _destinos(con, antigo, nomes, palavras, movidos),
@@ -220,7 +244,6 @@ def _propor_dividir(con: sqlite3.Connection, r: sqlite3.Row, partes: list[str] |
         'meta': mt,
         'palavras_chave': palavras_antigas,
         'acoes': [],
-        'ganho_niveis': lacuna * len(nomes) - lacuna,
         'quando': _agora(),
     }
     with banco.transacao(con):
@@ -230,10 +253,13 @@ def _propor_dividir(con: sqlite3.Connection, r: sqlite3.Row, partes: list[str] |
 
 
 def propor(con: sqlite3.Connection, pedido_id: int, nivel: int | None = None, meta: int | None = None,
-           partes: list[str] | None = None, mover: dict[str, str] | None = None) -> dict:
+           partes: list[str] | None = None, mover: dict[str, str] | None = None,
+           palavras: list[str] | None = None, nota: str | None = None) -> dict:
     """Gera (ou ajusta) a proposta de mudança da Luzia e registra no histórico de propostas do pedido.
 
     `partes` e `mover` só valem para `dividir`: os nomes das habilidades e {id do avanço: parte de destino}.
+    `palavras` (substitui as palavras-chave da proposta) e `nota` (texto livre da pessoa, levado ao modelo) ajustam
+    `incluir` e `mudar_meta`. `nivel` e `meta` são dado legado (compatibilidade): nada visível depende deles.
     """
     r = con.execute('SELECT * FROM pedido WHERE id = ?', (int(pedido_id),)).fetchone()
     if r is None:
@@ -263,7 +289,7 @@ def propor(con: sqlite3.Connection, pedido_id: int, nivel: int | None = None, me
             'meta': mt_prop,
             'palavras_chave': palavras_atuais,
             'acoes': [],
-            'ganho_niveis': _ganho_niveis(con, tipo, nome, nv_prop, mt_prop),
+            'alvo_estimado_lm': 0,
             'quando': _agora(),
         }
         novo_hist = [*hist, prop]
@@ -278,8 +304,10 @@ def propor(con: sqlite3.Connection, pedido_id: int, nivel: int | None = None, me
     # Tipos 'incluir' e 'mudar_meta' consultam o modelo e gravam leitura com base
     b = leituras.base(con, 'pedido', str(pid))
     b_hash = leituras.hash_base(b)
-    nv_pedido = nv_atual if tipo == 'mudar_meta' else (int(nivel) if nivel is not None else None)
-    mt_pedido = int(meta) if meta is not None else None
+    nv_pedido = nv_atual if tipo == 'mudar_meta' else (int(nivel) if nivel is not None else None)  # legado
+    mt_pedido = int(meta) if meta is not None else None  # legado
+    palavras_pedidas = [str(w).strip() for w in (palavras or []) if str(w).strip()]
+    nota_pessoa = _limpar(nota or '')
     payload = {
         'base': b,
         'pedido': {
@@ -287,10 +315,9 @@ def propor(con: sqlite3.Connection, pedido_id: int, nivel: int | None = None, me
             'tipo': tipo,
             'prisma': nome,
             'motivo': r['motivo'] or '',
-            'nivel_atual': nv_atual if atual_prisma is not None else None,
-            'meta_atual': mt_atual if atual_prisma is not None else None,
-            'nivel_solicitado': nv_pedido,
-            'meta_solicitada': mt_pedido,
+            'palavras_atuais': palavras_atuais,
+            'palavras_pedidas': palavras_pedidas or None,
+            'nota_da_pessoa': nota_pessoa or None,
         },
     }
     t0 = time.perf_counter()
@@ -322,7 +349,8 @@ def propor(con: sqlite3.Connection, pedido_id: int, nivel: int | None = None, me
     else:
         mt_final = _nivel(dados_llm.get('meta'), mt_atual or 4)
 
-    palavras = [str(w).strip() for w in (dados_llm.get('palavras_chave') or palavras_atuais) if str(w).strip()]
+    palavras = palavras_pedidas or [str(w).strip() for w in (dados_llm.get('palavras_chave') or palavras_atuais)
+                                    if str(w).strip()]
     if not palavras and indisponivel:  # fato, não leitura: as palavras do próprio nome do prisma
         palavras = [w for w in nome.replace('/', ' ').split() if len(w) >= 4]
     acoes_brutas = [a for a in (dados_llm.get('acoes') or []) if isinstance(a, dict) and a.get('titulo')][:3]
@@ -338,9 +366,11 @@ def propor(con: sqlite3.Connection, pedido_id: int, nivel: int | None = None, me
         'palavras_chave': palavras,
         'acoes': acoes_brutas,
         'analise': analise,
-        'ganho_niveis': _ganho_niveis(con, tipo, nome, nv_final, mt_final),
+        'alvo_estimado_lm': _estimar_alvo(con, nome, acoes_brutas),
         'quando': (rec or {}).get('quando') or _agora(),
     }
+    if nota_pessoa:
+        prop['nota'] = nota_pessoa
     if indisponivel:
         prop['leitura_indisponivel'] = indisponivel
     novo_hist = [*hist, prop]

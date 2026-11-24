@@ -197,12 +197,14 @@ def test_pedido_fluxo_api(api, monkeypatch):
     pid = r1['pedido']['id']
     assert r1['pedido']['estado'] == 'proposto'
 
-    c2, r2 = api('POST', '/api/pedido', {'acao': 'ajustar', 'id': pid, 'nivel': 2, 'meta': 4})
+    # sem níveis desde 24/11: o ajuste troca as palavras-chave ou leva uma dica da pessoa ao modelo
+    c2, r2 = api('POST', '/api/pedido', {'acao': 'ajustar', 'id': pid, 'palavras': 'fila, consumidor, idempotência',
+                                         'nota': 'foco em filas de pedidos'})
     assert c2 == 200
-    assert recebidos[-1]['pedido']['nivel_solicitado'] == 2 and recebidos[-1]['pedido']['meta_solicitada'] == 4
-    assert r2['pedido']['proposta']['nivel_partida'] == 2
-    assert r2['pedido']['proposta']['meta'] == 4
-    assert 'Início no nível 2 até 4' in r2['pedido']['leitura']['texto']
+    assert recebidos[-1]['pedido']['palavras_pedidas'] == ['fila', 'consumidor', 'idempotência']
+    assert recebidos[-1]['pedido']['nota_da_pessoa'] == 'foco em filas de pedidos'
+    assert r2['pedido']['proposta']['palavras_chave'] == ['fila', 'consumidor', 'idempotência']
+    assert 'nivel_solicitado' not in recebidos[-1]['pedido']
 
     c3, r3 = api('POST', '/api/pedido', {'acao': 'aceitar', 'id': pid})
     assert c3 == 200
@@ -290,7 +292,7 @@ def test_pedido_erros_api_devolvem_400_json(api, monkeypatch):
         ({'acao': 'abrir', 'tipo': 'inventado', 'prisma': 'Outro'}, 'tipo de pedido inválido'),
         ({'acao': 'aceitar', 'id': 'abc'}, 'número do pedido'),
         ({'acao': 'ajustar', 'id': 999}, 'pedido desconhecido'),
-        ({'acao': 'ajustar', 'id': pid, 'nivel': 'x'}, 'nível'),
+        ({'acao': 'ajustar', 'id': pid, 'palavras': [1, 2]}, 'palavras'),
     ]
     for corpo, esperado in casos:
         c, r = api('POST', '/api/pedido', corpo)

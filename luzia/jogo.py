@@ -106,7 +106,7 @@ def valor(feixe: dict, plan: dict, prog: dict | None = None, nomes: list[str] | 
     else:
         peso, motivo = round(prof * 0.2), 'prisma da trajetória'
     conta = [['Profundidade do conceito', f'{tipo} · {minutos} min', prof],
-             ['Lacuna no prisma', f'{100 - pct}% ainda não é seu', round(prof * 0.6 * (100 - pct) / 100)],
+             ['Lacuna no prisma', f'{100 - pct}% ainda não era seu quando ela nasceu', round(prof * 0.6 * (100 - pct) / 100)],
              ['Peso para a meta', motivo, peso]]
     return max(10, min(100, sum(c[2] for c in conta))), conta
 
@@ -682,7 +682,8 @@ def dossie(plan: dict, titulo: str = 'agora', con: sqlite3.Connection | None = N
     pedidos = con.execute(SQL_PEDIDOS_ACEITOS).fetchall()
     linhas = [
         f'# Dossiê de evidências · {titulo} · {agora()[:10]}', '',
-        f"Trajetória: **{t['pct']}% de autoria própria** ({t['propria']} de {t['tot']} pontos de evidência da meta).", '',
+        f"Trajetória: **{t['pct']}% do caminho em autoria própria** ({t['contado']} de {t['alvo_lm']} pontos de evidência "
+        f"do alvo da meta; {t['luz_pct']}% das evidências coletadas são de autoria própria).", '',
         '## Ações com autoria própria (avaliadas pela rubrica 0–4 ou dirigidas pela pessoa)',
     ]
     for f in sorted(proprias, key=lambda x: (x.get('historico') or [{}])[-1].get('quando', '')):
@@ -707,7 +708,7 @@ def dossie(plan: dict, titulo: str = 'agora', con: sqlite3.Connection | None = N
         linhas.append('- nenhum')
     linhas += ['', '## Por skill']
     for p in t['prismas']:
-        linhas.append(f"- {p['nome']}: {p['pct']}% de autoria própria · {p['propria']} de {p['tot']} pontos de evidência · "
+        linhas.append(f"- {p['nome']}: {p['pct']}% do alvo em autoria própria · {p['contado']} de {p['alvo_lm']} pontos de evidência · "
                       f"{p['n_propria']} de {p['n']} ações próprias")
     historico = trajetoria.historico_subidas(con)
     if historico:

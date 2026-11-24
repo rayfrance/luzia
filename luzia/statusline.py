@@ -42,13 +42,15 @@ def linha(dados: dict) -> str:
     return ' · '.join(partes)
 
 
-def main() -> None:
+def main(bruto: bytes | None = None) -> None:
     if hasattr(sys.stdout, 'reconfigure'):  # no Windows o pipe usa a página de código local, que não tem ✦
         sys.stdout.reconfigure(encoding='utf-8')
     try:
-        cru = sys.stdin.buffer.read().decode('utf-8', errors='replace')
+        cru = (sys.stdin.buffer.read() if bruto is None else bruto).decode('utf-8', errors='replace')
         dados = json.loads(cru) if cru.strip() else {}
     except (json.JSONDecodeError, AttributeError):
+        dados = {}
+    if not isinstance(dados, dict):  # JSON válido que não é objeto ([1,2], null, 42): trata como vazio, sem poluir o log
         dados = {}
     try:
         out = linha(dados)
