@@ -6,8 +6,9 @@ dos seus lúmens que veio de você e não do agente.
 - P1 · direção no prompt: inferida pelo modelo a partir dos prompts recentes no projeto (com justificativa);
   é geral (a mesma em todas as entregas), porque os prompts não são ligados a um commit específico.
 - P2 · coesão da entrega: regra fixa sobre arquivos, linhas e áreas somados da entrega no git (conta visível).
-- P3 · aplicação conceitual: só existe com evidência registrada (ações "explicar/praticar" concluídas).
-- P4 · domínio arquitetural: só existe com evidência registrada (ações de defesa da decisão).
+- P3 · aplicação conceitual: só existe com evidência: centelha de dimensão P3 que virou luz própria (nota da rubrica × 25;
+  sem nota, por ter virado própria pelo prompt, vale 2 = 50).
+- P4 · domínio arquitetural: só existe com evidência: centelha de dimensão P4 que virou luz própria (mesma conta).
 
 Sem base, a dimensão fica sem número. O índice da entrega é a média das dimensões que têm base.
 """
@@ -25,8 +26,8 @@ RUBRICA = {
 COMO_E_MEDIDO = [
     'P1 · direção no prompt: o modelo lê seus prompts recentes no projeto e avalia se você deu direção, restrições e critérios ao agente (inferido, geral: vale para todas as entregas).',
     'P2 · coesão: regra fixa sobre arquivos, linhas e áreas somados da entrega; quanto mais focada, maior (calculado).',
-    'P3 · aplicação de conceito: sobe só quando você explica o conceito daquela entrega numa centelha da Luzia (evidência).',
-    'P4 · decisão de arquitetura: sobe só quando você defende a decisão e as alternativas numa centelha (evidência).',
+    'P3 · aplicação de conceito: sobe só quando uma centelha sua sobre o conceito daquela entrega vira luz própria (evidência).',
+    'P4 · decisão de arquitetura: sobe só quando uma centelha em que você defende a decisão e as alternativas vira luz própria (evidência).',
     'Rubrica das evidências (0–4, ×25): ' + ' · '.join(f'{k} {v}' for k, v in RUBRICA.items()) + '.',
 ]
 

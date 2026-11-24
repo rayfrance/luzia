@@ -309,7 +309,7 @@ def test_senha_saiu_do_chat_e_acesso_tem_comando():
     comandos = Path(server.HERE) / 'commands'
     assert not (comandos / 'senha.md').exists()
     texto = (comandos / 'acesso.md').read_text(encoding='utf-8')
-    assert re.search(r'^description: ".*"$', texto, re.MULTILINE) and 'python -m luzia.cli acesso' in texto
+    assert re.search(r'^description: ".*"$', texto, re.MULTILINE) and '/lz.py" cli acesso' in texto
     assert 'já entra' in (comandos / 'career-map.md').read_text(encoding='utf-8')
     fonte = (Path(server.HERE) / 'acesso.py').read_text(encoding='utf-8')
     assert 'pbkdf2' not in fonte.lower() and 'senha' not in fonte.lower()

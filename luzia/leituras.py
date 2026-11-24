@@ -59,9 +59,22 @@ def _base_prisma(con: sqlite3.Connection, nome: str) -> dict:
     conquistados = [
         {'titulo': _texto(a.get('titulo')), 'tipo': a.get('tipo'),
          'nota': a.get('nota'), 'lm_ganho': int(a.get('lm_ganho') or 0)}
-        for a in avs if a.get('estado') == 'conquistado'
+        for a in avs if a.get('estado') == 'propria'
     ]
-    abertos = sum(1 for a in avs if a.get('estado') in ('sugerido', 'na_fila', 'em_andamento'))
+    abertos = sum(1 for a in avs if a.get('estado') in jogo.ABERTOS)
+    # a luz do prisma (centelhas): muda quando uma centelha muda de luz, então a leitura vence junto
+    lm_estado = {e: 0 for e in ('propria', 'convertendo', 'refletida', 'apagada')}
+    n_estado = dict(lm_estado)
+    for r in con.execute('SELECT estado, COUNT(*) AS n, COALESCE(SUM(valor_lm), 0) AS lm FROM avanco '
+                         "WHERE prisma = ? AND estado != 'descartada' GROUP BY estado", (nome,)):
+        if r['estado'] in lm_estado:
+            lm_estado[r['estado']], n_estado[r['estado']] = int(r['lm']), int(r['n'])
+    luz_tot = sum(lm_estado.values())
+    luz_ref = lm_estado['refletida'] + lm_estado['convertendo']
+    luz = {'tot': luz_tot, 'propria': lm_estado['propria'], 'refletida': luz_ref,
+           'pct': round(100 * lm_estado['propria'] / luz_tot) if luz_tot else 0,
+           'centelhas': {'propria': n_estado['propria'], 'convertendo': n_estado['convertendo'],
+                         'refletida': n_estado['refletida'], 'apagada': n_estado['apagada']}}
 
     lm_propria, lm_refletida = con.execute(
         "SELECT COALESCE(SUM(CASE WHEN luz = 'propria' THEN lm END), 0), "
@@ -90,9 +103,8 @@ def _base_prisma(con: sqlite3.Connection, nome: str) -> dict:
 
     return {
         'prisma': nome,
-        'nivel': int(p.get('nivel') or 0),
-        'meta': int(p.get('meta') if p.get('meta') is not None else 5),
         'estado': p.get('estado', 'ativo'),
+        'luz': luz,
         'entregas_total': len(entregas_rows),
         'commits_total': sum(int(r['commits'] or 0) for r in entregas_rows),
         'termos_detectados': list(termos_set),
@@ -146,8 +158,10 @@ def _base_pedido(con: sqlite3.Connection, pedido_id: str) -> dict:
     except ValueError:
         pid = -1
     r = con.execute('SELECT * FROM pedido WHERE id = ?', (pid,)).fetchone()
-    resumo = trajetoria.resumo(con)
-    ativos = [{'nome': p['nome'], 'nivel': p['nivel'], 'meta': p['meta']} for p in trajetoria.prismas(con)]
+    plano = trajetoria.perfil_ler(con, 'plano') or {}
+    t = jogo.luz(plano, con)
+    resumo = {'tot': t['tot'], 'propria': t['propria'], 'pct': t['pct']}
+    ativos = [{'nome': p['nome'], 'pct': p['pct'], 'tot': p['tot'], 'propria': p['propria']} for p in t['prismas']]
     if r is None:
         return {'pedido_id': str(pedido_id), 'trajetoria': resumo, 'prismas_ativos': ativos}
     return {

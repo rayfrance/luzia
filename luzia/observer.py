@@ -2,16 +2,15 @@
 
 Roda localmente, sem chamar o modelo, só nos repositórios autorizados (`private/observer.json`).
 
-- PostToolUse (edição de arquivo ou `git commit`): se o conceito de um prisma (skill) com lacuna aparece no
-  que o agente escreveu, é **luz refletida** (+10 lm). Em foco com lampejos (`ativo`), a Luzia mostra um lampejo com uma
-  pergunta: 1 frase sua converte em **luz própria** (até +30 lm).
-- UserPromptSubmit: se o conceito aparece no **seu prompt** (você dirigiu), é **luz própria** (+20 lm).
-  Também oferece os avanços que você mandou do painel (fila).
-- Um reconhecimento por prisma por sessão; no máximo 40 lm passivos por prisma por dia (regras em docs/luzia-ux.md).
+- PostToolUse (edição de arquivo ou `git commit`): se o conceito de uma centelha aparece no que o agente escreveu, ela
+  acende como **luz refletida** (sem centelha que case, nasce uma do chat). Em foco (`ativo`), a Luzia oferece convertê-la.
+- UserPromptSubmit: se o conceito aparece no **seu prompt** (você dirigiu), a centelha vira **luz própria**.
+  Também oferece as centelhas que você mandou do painel (fila).
+- Cada centelha muda de luz uma vez só: sem teto nem limite de captação (regras em docs/luzia-ux.md).
 - Grava só o evento mascarado (horário, prisma, extensão, origem). Nunca o caminho, o código ou o texto do prompt.
 - Tudo vai para o banco (`lumen`, `sessao_evento`, `lampejo`) por `banco.gravar_ou_pendurar`, com espera curta: se o banco
   estiver ocupado, o evento fica em `pendentes.jsonl` e a próxima escrita o absorve. O hook nunca levanta nem trava a sessão.
-- SessionStart: se há algo a retomar (avanço em andamento, nível pronto, fila), uma linha no fim da 1ª resposta.
+- SessionStart: se há algo a retomar (centelha convertendo, luz para converter, fila), uma linha no fim da 1ª resposta.
 - Modos do foco: `ativo` (em foco, com lampejos), `passivo` (em foco, em silêncio), `sob_demanda` (fora de foco).
 """
 
@@ -24,11 +23,12 @@ import os
 import re
 import subprocess
 import sys
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-sys.path.insert(0, str(HERE.parent))
+if 'luzia' not in sys.modules:  # checkout de desenvolvimento; pelo lz.py o pacote já foi carregado
+    sys.path.insert(0, str(HERE.parent))
 
 from luzia import acoes, arquivos, banco, jogo, prismas, trajetoria  # noqa: E402
 
@@ -79,19 +79,36 @@ def plano() -> dict:
 
 
 def lacunas(plan: dict) -> dict[str, dict]:
-    """Prismas (skills) com lacuna (nível < meta), com palavras do banco + do plano + padrão em português."""
+    """Prismas ativos com as palavras do banco + do plano + padrão, o pct próprio e as centelhas com as palavras delas."""
     with trajetoria.abrir(banco.ESPERA_CURTA_MS) as con:
-        niveis = jogo.niveis(plan, con)
+        t = jogo.luz(plan, con)
         do_banco = {p['nome']: p['palavras'] for p in trajetoria.prismas(con)}
+        centelhas = jogo.para_casar(con)
     out = {}
-    for nome, v in niveis.items():
-        if v['nivel'] >= v['meta']:
-            continue
+    for p in t['prismas']:
+        nome = p['nome']
         s = next((x for x in plan.get('skills', []) if x['nome'] == nome), {})
         palavras = (do_banco.get(nome) or []) + (s.get('palavras_chave') or []) + PALAVRAS_PADRAO.get(nome, [])
-        out[nome] = {'palavras': list(dict.fromkeys(str(w) for w in palavras if w)), 'nivel': v['nivel'], 'meta': v['meta']}
-    return out or {k: {'palavras': p, 'nivel': None, 'meta': None} for k, p in PALAVRAS_PADRAO.items()
+        out[nome] = {'palavras': list(dict.fromkeys(str(w) for w in palavras if w)), 'pct': p['pct'],
+                     'centelhas': centelhas.get(nome, [])}
+    return out or {k: {'palavras': p, 'pct': 0, 'centelhas': []} for k, p in PALAVRAS_PADRAO.items()
                    if not prismas.composto(k)}  # sem trajetória: só habilidades isoladas
+
+
+def _casa(texto: str, palavra: str) -> bool:
+    """Palavra inteira (não casa 'Test' em 'TestHelper'); um radical que não é palavra ('desacopl') casa como prefixo."""
+    if not palavra or len(palavra) < 3:
+        return False
+    fim = '' if palavra in RADICAIS or not palavra[-1].isalnum() else r'(?![A-Za-zÀ-ÿ0-9_])'
+    return bool(re.search(r'(?<![A-Za-zÀ-ÿ0-9_])' + re.escape(palavra) + fim, texto, re.IGNORECASE))
+
+
+# Radicais das listas padrão: casam como prefixo de propósito.
+RADICAIS = {'desacopl'}
+# Termos genéricos demais para fazer nascer uma centelha do chat sozinhos (ainda ajudam a casar centelhas existentes).
+GENERICOS = {w.lower() for w in ('Domain', 'Interface', 'Application', 'Test', 'Assert', 'Fact', 'teste', 'SELECT', 'JOIN',
+                                  'Controller', 'endpoint', 'componente', 'modal', 'camada', 'hook', 'skill', 'fetch(',
+                                  '.cshtml', '.claude', 'Integration', 'integração', 'Entity', 'Repository', 'Mock')}
 
 
 def detectar(texto: str, gaps: dict) -> list[str]:
@@ -194,51 +211,92 @@ RUBRICA_LAMPEJO = ('rubrica 0-4 (0 não explicou, 1 descreveu o código, 2 expli
                    '4 ligou ao conceito e aos trade-offs)')
 
 
+def _onde(chave: str, ext: str) -> str:
+    """Onde a luz apareceu, sem caminho nem código: o dia, a hora e, no código do agente, só a extensão."""
+    agora_ = datetime.now()
+    base = f'chat de {agora_:%d/%m}, {agora_:%H:%M}'
+    return base + (f' · {ext}' if chave == 'agente' and ext and ext not in ('prompt', 'arquivo', 'foco') else '')
+
+
+def _id_chat(prisma: str, termo: str) -> str:
+    """Id da centelha do chat: 8 hex (as da meta têm 4), para dois conceitos nunca caírem na mesma centelha."""
+    return hashlib.sha1(f'chat|{prisma}|{termo.lower()}'.encode('utf-8')).hexdigest()[:8]
+
+
+def _nova(prisma: str, termo: str, chave: str, prog: dict) -> dict:
+    """Centelha que nasce do chat quando nenhuma da meta casa com o conceito (o título traz o termo, nunca o texto)."""
+    porque = (f'Você pediu ao agente falando em "{termo}". Quem dirigiu o conceito foi você, então a luz já veio própria.'
+              if chave == 'prompt' else
+              f'O agente aplicou {termo} na sua sessão. Explicar por que ele fez assim converte essa luz.')
+    titulo = f'{termo} no seu pedido ao agente' if chave == 'prompt' else f'Por que o agente usou {termo}'
+    f = {'titulo': titulo, 'tipo': 'explicar', 'duracao_min': 5, 'skill_plano': prisma}
+    lm, conta = jogo.valor(f, {}, prog)
+    return {'titulo': titulo, 'tipo': 'explicar', 'duracao_min': 5, 'valor_lm': lm, 'conta': conta,
+            'conteudo': {'skill': prisma, 'palavras': [termo], 'conceitos': [termo], 'titulo_curto': termo,
+                         'porque': porque, 'por_que': porque}}
+
+
 def reconhecer_em(texto: str, origem: str, sid: str, modo: str, ext: str, ferramenta: str, gaps: dict) -> list[dict]:
     """O reconhecimento do foco, uma só implementação (hooks e comando `foco`).
 
-    `origem` é 'prompt' (a pessoa dirigiu o conceito: luz própria, +20) ou 'agente' (o agente aplicou: luz refletida, +10).
-    Vale uma vez por prisma por sessão e por origem, dentro do teto de 40 lm passivos por prisma por dia. Só no modo `ativo`
-    o primeiro reconhecimento da mudança com lúmens abre um lampejo. Devolve só o que rendeu lúmens, com o valor real:
-    `skill`, `lm`, `luz`, `lampejo` (True se abriu), `provisorio` (True se o banco estava ocupado e o valor não foi confirmado).
+    `origem` é 'prompt' (a pessoa dirigiu o conceito: a centelha vira luz própria) ou 'agente' (o agente aplicou: a
+    centelha apagada vira luz refletida). O texto casa com as palavras das centelhas de cada prisma; sem nenhuma que
+    case, o primeiro termo do prisma que aparece cria uma centelha do chat (uma por prisma por evento). Nada do texto
+    é gravado. Devolve o que aconteceu por centelha: `skill`, `centelha`, `titulo`, `estado`, `lm`, `luz`, `novo`,
+    `mudou` e `provisorio` (True se o banco estava ocupado e o resultado não foi confirmado).
     """
-    tipo = 'prompt' if origem == 'prompt' else 'refletida'
-    achados, abriu = [], False
-    for skill in detectar(texto, gaps):
-        quer = modo == 'ativo' and tipo == 'refletida' and not abriu  # só o primeiro vira luz própria, uma vez
+    chave = 'prompt' if origem == 'prompt' else 'agente'
+    onde = _onde(chave, ext)
+    prog = {n: {'pct': i.get('pct', 0)} for n, i in gaps.items()}
+    achados = []
+    # o nome de um prisma (de qualquer prisma da trajetória) sozinho não é um conceito: "o que é DDD?" não acende nada
+    nomes = {n for p in gaps for n in (p.lower(), prismas.nome_curto(p).lower())}
+    for prisma, info in gaps.items():
+        acertos = [c for c in info.get('centelhas', [])
+                   if any(_casa(texto, w) for w in c['palavras'] if w.lower() not in nomes)]
+        if acertos and all(c['estado'] == 'descartada' for c in acertos):
+            continue  # a pessoa descartou este conceito: a Luzia respeita
+        vivos = [c for c in acertos if c['estado'] != 'descartada']
+        if chave == 'agente':  # acende a apagada que mais vale; sem apagada, só registra a evidência da primeira
+            vivos.sort(key=lambda c: (c['estado'] != 'apagada', -int(c.get('lm') or 0)))
+        else:  # o prompt só faz nascer ou acender centelhas do chat; as da meta passam pela conversa e pela rubrica
+            vivos = [c for c in vivos if c.get('origem') == 'chat'] if vivos else []
+            if acertos and not vivos:
+                continue
+        alvo = (vivos[0]['id'], vivos[0].get('titulo'), None, vivos[0].get('lm')) if vivos else None
+        if alvo is None:
+            termo = next((w for w in info.get('palavras', []) if w.lower() not in GENERICOS and w.lower() not in nomes
+                          and _casa(texto, w)), None)
+            if termo is None:
+                continue
+            nova = _nova(prisma, termo, chave, prog)
+            alvo = (_id_chat(prisma, termo), termo, nova, nova['valor_lm'])
+        cid, titulo, nova, lm = alvo
         estado: dict = {}
-        lm = jogo.reconhecer(sid, origem if tipo == 'prompt' else 'agente', skill, tipo, ext, ferramenta, modo,
-                             interveio=quer or (tipo == 'prompt' and modo == 'ativo'), lampejo=quer, estado=estado)
-        if not lm:  # None: este prisma já foi reconhecido na sessão; 0: teto do dia cheio (nada a mostrar)
-            continue
-        abriu = abriu or quer
-        achados.append({'skill': skill, 'lm': lm, 'luz': 'propria' if tipo == 'prompt' else 'refletida',
-                        'lampejo': quer, 'provisorio': bool(estado.get('provisorio'))})
+        r = jogo.reconhecer(sid, chave, prisma, cid, nova, onde, ext, ferramenta, modo,
+                            interveio=modo == 'ativo', estado=estado)
+        if r:
+            if estado.get('provisorio'):
+                r = {**r, 'lm': int(lm or 0)}
+            achados.append({'skill': prisma, 'titulo': titulo, **r, 'provisorio': bool(estado.get('provisorio'))})
     return achados
 
 
-def nivel_txt(info: dict) -> str:
-    return f"você {info.get('nivel')} → meta {info.get('meta')}" if info.get('nivel') is not None else 'lacuna da trajetória'
-
-
-def cartao_refletida(skill: str, pergunta: str = '<a pergunta>', nivel: str = 'lacuna da trajetória', lm: int = 10,
-                     provisorio: bool = False) -> str:
-    if provisorio:  # banco ocupado: o valor e o lampejo ainda não foram confirmados, então não convida a responder
-        return (f'[Luzia · em foco · luz refletida] O código que você (agente) acabou de escrever aplica o prisma {skill} ({nivel}). '
-                f'Rendeu +{lm} lm de luz REFLETIDA para a pessoa, a confirmar (o banco estava ocupado; a Luzia confirma na próxima '
-                'gravação). Termine a tarefa normalmente e, no FIM, em UMA linha, sem fazer perguntas: '
-                f'"✦ Centelha da sessão · {prismas.nome_curto(skill)} · +{lm} lm refletida (a confirmar)"')
+def cartao_refletida(skill: str, titulo: str, centelha: str, lm: int, provisorio: bool = False) -> str:
+    curto = prismas.nome_curto(skill)
+    if provisorio:  # banco ocupado: o resultado ainda não foi confirmado, então não convida a converter
+        return (f'[Luzia · em foco · luz refletida] O código que você (agente) acabou de escrever aplica "{titulo}" ({skill}). '
+                'A centelha acendeu como luz REFLETIDA para a pessoa, a confirmar (o banco estava ocupado). Termine a tarefa '
+                f'normalmente e, no FIM, em UMA linha, sem perguntas: "✦ Centelha da sessão · {curto} · {titulo} · refletida (a confirmar)"')
     return (
-        f'[Luzia · em foco · luz refletida] O código que você (agente) acabou de escrever aplica o prisma {skill} ({nivel}). Isso rendeu '
-        f'+{lm} lm de luz REFLETIDA para a pessoa: quem aplicou foi o agente. Termine a tarefa normalmente. No FIM da resposta, '
-        'mostre esta centelha da sessão em no máximo 3 linhas:\n'
-        f'✦ Centelha da sessão · {prismas.nome_curto(skill)} · +{lm} lm refletida\n'
+        f'[Luzia · em foco · luz refletida] O código que você (agente) acabou de escrever aplica "{titulo}" ({skill}). Quem aplicou foi '
+        f'o agente, então a centelha #{centelha} acendeu como luz REFLETIDA ({lm} lm para converter). Termine a tarefa normalmente. '
+        'Só no FIM da resposta, mostre em no máximo 3 linhas:\n'
+        f'✦ Centelha da sessão · {curto} · {titulo} · {lm} lm para converter\n'
         '<1 linha: onde o conceito aparece concretamente nesta mudança>\n'
-        f'▸ Em 1 frase: {pergunta} (até +30 lm própria)\n'
-        'Depois, use AskUserQuestion com "Responder agora" e "Guardar". Responder: espere a frase, avalie pela '
-        f'{RUBRICA_LAMPEJO}, dê retorno em 1 linha e rode: {CLI} lampejo --skill "{skill}" --pergunta "<a pergunta>" '
-        f'--nota <0-4> --resumo "<1 linha do que a pessoa explicou>". Guardar: rode {CLI} lampejo --skill "{skill}" '
-        '--pergunta "<a pergunta>".'
+        '▸ Converter: você explica por que o agente fez assim, e a luz vira sua.\n'
+        'Depois, use AskUserQuestion com "Converter agora" e "Depois". Converter agora: rode '
+        f'`{CLI} fazer {centelha} --onde aqui` e siga o roteiro. Depois: nada a fazer (a centelha fica para converter).'
     )
 
 
@@ -250,9 +308,10 @@ def ao_enviar_prompt(event: dict, cfg: dict) -> None:
     if modo != 'sob_demanda':
         gaps = lacunas(plano())
         for r in reconhecer_em(event.get('prompt', ''), 'prompt', sid, modo, 'prompt', 'prompt', gaps):
-            if modo == 'ativo':
-                partes.append(f'[Luzia · em foco · luz própria] A pessoa DIRIGIU o prisma "{r["skill"]}" neste pedido (+{r["lm"]} lm de luz própria). '
-                              f'Responda normalmente e, no FIM, em UMA linha: "✦ Luzia · {prismas.nome_curto(r["skill"])}: você dirigiu isto · +{r["lm"]} lm própria"')
+            if modo == 'ativo' and r['mudou'] and not r['provisorio']:
+                partes.append(f'[Luzia · em foco · luz própria] A pessoa DIRIGIU "{r["titulo"]}" ({r["skill"]}) neste pedido: a centelha '
+                              f'#{r["centelha"]} virou luz própria (+{r["lm"]} lm). Responda normalmente e, no FIM, em UMA linha: '
+                              f'"✦ Luzia · {prismas.nome_curto(r["skill"])}: você dirigiu {r["titulo"]} · +{r["lm"]} lm de luz própria"')
     try:  # espera curta: o hook não pode travar a sessão; sem a fila, o resto do aviso sai igual
         pend = [f for f in acoes.fila(banco.ESPERA_CURTA_MS) if sid not in f.get('oferecida_em', [])]
     except Exception as e:
@@ -290,15 +349,14 @@ def ao_usar_ferramenta(event: dict, cfg: dict) -> None:
     else:
         caminho = ti.get('file_path', '')
         edits = ' '.join(e.get('new_string', '') for e in ti.get('edits', []) if isinstance(e, dict))
-        texto = ' '.join([Path(caminho).name, ti.get('content', ''), ti.get('new_string', ''), edits])
+        texto = ' '.join([ti.get('content', ''), ti.get('new_string', ''), edits])
         ext = Path(caminho).suffix.lower() or 'arquivo'
     gaps = lacunas(plano())
-    achados = reconhecer_em(texto, 'agente', sessao_id(event), modo, ext, tool, gaps)
+    achados = [r for r in reconhecer_em(texto, 'agente', sessao_id(event), modo, ext, tool, gaps) if r['mudou']]
     if modo != 'ativo' or not achados:
         return
-    r = next((x for x in achados if x['lampejo']), achados[0])
-    saida('PostToolUse', cartao_refletida(r['skill'], '<pergunta concreta de líder técnico sobre o porquê desta decisão>',
-                                          nivel=nivel_txt(gaps.get(r['skill'], {})), lm=r['lm'], provisorio=r['provisorio']))
+    r = max(achados, key=lambda x: x['lm'])  # um cartão por mudança: a centelha que mais vale converter
+    saida('PostToolUse', cartao_refletida(r['skill'], r['titulo'], r['centelha'], r['lm'], provisorio=r['provisorio']))
 
 
 @sem_quebrar
@@ -309,19 +367,19 @@ def ao_iniciar_sessao(event: dict, cfg: dict) -> None:
     plan = plano()
     if not plan:
         return
-    andamento = jogo.em_andamento(banco.ESPERA_CURTA_MS)
-    prontas = [s['nome'].split('(')[0].strip() for s in jogo.rota(plan, espera_ms=banco.ESPERA_CURTA_MS)['skills']
-               if s['pronto'] and not s['na_meta']]
+    andamento = jogo.convertendo(banco.ESPERA_CURTA_MS)
+    t = jogo.luz(plan, espera_ms=banco.ESPERA_CURTA_MS)
+    para_converter = t['n_converter'] - len(andamento)
     try:
         fila = acoes.fila(banco.ESPERA_CURTA_MS)
     except Exception as e:
         arquivos.registrar_erro('observer fila', e)
         fila = []
     partes = []
-    if prontas:
-        partes.append(f"{', '.join(prontas)} pronto para subir de nível")
     if andamento:
-        partes.append(f'centelha em andamento: "{andamento[0].get("titulo", "")}"')
+        partes.append(f'centelha convertendo: "{andamento[0].get("titulo", "")}"')
+    if para_converter > 0:
+        partes.append(f"{para_converter} {'centelha' if para_converter == 1 else 'centelhas'} de luz refletida para converter")
     if fila:
         partes.append(f"{len(fila)} {'centelha' if len(fila) == 1 else 'centelhas'} na fila do painel")
     if partes:

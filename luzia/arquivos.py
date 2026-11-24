@@ -18,15 +18,19 @@ from datetime import datetime
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-# Pasta dos dados pessoais (fora do git). LUZIA_PRIVATE troca o lugar (os testes apontam para uma pasta temporária).
-PRIVATE = Path(os.environ['LUZIA_PRIVATE']) if os.environ.get('LUZIA_PRIVATE') else HERE / 'private'
+# Pasta dos dados pessoais (fora do git e fora do plugin, para sobreviver a atualizações). Ordem:
+# 1. LUZIA_PRIVATE, se definida (os testes apontam para uma pasta temporária);
+# 2. `private/` ao lado do código, se já existir (checkout de desenvolvimento com dados);
+# 3. `~/.luzia` (plugin instalado pelo marketplace).
+PRIVATE = (Path(os.environ['LUZIA_PRIVATE']) if os.environ.get('LUZIA_PRIVATE')
+           else HERE / 'private' if (HERE / 'private').is_dir() else Path.home() / '.luzia')
 ERROS = PRIVATE / 'erros.log'
 # Estado vivo da carreira (plano, entregas, trechos): privado, muda a cada chamada.
 ESTADO = PRIVATE / 'career_state.json'
 # Foto do seminário sem2 (fica no ai4good; aqui, só se copiada para a pasta privada): semeia quem ainda não tem estado.
 ESTADO_LEGADO = PRIVATE / 'career_state_sem2.json'
 # Como qualquer agente chama a CLI da Luzia, a partir de onde ela está instalada (sem caminho fixo).
-CLI = f'cd "{HERE.parent.as_posix()}" && python -m luzia.cli'
+CLI = f'python "{HERE.as_posix()}/lz.py" cli'
 
 
 def versao_codigo() -> str:

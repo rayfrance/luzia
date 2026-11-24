@@ -21,7 +21,7 @@ from . import arquivos
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent  # raiz do repositório luzia
 CFG = arquivos.PRIVATE / 'modelo.json'
-ENVS = [ROOT / '.env']
+ENVS = [arquivos.PRIVATE / '.env', ROOT / '.env']  # a chave mora na pasta de dados; a primeira que existir vence
 
 PROVEDORES = {
     'gemini': {'nome': 'Google Gemini', 'chave': 'GEMINI_API_KEY', 'sdk': 'google.genai', 'pip': 'google-genai',
@@ -61,7 +61,7 @@ def config() -> dict:
 
 
 def _gravar_chave(nome: str, valor: str) -> None:
-    env = ENVS[0]
+    env = arquivos.PRIVATE / '.env'
     linhas = env.read_text(encoding='utf-8').splitlines() if env.exists() else []
     linhas = [ln for ln in linhas if not ln.startswith(f'{nome}=')] + [f'{nome}={valor}']
     arquivos.gravar_texto(env, '\n'.join(linhas) + '\n')

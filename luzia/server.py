@@ -31,7 +31,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+if 'luzia' not in sys.modules:  # checkout de desenvolvimento; pelo lz.py o pacote já foi carregado
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from luzia import (acesso, acoes, arquivos, banco, entregas, jogo, leituras, modelo, observer, pedidos, prismas,  # noqa: E402
                    pipeline, propriedade, trajetoria)
@@ -52,10 +53,10 @@ AUTO_LEITURAS_MIN = 10  # leituras automáticas do painel: no máximo uma rodada
 ABERTAS_GET = ('/api/ping', '/api/acesso/estado')
 ABERTAS_POST = ('/api/acesso/link', '/api/acesso/sair')
 ROTAS_GET = ('/api/estado', '/api/sessao', '/api/avancos', '/api/entrega')
-ROTAS_POST = ('/api/nivel', '/api/autoavaliacao', '/api/pedido', '/api/leituras', '/api/identidade',
+ROTAS_POST = ('/api/pedido', '/api/leituras', '/api/identidade',
               '/api/entrega/acender', '/api/entregas/ampliar', '/api/modo', '/api/agente', '/api/enviar', '/api/modelo',
-              '/api/modelo/testar', '/api/descartar', '/api/restaurar', '/api/subir', '/api/acender', '/api/trecho',
-              '/api/iniciar', '/api/privacidade')
+              '/api/modelo/testar', '/api/descartar', '/api/restaurar', '/api/acender', '/api/trecho',
+              '/api/iniciar', '/api/converter', '/api/confirmar', '/api/privacidade')
 PORTARIA = acesso.Portaria()  # links e sessões no banco privado; só o limite de links errados fica em memória
 COOKIE_ATTRS = 'HttpOnly; SameSite=Strict; Path=/'  # sem Secure: o painel é http://127.0.0.1
 COOKIE_MAX_AGE = acesso.SESSAO_MAX_S
@@ -113,10 +114,10 @@ def ultima_execucao() -> dict:
 
 
 def proxima(lista: list[dict]) -> dict | None:
-    """Próximo avanço: em andamento > na fila > maior valor em lúmens."""
-    ordem = {'em_andamento': 0, 'na_fila': 1, 'sugerido': 2}
+    """Próxima centelha: convertendo > luz refletida > por acender; dentro do estado, a de maior valor em lúmens."""
+    ordem = {'convertendo': 0, 'refletida': 1, 'apagada': 2}
     pend = [a for a in lista if a.get('estado') in ordem]
-    pend.sort(key=lambda a: (ordem[a['estado']], -int(a.get('valor_lm', 0))))
+    pend.sort(key=lambda a: (ordem[a['estado']], -int(a.get('valor_lm') or 0)))
     return pend[0] if pend else None
 
 
@@ -127,24 +128,65 @@ def _enriquecer_avanco(a: dict, cwd: str) -> dict:
     return a
 
 
-def _espectro(nivel: int, total: int = 5) -> list[int]:
-    n = max(0, min(total, int(nivel or 0)))
-    return [1 if i <= n else 0 for i in range(1, total + 1)]
+def _guia(a: dict) -> list[str]:
+    g = a.get('guia') or a.get('como') or []
+    return [str(x) for x in g] if isinstance(g, list) else [str(g)]
+
+
+def _hoje(a: dict, dia: str) -> bool:
+    """A centelha nasceu ou mudou de luz hoje (criado_em ou algum evento do histórico)."""
+    return str(a.get('criado_em') or '').startswith(dia) or any(
+        str(h.get('quando') or '').startswith(dia) for h in a.get('historico') or [])
+
+
+def _centelha_painel(a: dict, dia: str, na_fila: set[str]) -> dict:
+    """A centelha no formato do painel (campos curtos; o texto longo vem do conteúdo do catálogo)."""
+    estado = a.get('estado') or 'apagada'
+    return {
+        'id': a['id'],
+        'prisma': a.get('skill_plano') or a.get('skill') or '',
+        'titulo': a.get('titulo') or '',
+        'desc': a.get('desc') or a.get('descricao') or '',
+        'porque': a.get('porque') or a.get('por_que') or '',
+        'lm': int(a.get('valor_lm') or 0),
+        'estado': estado,
+        'rotulo': jogo.ROTULO_ESTADO.get(estado, estado),
+        'origem': a.get('origem') or '',
+        'onde': a.get('onde') or '',
+        'tipo': a.get('tipo') or '',
+        'min': a.get('duracao_min'),
+        'guia': _guia(a),
+        'conta': a.get('conta') or [],
+        'confirmada': bool(a.get('confirmada_em')),
+        'nota': a.get('nota'),
+        'tentativas': int(a.get('tentativas') or 0),
+        'entrega_id': a.get('entrega_id'),
+        'dimensao': a.get('dimensao'),
+        'hoje': _hoje(a, dia),
+        'na_fila': a['id'] in na_fila,
+        'descartada': estado == 'descartada',
+    }
+
+
+def _hero(centelhas: list[dict]) -> str | None:
+    """A conversão que vale mostrar primeiro: convertendo, depois refletida; a de maior valor."""
+    ordem = {'convertendo': 0, 'refletida': 1}
+    cand = [c for c in centelhas if c['estado'] in ordem]
+    cand.sort(key=lambda c: (ordem[c['estado']], -c['lm']))
+    return cand[0]['id'] if cand else None
 
 
 def estado() -> dict:
     state = pipeline.load_state()
     plan = state.get('plano', {})
     if not plan:
-        return {'vazio': True}
-    autoaval = jogo.autoavaliacao()
+        # antes da triagem: o painel abre os primeiros passos e já deixa configurar o modelo
+        return {'vazio': True, 'modelo': modelo.status(), 'modelo_pronto': modelo.pronto(), 'lumens': []}
     cwd = repo_cwd()
     lista = [_enriquecer_avanco(a, cwd) for a in acoes.todas(plan, descartados=True)]
 
     with trajetoria.abrir() as con:
-        rota_jogo = jogo.rota(plan, con)
-        por_skill = {s['nome']: s for s in rota_jogo['skills']}
-        d = jogo._degraus(con)
+        luz = jogo.luz(plan, con)
         versoes = trajetoria.versoes(con)
         todos_prismas_db = trajetoria.prismas(con, incluir_arquivados=True)
         leituras_prismas = {p['nome']: leituras.obter(con, 'prisma', p['nome']) for p in todos_prismas_db}
@@ -167,42 +209,38 @@ def estado() -> dict:
 
     diag = plan.get('diagnostico_fontes', {})
     plan_skills_map = {s['nome']: s for s in plan.get('skills', []) if isinstance(s, dict) and s.get('nome')}
+    dia = datetime.now().strftime('%Y-%m-%d')
+    fila_ids = [f['id'] for f in acoes.fila()]
+    centelhas = [_centelha_painel(a, dia, set(fila_ids)) for a in lista]
+    por_prisma: dict[str, list[dict]] = {}
+    for c in centelhas:
+        if not c['descartada']:
+            por_prisma.setdefault(c['prisma'], []).append(c)
+    luz_prismas = {p['nome']: p for p in luz['prismas']}
     prismas_out = []
     for p in todos_prismas_db:
         nome = p['nome']
         s_plan = plan_skills_map.get(nome, {})
-        voce = autoaval.get(nome)
-        prog = por_skill.get(nome) or {
-            'nome': nome,
-            'nivel': p['nivel'],
-            'meta': p['meta'],
-            'proximo': min(p['meta'], p['nivel'] + 1),
-            'na_meta': p['nivel'] >= p['meta'],
-            **jogo.progresso_skill(nome, d),
-        }
-        subidas = [h for h in d.get('historico', []) if h['skill'] == nome]
         prismas_out.append({
             'nome': nome,
             'nome_curto': prismas.nome_curto(nome),  # rótulo do painel e do chat; o nome completo vai no title
             'estado': p['estado'],
             'origem': p['origem'],
             'palavras': p.get('palavras', []),
-            'voce': voce if voce is not None else p['nivel'],
-            'autoavaliada': voce is not None,
-            'alvo': p['meta'],
-            'meta': p['meta'],
-            'nivel': p['nivel'],
-            'sugere': s_plan.get('luzia_sugere', p['nivel']),
             'evidencia': s_plan.get('evidencia', ''),
-            'espectro': _espectro(p['nivel']),
             # um prisma = uma habilidade: em quais habilidades este nome se divide ([] quando já é uma só)
             'divisao': prismas.partes(nome) if prismas.composto(nome) else [],
             'leitura': leituras_prismas.get(nome),
-            **prog,
-            'avancos_conquistados': prog.get('feixes', 0),
-            'degraus': subidas,
-            'niveis_conquistados': subidas,
+            **{k: v for k, v in (luz_prismas.get(nome) or {}).items() if k != 'nome'},
         })
+    luz_out = {k: v for k, v in luz.items() if k != 'por_prisma'}
+    luz_out['prismas'] = [
+        {**lp, 'nome_curto': prismas.nome_curto(lp['nome']), 'leitura': leituras_prismas.get(lp['nome']),
+         'lista': [{'id': c['id'], 'titulo': c['titulo'], 'lm': c['lm'], 'estado': c['estado']}
+                   for c in sorted(por_prisma.get(lp['nome'], []),
+                                   key=lambda c: (jogo.ORDEM_ESTADO.get(c['estado'], 9), -c['lm']))]}
+        for lp in luz['prismas']]
+    de, para = pipeline.rotulos(state)
 
     skills_ativas = [p for p in prismas_out if p['estado'] == 'ativo']
     cfg = pipeline.read_json(pipeline.PRIVATE / 'entrada.json', {})
@@ -254,25 +292,21 @@ def estado() -> dict:
         'trajetoria': {
             'versao_atual': versoes[-1]['numero'] if versoes else 1,
             'versoes': versoes,
-            'resumo': rota_jogo,
         },
-        'rota': rota_jogo,
+        'luz': luz_out,
+        'centelhas': centelhas,
+        'hero': _hero(centelhas),
+        'carreira': {'de': de, 'para': para},
         'ritmo': r_ritmo,
         'modelo': modelo.status(),
         'modelo_pronto': modelo.pronto(),
         'triagem_modelo': triagem_modelo,  # modelo e data da chamada da triagem (None se o registro não existe)
         'leituras_vencidas': leituras_vencidas,
         'regras': {
-            'limiar': jogo.LIMIAR_DEGRAU,
-            'min_propria': int(jogo.MIN_PROPRIA * 100),
-            'min_feixes': jogo.MIN_FEIXES_DEGRAU,
-            'min_avancos': jogo.MIN_FEIXES_DEGRAU,
-            'teto_passivo_dia': jogo.TETO_PASSIVO_DIA,
-            'passivo': jogo.PASSIVO,
+            'nota_converte': jogo.NOTA_CONVERTE,
             'motivos': jogo.MOTIVOS,
             'rubrica': propriedade.RUBRICA,
         },
-        'autoavaliada': bool(autoaval),
         'propriedade_media': round(sum(indices) / len(indices)) if indices else None,
         'prismas': prismas_out,
         'skills': skills_ativas,
@@ -284,8 +318,8 @@ def estado() -> dict:
         'lumens': lm_recentes,
         'pedidos': lista_pedidos,
         'como_e_medido': propriedade.COMO_E_MEDIDO,
-        'feitas': sum(1 for a in lista if a.get('estado') == 'conquistado'),
-        'fila': [f['id'] for f in acoes.fila()],
+        'feitas': sum(1 for a in lista if a.get('estado') == 'propria'),
+        'fila': fila_ids,
         'modo': modo_atual,
         'modo_nome': modo_nome,
         'foco_opcoes': observer.NOMES_FOCO,
@@ -587,30 +621,6 @@ class Handler(BaseHTTPRequestHandler):
             return pedidos.recusar(con, pid)
 
     def _post(self, path: str, dados: dict) -> None:
-        if path in ('/api/nivel', '/api/autoavaliacao'):
-            if 'prisma' in dados or 'skill' in dados:
-                nome = str(dados.get('prisma') or dados.get('skill') or '')
-                nv = dados.get('nivel')
-                if isinstance(nv, bool) or not isinstance(nv, int):
-                    return self._json({'erro': 'nível inválido'}, 400)
-                mapa = {nome: nv}
-            elif isinstance(dados.get('niveis'), dict):
-                mapa = dados['niveis']
-            else:
-                mapa = dados
-            if any(isinstance(v, bool) or not isinstance(v, int) for v in mapa.values()):
-                return self._json({'erro': 'nível inválido'}, 400)
-            niveis = {str(k): max(0, min(5, v)) for k, v in mapa.items()}
-            with trajetoria.abrir() as con:
-                atuais = {p['nome']: p['nivel'] for p in trajetoria.prismas(con, incluir_arquivados=True)}
-                if any(nome not in atuais for nome in niveis):
-                    return self._json({'erro': 'prisma desconhecido'}, 400)
-                declarados = trajetoria.declarados(con)
-                for nome, nivel in niveis.items():
-                    if atuais[nome] != nivel or nome not in declarados:
-                        trajetoria.declarar_nivel(con, nome, nivel)
-            return self._json({'ok': True})
-
         if path == '/api/pedido':
             try:
                 if str(dados.get('acao', '')).strip().lower() == 'dividir_todos':
@@ -697,7 +707,7 @@ class Handler(BaseHTTPRequestHandler):
             if not a:
                 return self._json({'erro': 'centelha não encontrada'}, 404)
             if not jogo.enfileirar(a['id']):
-                return self._json({'erro': 'esta centelha já foi acesa (e revisitada) ou está descartada'}, 400)
+                return self._json({'erro': 'esta centelha já é luz própria ou está descartada'}, 400)
             acoes.enfileirar(a['id'], a.get('titulo', ''))
             return self._json({'ok': True})
 
@@ -728,12 +738,6 @@ class Handler(BaseHTTPRequestHandler):
                 jogo.restaurar(fid)
             return self._json({'ok': True})
 
-        if path == '/api/subir':
-            plan = pipeline.load_state().get('plano', {})
-            alvo = str(dados.get('prisma') or dados.get('skill') or '')
-            res = jogo.subir(jogo.skill_de(alvo, plan), plan)
-            return self._json({k: v for k, v in res.items() if k != 'rota'}, 400 if res.get('erro') else 200)
-
         if path in ('/api/acender', '/api/trecho'):
             from luzia import cli
             alvo = str(dados.get('prisma') or dados.get('skill') or '')[:120]
@@ -746,6 +750,26 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json({'erro': res['erro']}, 400)
             ids = [f['id'] for f in res['feixes']]
             return self._json({'ok': True, 'skill': res['skill'], 'prisma': res['skill'], 'feixes': ids, 'avancos': ids})
+
+        if path == '/api/converter':
+            a = acoes.find(pipeline.load_state().get('plano', {}), str(dados.get('id', '')))
+            if not a or not jogo.iniciar(a['id'], 'painel'):
+                return self._json({'erro': 'esta centelha não pode ser convertida agora'}, 400)
+            acoes.registrar_evento(a['id'], 'iniciada', skill=a.get('skill'), origem='painel')
+            return self._json({'ok': True, 'id': a['id'], 'estado': 'convertendo'})
+
+        if path == '/api/confirmar':
+            plan = pipeline.load_state().get('plano', {})
+            a = acoes.find(plan, str(dados.get('id', '')))
+            if not a:
+                return self._json({'erro': 'centelha não encontrada'}, 404)
+            res = jogo.confirmar(a['id'], plan)
+            if res.get('erro'):
+                return self._json({'erro': res['erro']}, 400)
+            f = res.get('feixe') or {}
+            return self._json({'ok': True, 'ganho': res['ganho'], 'prisma': res['prisma'], 'pct_antes': res['pct_antes'],
+                               'pct_depois': res['pct_depois'], 'marco': res.get('marco'),
+                               'feixe': {'id': f.get('id'), 'estado': f.get('estado')}})
 
         if path == '/api/iniciar':
             a = acoes.find(pipeline.load_state().get('plano', {}), str(dados.get('id', '')))

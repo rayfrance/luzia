@@ -15,12 +15,12 @@ from luzia import banco
 TABELAS = {
     'meta': {'chave', 'valor'},
     'perfil': {'chave', 'valor_json'},
-    'prisma': {'nome', 'palavras_json', 'nivel', 'meta', 'estado', 'origem', 'ultimo_nivel_em', 'criado_em'},
+    'prisma': {'nome', 'palavras_json', 'nivel', 'meta', 'estado', 'origem', 'ultimo_nivel_em', 'criado_em', 'meta_estado'},
     'trajetoria_versao': {'numero', 'criada_em', 'origem', 'pedido_id', 'foto_json'},
     'pedido': {'id', 'tipo', 'prisma', 'motivo', 'proposta_json', 'leitura_id', 'estado', 'criado_em', 'decidido_em'},
     'avanco': {'id', 'prisma', 'tipo', 'titulo', 'conteudo_json', 'duracao_min', 'valor_lm', 'conta_json', 'origem',
                'entrega_id', 'dimensao', 'estado', 'nota', 'lm_ganho', 'tentativas', 'revisitas', 'revisita_aberta',
-               'criado_em'},
+               'criado_em', 'onde', 'confirmada_em'},
     'avanco_evento': {'id', 'avanco_id', 'quando', 'evento', 'onde', 'nota', 'resumo', 'motivo', 'extra_json'},
     'lumen': {'id', 'quando', 'prisma', 'lm', 'luz', 'fonte', 'ref'},
     'nivel_registro': {'id', 'prisma', 'de', 'para', 'quando', 'origem', 'lm', 'luz_propria'},
@@ -82,7 +82,7 @@ def test_esquema_criado(privado):
         achadas = {r['name'] for r in con.execute(f'PRAGMA table_info({tabela})')}
         assert colunas <= achadas, (tabela, colunas - achadas)
     meta = dict(con.execute('SELECT chave, valor FROM meta').fetchall())
-    assert meta['esquema'] == str(banco.ESQUEMA_VERSAO) == '3'
+    assert meta['esquema'] == str(banco.ESQUEMA_VERSAO) == '4'
     assert meta['migrado_em']
     pk = [r['name'] for r in con.execute('PRAGMA table_info(entrega_prisma)') if r['pk']]
     assert sorted(pk) == ['entrega_id', 'prisma']
@@ -239,7 +239,7 @@ def test_banco_do_esquema_2_aceita_pedido_dividir_sem_migrar_de_novo(privado):
     con = banco.conectar()  # código novo abre o banco antigo
     try:
         meta = dict(con.execute('SELECT chave, valor FROM meta').fetchall())
-        assert meta['esquema'] == str(banco.ESQUEMA_VERSAO) == '3' and meta['migrado_em'] == migrado
+        assert meta['esquema'] == str(banco.ESQUEMA_VERSAO) == '4' and meta['migrado_em'] == migrado
         antigo = con.execute('SELECT * FROM pedido WHERE id = 1').fetchone()
         assert (antigo['tipo'], antigo['prisma'], antigo['motivo'], antigo['estado'], antigo['decidido_em']) ==             ('arquivar', 'X', 'motivo', 'aceito', '2026-11-01T10:01:00')
         with banco.transacao(con):

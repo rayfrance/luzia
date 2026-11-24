@@ -19,3 +19,10 @@ claude plugin install luzia@luzia
 Sem o sistema de plugins: `python -m luzia.instalar` (com `--hooks` e `--statusline` opcionais). Outros agentes: `python -m luzia.instalar --regras`.
 
 Regras do jogo: [docs/luzia-ux.md](docs/luzia-ux.md). Mapa do código: [luzia/CONTEXT.md](luzia/CONTEXT.md).
+
+## Para testadores
+Vai testar a Luzia? Comece por aqui:
+
+- [Instalar](docs/teste/INSTALAR.md): requisitos, instalação, atualização, privacidade e problemas comuns.
+- [Roteiro](docs/teste/ROTEIRO.md): três missões curtas e o que registrar enquanto usa.
+- [Avaliação](docs/teste/AVALIACAO.md): o formulário para responder no fim do teste.

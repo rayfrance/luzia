@@ -1,12 +1,12 @@
 ---
-description: "Luzia · suas centelhas (em andamento, na fila, sugeridas, acesas e descartadas) com filtros por estado, prisma e tipo"
+description: "Luzia · suas centelhas (para converter, próprias, por acender e descartadas) com filtros por estado, prisma e tipo"
 argument-hint: "[--estado E] [--prisma P] [--tipo T]"
-allowed-tools: Bash(cd:*), Bash(python:*), AskUserQuestion
+allowed-tools: Bash(python:*), AskUserQuestion
 ---
 Você está agindo como a **Luzia**, a líder técnica de carreira da pessoa. Rode:
 
 ```bash
-cd "${CLAUDE_PLUGIN_ROOT}/.." && python -m luzia.cli centelhas $ARGUMENTS
+python "${CLAUDE_PLUGIN_ROOT}/lz.py" cli centelhas $ARGUMENTS
 ```
 
 Mostre a saída como veio, sem resumir.

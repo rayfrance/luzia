@@ -124,18 +124,41 @@ def test_dividir_cria_prismas_herdados_arquiva_o_antigo_e_preserva_lumens(con):
     for nome in ('Testes e Qualidade', 'SQL'):
         novo = _prisma(con, nome)
         assert (novo['estado'], novo['nivel'], novo['meta'], novo['origem']) == ('ativo', antigo['nivel'], antigo['meta'], 'pedido')
-        reg = trajetoria.registros(con, nome)
-        assert [(r['origem'], r['para']) for r in reg] == [('pedido', antigo['nivel'])]
+        assert con.execute('SELECT COUNT(*) FROM nivel_registro WHERE prisma = ?', (nome,)).fetchone()[0] == 0
     assert 'xunit' in _prisma(con, 'Testes e Qualidade')['palavras']
     foto = [x['nome'] for x in trajetoria.versoes(con)[-1]['prismas']]
     assert 'SQL' in foto and TESTES not in foto
-    # lúmens: livro intacto no prisma arquivado, totais iguais, o nível novo conta de agora
+    # lúmens: livro intacto no prisma arquivado e totais iguais; as centelhas levam a luz para as partes
     assert trajetoria.lumens_totais(con) == total_antes
     assert con.execute('SELECT SUM(lm) FROM lumen WHERE prisma = ?', (TESTES,)).fetchone()[0] == lm_antigo
-    rota = jogo.rota(trajetoria.plano(), con)
-    nomes = [s['nome'] for s in rota['skills']]
-    assert 'SQL' in nomes and 'Testes e Qualidade' in nomes and TESTES not in nomes
-    assert next(s for s in rota['skills'] if s['nome'] == 'SQL')['lm'] == 0
+    luz = jogo.luz(trajetoria.plano(), con)['por_prisma']
+    assert 'SQL' in luz and 'Testes e Qualidade' in luz and TESTES not in luz
+    assert luz['SQL']['propria'] == 0 and luz['SQL']['pct'] == 0  # nenhuma centelha de SQL era própria
+
+
+def test_dividir_mantem_estado_e_valor_das_centelhas_sem_perder_luz(con):
+    plan = trajetoria.plano()
+    propria = TESTE_GUIADO
+    with banco.transacao(con):
+        jogo._inserir_avanco(con, {'id': 'rf01', 'skill_plano': TESTES, 'skill': TESTES, 'tipo': 'explicar',
+                                   'titulo': 'Explicar um índice composto', 'duracao_min': 10, 'valor_lm': 35,
+                                   'estado': 'refletida', 'origem': 'rota'})
+        con.execute("UPDATE avanco SET estado = 'propria', lm_ganho = valor_lm WHERE id = ?", (propria,))
+    antes = jogo.luz(plan, con)['por_prisma'][TESTES]
+    valores = {a['id']: (a['estado'], a['valor_lm']) for a in jogo.avancos(con, prisma=TESTES)}
+    assert antes['propria'] > 0 and antes['refletida'] > 0
+    total_antes = jogo.luz(plan, con)
+
+    pedidos.aceitar(con, pedidos.propor(con, pedidos.abrir(con, 'dividir', TESTES)['id'])['id'])
+
+    depois = jogo.luz(trajetoria.plano(), con)
+    partes = [depois['por_prisma'][n] for n in ('Testes e Qualidade', 'SQL')]
+    for campo in ('tot', 'propria', 'refletida', 'apagada'):  # nenhuma luz se perde nem nasce
+        assert sum(x[campo] for x in partes) == antes[campo]
+    assert (depois['tot'], depois['propria']) == (total_antes['tot'], total_antes['propria'])
+    movidas = {a['id']: (a['estado'], a['valor_lm']) for n in ('Testes e Qualidade', 'SQL')
+               for a in jogo.avancos(con, prisma=n)}
+    assert movidas == valores  # estado e valor ficam como estavam
 
 
 def test_avanco_reclassificado_continua_no_prisma_novo_depois_do_sync(con):
@@ -148,7 +171,7 @@ def test_avanco_reclassificado_continua_no_prisma_novo_depois_do_sync(con):
         jogo.sincronizar(plan)
         a = next(x for x in jogo.avancos(con) if x['id'] == COMPONENTE)
         assert a['skill_plano'] == 'React' and a['skill'] == 'React'
-    assert not [x for x in jogo.avancos(con, prisma=FRONT) if x['estado'] != 'conquistado']
+    assert not [x for x in jogo.avancos(con, prisma=FRONT) if x['estado'] != 'propria']
 
 
 def test_ajustar_dividir_renomeia_parte_e_move_avanco(con):

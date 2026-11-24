@@ -116,14 +116,26 @@ def test_ajustar_guarda_propostas(con, monkeypatch):
     assert p3['leitura'] is not None and p3['leitura']['modelo'] == 'gemini/gemini-3.5-flash-lite'
 
 
+def _luz(con) -> dict:
+    return jogo.luz(trajetoria.perfil_ler(con, 'plano') or {}, con)
+
+
+def _centelha(con, fid: str, prisma: str, estado: str, lm: int) -> None:
+    with banco.transacao(con):
+        jogo._inserir_avanco(con, {'id': fid, 'skill_plano': prisma, 'skill': prisma, 'tipo': 'explicar',
+                                   'titulo': f'Centelha {fid}', 'duracao_min': 10, 'valor_lm': lm,
+                                   'estado': estado, 'origem': 'rota'})
+
+
 def test_aceitar_incluir_cria_prisma_avancos_e_versao(con, monkeypatch):
     from luzia import pedidos
 
     chamadas = []
     _simular_modelo_pedido(monkeypatch, chamadas)
 
-    resumo_antes = trajetoria.resumo(con)
+    luz_antes = _luz(con)
     versoes_antes = len(trajetoria.versoes(con))
+    registros_antes = con.execute('SELECT COUNT(*) FROM nivel_registro').fetchone()[0]
 
     ped = pedidos.abrir(con, 'incluir', MENSAGERIA, 'Demanda de filas no projeto')
     pedidos.propor(con, ped['id'], nivel=1, meta=4)
@@ -131,26 +143,43 @@ def test_aceitar_incluir_cria_prisma_avancos_e_versao(con, monkeypatch):
     assert aceito['estado'] == 'aceito' and aceito['decidido_em']
 
     ativos = {p['nome']: p for p in trajetoria.prismas(con)}
-    assert MENSAGERIA in ativos
-    assert (ativos[MENSAGERIA]['nivel'], ativos[MENSAGERIA]['meta'], ativos[MENSAGERIA]['origem']) == (1, 4, 'pedido')
-
-    regs = con.execute("SELECT * FROM nivel_registro WHERE prisma = ? AND origem = 'pedido'", (MENSAGERIA,)).fetchall()
-    assert len(regs) == 1 and regs[0]['para'] == 1
+    assert MENSAGERIA in ativos and ativos[MENSAGERIA]['origem'] == 'pedido'
+    assert con.execute('SELECT COUNT(*) FROM nivel_registro').fetchone()[0] == registros_antes  # o livro de níveis é só leitura
 
     avs = jogo.avancos(con, prisma=MENSAGERIA)
     assert len(avs) == 3
-    assert all(a.get('origem') == 'pedido' and a.get('valor_lm') >= 10 for a in avs)
+    assert all(a.get('origem') == 'pedido' and a.get('valor_lm') >= 10 and a['estado'] == 'apagada' for a in avs)
 
     versoes_depois = trajetoria.versoes(con)
     assert len(versoes_depois) == versoes_antes + 1
     assert versoes_depois[-1]['origem'] == 'pedido' and versoes_depois[-1]['pedido_id'] == ped['id']
     assert MENSAGERIA in [p['nome'] for p in versoes_depois[-1]['prismas']]
 
-    resumo_depois = trajetoria.resumo(con)
-    assert resumo_depois['niveis_total'] == resumo_antes['niveis_total'] + 3
+    luz_depois = _luz(con)
+    novo = luz_depois['por_prisma'][MENSAGERIA]
+    assert novo['n_apagada'] == 3 and novo['propria'] == 0 and novo['pct'] == 0
+    assert novo['tot'] == sum(a['valor_lm'] for a in avs)
+    assert luz_depois['tot'] == luz_antes['tot'] + novo['tot']
 
     leitura = leituras.obter(con, 'pedido', str(ped['id']))
     assert leitura is not None and leitura['modelo'] == 'gemini/gemini-3.5-flash-lite'
+
+
+def test_valor_da_centelha_do_pedido_nasce_uma_vez(con, monkeypatch):
+    from luzia import pedidos
+
+    _simular_modelo_pedido(monkeypatch, [])
+    ped = pedidos.abrir(con, 'incluir', MENSAGERIA, 'Filas')
+    pedidos.propor(con, ped['id'], nivel=1, meta=4)
+    pedidos.aceitar(con, ped['id'])
+    antes = {a['id']: a['valor_lm'] for a in jogo.avancos(con, prisma=MENSAGERIA)}
+
+    _centelha(con, 'prp1', MENSAGERIA, 'propria', 90)  # o progresso do prisma muda depois
+    m = pedidos.abrir(con, 'mudar_meta', DDD, 'Mais fundo')
+    pedidos.propor(con, m['id'], meta=5)
+    pedidos.aceitar(con, m['id'])
+
+    assert {a['id']: a['valor_lm'] for a in jogo.avancos(con, prisma=MENSAGERIA) if a['id'] in antes} == antes
 
 
 def test_arquivar_preserva_lumens_e_reativar_devolve(con, monkeypatch):
@@ -160,48 +189,53 @@ def test_arquivar_preserva_lumens_e_reativar_devolve(con, monkeypatch):
     monkeypatch.setattr(pipeline, 'run_plan', lambda *a, **k: (_ for _ in ()).throw(AssertionError('não deve chamar o modelo')))
 
     jogo.lancar(DDD, 80, 'propria', 'feixe', 'av1')
-    antes = trajetoria.resumo(con)
-    assert antes['niveis_total'] == 6 and antes['lm_total'] == 80
+    _centelha(con, 'ddd1', DDD, 'propria', 80)
+    _centelha(con, 'ddd2', DDD, 'apagada', 40)
+    antes = _luz(con)
+    assert antes['por_prisma'][DDD]['pct'] == 67 and trajetoria.lumens_totais(con) == (80, 80)
 
     p_arq = pedidos.abrir(con, 'arquivar', DDD, 'Foco mudou neste trimestre')
     pedidos.propor(con, p_arq['id'])
     pedidos.aceitar(con, p_arq['id'])
 
-    meio = trajetoria.resumo(con)
+    meio = _luz(con)
     assert DDD not in [p['nome'] for p in trajetoria.prismas(con)]
-    assert meio['niveis_total'] == 3  # 3 níveis de DDD saíram da trajetória ativa
-    assert meio['lm_total'] == 80 and meio['luz_propria'] == 100  # lúmens preservados!
+    assert DDD not in meio['por_prisma'] and meio['tot'] == antes['tot'] - 120  # a luz do prisma sai da trajetória ativa
+    assert trajetoria.lumens_totais(con) == (80, 80)  # lúmens preservados!
+    assert {a['id']: a['estado'] for a in jogo.avancos(con, prisma=DDD, arquivados=True)}['ddd1'] == 'propria'
 
     p_reat = pedidos.abrir(con, 'reativar', DDD, 'Voltando a trabalhar no domínio')
     pedidos.propor(con, p_reat['id'])
     pedidos.aceitar(con, p_reat['id'])
 
-    depois = trajetoria.resumo(con)
+    depois = _luz(con)
     assert DDD in [p['nome'] for p in trajetoria.prismas(con)]
-    assert depois == antes
+    assert depois['por_prisma'][DDD] == antes['por_prisma'][DDD] and depois['tot'] == antes['tot']
 
 
-def test_mudar_meta_nao_toca_nivel_nem_lumens(con, monkeypatch):
+def test_mudar_meta_nao_toca_a_luz_nem_os_lumens(con, monkeypatch):
     from luzia import pedidos
 
     chamadas = []
     _simular_modelo_pedido(monkeypatch, chamadas)
 
     jogo.lancar(DDD, 50, 'propria', 'feixe', 'av1')
+    _centelha(con, 'ddd1', DDD, 'propria', 50)
     regs_antes = con.execute('SELECT COUNT(*) FROM nivel_registro WHERE prisma = ?', (DDD,)).fetchone()[0]
-    resumo_antes = trajetoria.resumo(con)
+    antes = _luz(con)['por_prisma'][DDD]
 
     ped = pedidos.abrir(con, 'mudar_meta', DDD, 'Quero dominar DDD até o nível 5')
     prop = pedidos.propor(con, ped['id'], meta=5)
     assert prop['proposta']['nivel_partida'] == 1 and prop['proposta']['meta'] == 5
-    assert prop['proposta']['ganho_niveis'] == 1
 
     pedidos.aceitar(con, ped['id'])
     p_ddd = {p['nome']: p for p in trajetoria.prismas(con)}[DDD]
-    assert p_ddd['nivel'] == 1 and p_ddd['meta'] == 5
+    assert p_ddd['meta'] == 5
     assert con.execute('SELECT COUNT(*) FROM nivel_registro WHERE prisma = ?', (DDD,)).fetchone()[0] == regs_antes
-    assert jogo.progresso_skill(DDD)['lm'] == 50
-    assert trajetoria.resumo(con)['niveis_total'] == resumo_antes['niveis_total'] + 1
+    depois = _luz(con)['por_prisma'][DDD]
+    assert depois['propria'] == antes['propria'] == 50 and depois['n_propria'] == 1
+    assert trajetoria.lumens_totais(con) == (50, 50)
+    assert depois['n_apagada'] == 3  # as 3 centelhas novas da meta nascem apagadas
 
 
 def test_recusar_nao_muda_trajetoria(con, monkeypatch):
@@ -211,7 +245,7 @@ def test_recusar_nao_muda_trajetoria(con, monkeypatch):
     _simular_modelo_pedido(monkeypatch, chamadas)
 
     versoes_antes = trajetoria.versoes(con)
-    resumo_antes = trajetoria.resumo(con)
+    luz_antes = _luz(con)
 
     ped = pedidos.abrir(con, 'incluir', MENSAGERIA, 'Talvez estudar filas')
     pedidos.propor(con, ped['id'], nivel=1, meta=3)
@@ -221,7 +255,7 @@ def test_recusar_nao_muda_trajetoria(con, monkeypatch):
     assert MENSAGERIA not in [p['nome'] for p in trajetoria.prismas(con, incluir_arquivados=True)]
     assert jogo.avancos(con, prisma=MENSAGERIA) == []
     assert trajetoria.versoes(con) == versoes_antes
-    assert trajetoria.resumo(con) == resumo_antes
+    assert _luz(con) == luz_antes
     assert len(pedidos.listar(con)) == 1
 
 

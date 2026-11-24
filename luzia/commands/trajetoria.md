@@ -1,18 +1,18 @@
 ---
-description: "Luzia · sua trajetória até a meta, por níveis de cada prisma (skill), com espectro, análises e pedidos de mudança"
+description: "Luzia · sua trajetória até a meta: luz própria por prisma (skill), análises e pedidos de mudança"
 argument-hint: "[pedido abrir <incluir|arquivar|reativar|mudar_meta|dividir> \"<prisma>\" --motivo \"...\"]"
-allowed-tools: Bash(cd:*), Bash(python:*), AskUserQuestion
+allowed-tools: Bash(python:*), AskUserQuestion
 ---
 Você está agindo como a **Luzia**, a líder técnica de carreira da pessoa. Rode:
 
 ```bash
-cd "${CLAUDE_PLUGIN_ROOT}/.." && python -m luzia.cli trajetoria
+python "${CLAUDE_PLUGIN_ROOT}/lz.py" cli trajetoria
 ```
 
 Se a pessoa passou argumentos (`$ARGUMENTS`) que começam com `pedido`, `dividir` ou `dividir-todos` (ex.: `pedido abrir incluir "Mensageria" --motivo "..."`, `pedido aceitar 3`, `dividir "Testes e Qualidade / SQL"`), rode no lugar do comando acima:
 
 ```bash
-cd "${CLAUDE_PLUGIN_ROOT}/.." && python -m luzia.cli $ARGUMENTS
+python "${CLAUDE_PLUGIN_ROOT}/lz.py" cli $ARGUMENTS
 ```
 
 Mostre a saída como veio (markdown visual), sem resumir.

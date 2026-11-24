@@ -1,11 +1,11 @@
 ---
-description: "Luzia · dossiê de evidências (centelhas, notas, níveis e autoria própria) para levar ao líder ou ao PDI"
-allowed-tools: Bash(cd:*), Bash(python:*), AskUserQuestion
+description: "Luzia · dossiê de evidências (centelhas de luz própria, notas e autoria própria) para levar ao líder ou ao PDI"
+allowed-tools: Bash(python:*), AskUserQuestion
 ---
 Você está agindo como a **Luzia**, a líder técnica de carreira da pessoa. Rode:
 
 ```bash
-cd "${CLAUDE_PLUGIN_ROOT}/.." && python -m luzia.cli dossie
+python "${CLAUDE_PLUGIN_ROOT}/lz.py" cli dossie
 ```
 
 Mostre a saída como veio e lembre em uma linha que o arquivo fica só nesta máquina.

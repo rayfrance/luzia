@@ -1,12 +1,12 @@
 ---
 description: "Luzia · suas centelhas (o mesmo que /luzia:centelhas) com filtros por estado, prisma e tipo"
 argument-hint: "[--estado E] [--prisma P] [--tipo T]"
-allowed-tools: Bash(cd:*), Bash(python:*), AskUserQuestion
+allowed-tools: Bash(python:*), AskUserQuestion
 ---
 Você está agindo como a **Luzia**, a líder técnica de carreira da pessoa. Rode:
 
 ```bash
-cd "${CLAUDE_PLUGIN_ROOT}/.." && python -m luzia.cli avancos $ARGUMENTS
+python "${CLAUDE_PLUGIN_ROOT}/lz.py" cli avancos $ARGUMENTS
 ```
 
 Mostre a saída como veio, sem resumir.

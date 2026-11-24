@@ -7,14 +7,15 @@ Regras (spec, seções 6 e 11):
 - Em `incluir` e `mudar_meta`, a análise da Luzia é gravada como leitura com base (`alvo_tipo='pedido'`).
   Sem modelo (sem chave, sem internet, erro): a proposta sai do nível/meta pedidos pela pessoa (ou dos atuais),
   sem análise e sem avanços ("leitura indisponível"), fica `proposto` e pode ser aceita.
-- `mudar_meta` nunca altera o nível atual nem os lúmens (e não cria `nivel_registro`).
-- `arquivar` tira o prisma dos níveis da trajetória, preservando todos os lúmens, avanços e histórico; `reativar` devolve tudo.
+- `mudar_meta` nunca altera os lúmens. Níveis e metas numéricas não medem mais o progresso (o progresso é a luz
+  própria das centelhas); as colunas `nivel` e `meta` do prisma ficam só como dado de partida e nada grava `nivel_registro`.
+- `arquivar` tira o prisma da trajetória, preservando todos os lúmens, avanços e histórico; `reativar` devolve tudo.
 - `aceitar` cria uma nova versão da trajetória (`trajetoria_versao`).
 - `dividir` (13/11/2026, um prisma = uma habilidade): sem modelo, a divisão sai de `prismas.partes` e cada avanço vai
   para a parte que casa com as palavras dele; a pessoa ajusta (renomear parte, mover avanço) antes de aceitar.
-  Aceito: cada parte vira prisma ativo com o nível e a meta do antigo (registro `pedido` no livro de níveis), os
-  avanços mudam de prisma e o antigo é arquivado. Os lúmens antigos ficam no prisma arquivado (o livro só acrescenta):
-  o progresso do nível novo conta a partir do aceite, sem perder histórico nem mudar o total de lúmens.
+  Aceito: cada parte vira prisma ativo, as centelhas mudam de prisma mantendo estado e valor em lúmens (nenhuma luz
+  se perde: a luz própria e a refletida passam para a parte) e o antigo é arquivado. Os lúmens do livro ficam como
+  estão (o livro só acrescenta), então o total de lúmens não muda.
 - Um prisma é uma habilidade só: `incluir` recusa nome composto e `reativar` recusa um prisma que já foi dividido.
 """
 
@@ -103,7 +104,7 @@ def _nivel(valor, padrao: int) -> int:
 
 
 def _ganho_niveis(con: sqlite3.Connection, tipo: str, nome: str, nivel_novo: int, meta_nova: int) -> int:
-    """Diferença na soma de max(0, meta − nível) dos prismas ativos, antes × depois (spec, seção 11)."""
+    """Campo legado da proposta (diferença na soma de max(0, meta − nível)); nada de progresso depende dele."""
     ativos = {p['nome']: p for p in trajetoria.prismas(con)}
     antes = sum(max(0, p['meta'] - p['nivel']) for p in ativos.values())
     depois = sum(max(0, p['meta'] - p['nivel']) for k, p in ativos.items() if k != nome)
@@ -363,16 +364,21 @@ def propor(con: sqlite3.Connection, pedido_id: int, nivel: int | None = None, me
     return _montar_pedido(con, r_novo)
 
 
-def _recalcular_valores_avancos(con: sqlite3.Connection, plan: dict) -> None:
-    nv = jogo.niveis(plan, con)
-    nomes = list(nv)
-    for r in con.execute("SELECT * FROM avanco WHERE estado != 'conquistado'"):
-        f = jogo._feixe(r, [])
-        val, conta = jogo.valor(f, plan, nv, nomes)
-        con.execute(
-            'UPDATE avanco SET valor_lm = ?, conta_json = ? WHERE id = ?',
-            (val, json.dumps(conta, ensure_ascii=False), r['id']),
-        )
+def _acender_acoes(con: sqlite3.Connection, nome: str, prop: dict, plan: dict, quando: str) -> None:
+    """Centelhas de um pedido aceito: nascem `apagada` e o valor é calculado uma só vez, agora (nunca recalculado)."""
+    acoes_prop = [a for a in prop.get('acoes') or [] if isinstance(a, dict) and a.get('titulo')]
+    if not acoes_prop:
+        return
+    prog = jogo.luz(plan, con)['por_prisma']
+    nomes_skills = jogo.nomes_de_skills(plan)
+    for a in acoes_prop:
+        fid = acoes.aid('pedido', f"{nome}|{a.get('titulo', '')}")
+        if con.execute('SELECT 1 FROM avanco WHERE id = ?', (fid,)).fetchone():
+            continue  # a mesma centelha já existe: o estado e o valor dela não mudam
+        novo = {**a, 'id': fid, 'skill': nome, 'skill_plano': nome, 'origem': 'pedido',
+                'estado': 'apagada', 'criado_em': quando}
+        novo['valor_lm'], novo['conta'] = jogo.valor(novo, plan, prog, nomes_skills)
+        jogo._inserir_avanco(con, novo)
 
 
 def aceitar(con: sqlite3.Connection, pedido_id: int) -> dict:
@@ -410,57 +416,19 @@ def aceitar(con: sqlite3.Connection, pedido_id: int) -> dict:
                     "VALUES (?, ?, ?, ?, 'ativo', 'pedido', ?, ?)",
                     (nome, json.dumps(palavras, ensure_ascii=False), nv, mt, quando, quando),
                 )
-                con.execute(
-                    "INSERT INTO nivel_registro (prisma, de, para, quando, origem) VALUES (?, NULL, ?, ?, 'pedido')",
-                    (nome, nv, quando),
-                )
             else:
-                de_nv = int(existente['nivel'] or 0)
                 con.execute(
                     "UPDATE prisma SET palavras_json = ?, nivel = ?, meta = ?, estado = 'ativo', ultimo_nivel_em = ? WHERE nome = ?",
                     (json.dumps(palavras, ensure_ascii=False), nv, mt, quando, nome),
                 )
-                if de_nv != nv:
-                    con.execute(
-                        "INSERT INTO nivel_registro (prisma, de, para, quando, origem) VALUES (?, ?, ?, ?, 'pedido')",
-                        (nome, de_nv, nv, quando),
-                    )
-            nv_map = jogo.niveis(plan, con)
-            nomes_skills = list(nv_map)
-            for a in prop.get('acoes') or []:
-                fid = acoes.aid('pedido', f"{nome}|{a.get('titulo', '')}")
-                feixe_novo = {
-                    **a,
-                    'id': fid,
-                    'skill': nome,
-                    'skill_plano': nome,
-                    'origem': 'pedido',
-                    'estado': 'sugerido',
-                    'criado_em': quando,
-                }
-                feixe_novo['valor_lm'], feixe_novo['conta'] = jogo.valor(feixe_novo, plan, nv_map, nomes_skills)
-                jogo._inserir_avanco(con, feixe_novo)
+            _acender_acoes(con, nome, prop, plan, quando)
 
         elif tipo == 'mudar_meta':
             if existente is None:
                 raise ValueError(f'prisma desconhecido: {nome}')
             mt = int(prop.get('meta', existente['meta'] or 4))
             con.execute('UPDATE prisma SET meta = ? WHERE nome = ?', (mt, nome))
-            nv_map = jogo.niveis(plan, con)
-            nomes_skills = list(nv_map)
-            for a in prop.get('acoes') or []:
-                fid = acoes.aid('pedido', f"{nome}|{a.get('titulo', '')}")
-                feixe_novo = {
-                    **a,
-                    'id': fid,
-                    'skill': nome,
-                    'skill_plano': nome,
-                    'origem': 'pedido',
-                    'estado': 'sugerido',
-                    'criado_em': quando,
-                }
-                feixe_novo['valor_lm'], feixe_novo['conta'] = jogo.valor(feixe_novo, plan, nv_map, nomes_skills)
-                jogo._inserir_avanco(con, feixe_novo)
+            _acender_acoes(con, nome, prop, plan, quando)
 
         elif tipo == 'dividir':
             _aceitar_dividir(con, nome, existente, prop, plan, quando)
@@ -477,7 +445,6 @@ def aceitar(con: sqlite3.Connection, pedido_id: int) -> dict:
             mt = int(prop.get('meta', existente['meta'] or 4))
             con.execute("UPDATE prisma SET estado = 'ativo', meta = ? WHERE nome = ?", (mt, nome))
 
-        _recalcular_valores_avancos(con, plan)
         versao_num = trajetoria.acrescentar_versao(con, 'pedido', pid)
         con.execute("UPDATE pedido SET estado = 'aceito', decidido_em = ? WHERE id = ?", (quando, pid))
 
@@ -488,14 +455,14 @@ def aceitar(con: sqlite3.Connection, pedido_id: int) -> dict:
 
 
 def _aceitar_dividir(con: sqlite3.Connection, antigo: str, existente, prop: dict, plan: dict, quando: str) -> None:
-    """Dentro da transação de `aceitar`: cria as partes com nível e meta herdados, move os avanços e arquiva o antigo."""
+    """Dentro da transação de `aceitar`: cria as partes, move as centelhas (estado e valor ficam) e arquiva o antigo."""
     if existente is None:
         raise ValueError(f'prisma desconhecido: {antigo}')
     if existente['estado'] != 'ativo':
         raise ValueError(f'o prisma {antigo} não está mais ativo')
     partes_prop = [x for x in prop.get('partes') or [] if isinstance(x, dict) and x.get('nome')]
     nomes = _partes_validas(con, antigo, [x['nome'] for x in partes_prop])
-    nv, mt = int(existente['nivel'] or 0), int(existente['meta'] if existente['meta'] is not None else 4)
+    nv, mt = int(existente['nivel'] or 0), int(existente['meta'] if existente['meta'] is not None else 4)  # só dado de partida
     palavras = {x['nome']: list(x.get('palavras') or []) for x in partes_prop}
     escolhidos = {a['id']: a['para'] for a in prop.get('avancos') or [] if a.get('para') in nomes}
     destinos = _destinos(con, antigo, nomes, palavras, escolhidos)  # avanço novo depois da proposta: classificação
@@ -503,8 +470,6 @@ def _aceitar_dividir(con: sqlite3.Connection, antigo: str, existente, prop: dict
         con.execute("INSERT INTO prisma (nome, palavras_json, nivel, meta, estado, origem, ultimo_nivel_em, criado_em) "
                     "VALUES (?, ?, ?, ?, 'ativo', 'pedido', ?, ?)",
                     (n, json.dumps(palavras.get(n, []), ensure_ascii=False), nv, mt, quando, quando))
-        con.execute("INSERT INTO nivel_registro (prisma, de, para, quando, origem) VALUES (?, NULL, ?, ?, 'pedido')",
-                    (n, nv, quando))
     for a in destinos:
         conteudo = json.loads(con.execute('SELECT conteudo_json FROM avanco WHERE id = ?', (a['id'],)).fetchone()[0] or '{}')
         conteudo.update(skill=a['para'], prisma_fixo=a['para'], dividido_de=antigo)

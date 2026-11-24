@@ -1,6 +1,6 @@
 # luzia/ — pacote e plugin Luzia
 
-> Líder técnica de carreira dentro do agente. Regras do jogo e da trajetória: [docs/luzia-ux.md](../docs/luzia-ux.md). Continuidade: [docs/handoffs/luzia-acoes.md](../docs/handoffs/luzia-acoes.md).
+> Líder técnica de carreira dentro do agente. Regras do jogo e da trajetória: [docs/luzia-ux.md](../docs/luzia-ux.md); modelo de centelhas: [docs/specs/2026-11-18-centelhas-conversao.md](../docs/specs/2026-11-18-centelhas-conversao.md). Continuidade: [docs/handoffs/luzia-acoes.md](../docs/handoffs/luzia-acoes.md).
 
 ## Instalar
 - **Claude Code (plugin):** `claude plugin marketplace add <pasta do repositório>` e `claude plugin install luzia@luzia`. Comandos, skills e hooks usam `${CLAUDE_PLUGIN_ROOT}`; nada de caminho fixo.
@@ -12,18 +12,18 @@
 |:--|:--|
 | `banco.py` | persistência local em SQLite (`private/luzia.db`, WAL, `BEGIN IMMEDIATE`), esquema versionado e fila de fallback `pendentes.jsonl` para hooks nunca travarem |
 | `migrar.py` | migração idempotente e sem perda dos JSON antigos para o SQLite (mantendo backup em `private/migracao-AAAAMMDD/`) |
-| `trajetoria.py` | perfil, prismas (skills), palavras-chave, registros de nível e histórico imutável de versões da trajetória |
+| `trajetoria.py` | perfil, prismas (skills), palavras-chave, histórico imutável de versões da trajetória e, só para leitura, o histórico do modelo anterior |
 | `pedidos.py` | fluxo formal de pedidos de mudança na trajetória (`abrir`, `propor`, `aceitar`, `recusar`, `listar`, `dividir_todos`); tipos incluir, arquivar, reativar, mudar meta e dividir |
 | `prismas.py` | um prisma = uma habilidade: divisão determinística de nomes compostos (mapa revisável + regra genérica), palavras de cada habilidade e classificação dos avanços, sem modelo |
 | `entregas.py` | detecção local via `git` (PR merges, tickets, commits), prismas atravessados, ligação com lúmens/avanços e detalhe completo |
 | `leituras.py` | geração em lote e cache de leituras (na tela: **Análise da Luzia**) assinadas por IA com base determinística, hash, modelo e data (prisma, entrega e pedido) |
-| `cli.py` | comandos (`hoje`, `trajetoria`, `pedido`, `dividir`, `dividir-todos`, `centelhas` (`avancos`), `acender`, `entregas`, `entrega`, `acender-entrega`, `identidade`, `analises` (`leituras`), `foco`, `modelo usar`, `agente`, `nivel`, `fazer`, `registrar`, `subir`, `dossie`, `acesso`, `privacidade`...); toda saída termina em `LUZIA_BOTOES` |
-| `jogo.py` | avanços (na tela: **centelhas**), lúmens, níveis, lampejos (na tela: **centelhas da sessão**), tetos diários, ritmo e dossiê formal de evidências |
+| `cli.py` | comandos (`hoje`, `trajetoria`, `pedido`, `dividir`, `dividir-todos`, `centelhas` (`avancos`), `acender`, `entregas`, `entrega`, `acender-entrega`, `identidade`, `analises` (`leituras`), `foco`, `modelo usar`, `agente`, `fazer` (`converter`), `registrar`, `confirmar`, `dossie`, `acesso`, `privacidade`...); toda saída termina em `LUZIA_BOTOES` |
+| `jogo.py` | avanços (na tela: **centelhas**) com estados de luz (apagada, refletida, convertendo, própria), valor fixo na criação, conversão (`avaliar` + o sim em `confirmar`), progresso (`luz`), reconhecimento dos hooks, ritmo e dossiê formal de evidências |
 | `acoes.py` | catálogo de avanços derivado do plano, fila do painel, evidências P3/P4 e prompt autossuficiente |
 | `propriedade.py` | propriedade intelectual das entregas (P1–P4 e `p2_entrega` sobre a entrega consolidada) |
-| `observer.py` | foco e hooks `SessionStart`, `UserPromptSubmit` e `PostToolUse` (local, sem modelo) com envio de centelhas da sessão (`lampejo` no código); `reconhecer_em` é a única implementação do reconhecimento, usada também pelo comando `foco` da CLI (agentes sem hooks) |
-| `statusline.py` | linha de status do Claude Code com estado do foco e prisma mais próximo (só nos repositórios autorizados) |
-| `server.py` + `painel/` | painel local em `127.0.0.1:8501` (**Hoje · Trajetória · Centelhas · Entregas · Ajustes**), espectro de 5 faixas, proteção Host/Origin/JSON e login: toda rota `/api` fora `ping` e `acesso/*` exige sessão (401) |
+| `observer.py` | foco e hooks `SessionStart`, `UserPromptSubmit` e `PostToolUse` (local, sem modelo) que acendem centelhas: o agente aplicou → luz refletida; o seu prompt citou → luz própria; `reconhecer_em` é a única implementação do reconhecimento, usada também pelo comando `foco` da CLI (agentes sem hooks) |
+| `statusline.py` | linha de status do Claude Code com o estado do foco, a luz própria da trajetória e quantas centelhas há para converter (só nos repositórios autorizados) |
+| `server.py` + `painel/` | painel local em `127.0.0.1:8501` (**Hoje · Trajetória · Centelhas · Entregas · Ajustes**), barra de luz própria sobre o total da meta em cada prisma, proteção Host/Origin/JSON e login: toda rota `/api` fora `ping` e `acesso/*` exige sessão (401) |
 | `acesso.py` | entrada no painel herdada do agente: `career-map` grava um link de uso único (2 min, só o SHA-256 em `acesso_link`) e abre `#entrar=<token>`; a página troca o link por uma sessão de 30 dias sem uso (só o SHA-256 em `acesso_sessao`, sobrevive a reinícios; o polling manda `X-Luzia-Auto: 1` e não renova); 10 links errados por minuto dão 429; `acesso sair-de-todos` encerra todas |
 | `planner.py`, `pipeline.py`, `modelo.py` | esquemas JSON estruturados, chamadas ao modelo configurável e registro de custo em `runs.jsonl` e `chamada_modelo` |
 | `triage.py`, `privacy.py` | leitura das fontes locais e mascaramento LGPD (`Redactor`, `mascarar_estrutura`), usado só no envio ao modelo com o interruptor `mascarar_modelo` ligado (`pipeline.run_plan`) |

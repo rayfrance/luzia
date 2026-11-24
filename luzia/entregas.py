@@ -548,6 +548,10 @@ def _prismas_entrega(con: sqlite3.Connection, eid: int) -> list[dict]:
     return out
 
 
+# Centelha própria por prompt (sem nota): vale 2 na rubrica (aplicou o conceito, sem explicar a decisão) = 50 em P3/P4.
+NOTA_PROMPT = 2
+
+
 def _propriedade_entrega(con: sqlite3.Connection, r: sqlite3.Row, commits: list[dict], avancos_feitos: list[dict],
                          titulos: set[str] | None = None) -> dict:
     plano = trajetoria.perfil_ler(con, 'plano') or {}
@@ -564,13 +568,18 @@ def _propriedade_entrega(con: sqlite3.Connection, r: sqlite3.Row, commits: list[
     for dim in ('P3', 'P4'):
         candidatos: list[dict] = []
         for a in avancos_feitos:
-            if a.get('estado') == 'conquistado' and a.get('dimensao') == dim and a.get('nota') is not None:
+            if a.get('estado') == 'propria' and a.get('dimensao') == dim:
                 hist = a.get('historico') or []
                 resumo = a.get('resumo') or next((h.get('resumo') for h in reversed(hist) if h.get('resumo')), '')
                 quando = next((h.get('quando') for h in reversed(hist) if h.get('quando')), a.get('criado_em') or '')
-                candidatos.append({'nota': int(a['nota']), 'resumo': resumo, 'quando': quando})
+                if a.get('nota') is not None:
+                    candidatos.append({'nota': int(a['nota']), 'resumo': resumo, 'quando': quando})
+                else:  # virou própria pelo prompt, sem rubrica: o conceito foi aplicado, a decisão não foi explicada
+                    candidatos.append({'nota': NOTA_PROMPT, 'resumo': resumo or 'usou o conceito no próprio prompt',
+                                       'quando': quando})
         for ev in con.execute("SELECT avanco_id, quando, nota, resumo, extra_json FROM avanco_evento "
-                              "WHERE evento IN ('concluida', 'conquistado', 'revisitado') AND nota IS NOT NULL"):
+                              "WHERE evento IN ('luz própria', 'concluida', 'conquistado', 'revisitado') "
+                              "AND nota IS NOT NULL"):  # os três últimos só existem no histórico migrado
             try:
                 extra = json.loads(ev['extra_json'] or '{}')
             except ValueError:
@@ -615,7 +624,7 @@ def _lumens_ligados(con: sqlite3.Connection, r: sqlite3.Row, prismas_nomes: set[
         por_ref = bool(ref and ref in refs)
         por_janela = bool(
             row['prisma'] in prismas_nomes
-            and (fonte.startswith('passivo') or fonte == 'conversao')
+            and (fonte.startswith('passivo') or fonte in ('agente', 'prompt', 'conversao'))  # passivo: dado migrado
             and janela_ini and janela_ini <= (row['quando'] or '') <= janela_fim
         )
         if por_ref or por_janela:
@@ -662,7 +671,7 @@ def detalhe(con: sqlite3.Connection, entrega_id: int, incluir_leitura: bool = Tr
     avancos_uteis = [
         a for a in todos_avancos
         if a['id'] not in ids_feitos
-        and a.get('estado') in ('em_andamento', 'na_fila', 'sugerido')
+        and a.get('estado') in jogo.ABERTOS
         and (a.get('skill_plano') or a.get('skill')) in prismas_nomes
     ][:3]
 

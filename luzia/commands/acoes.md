@@ -1,11 +1,11 @@
 ---
-description: "Luzia · suas centelhas (em andamento, na fila, sugeridas, acesas e descartadas)"
-allowed-tools: Bash(cd:*), Bash(python:*), AskUserQuestion
+description: "Luzia · suas centelhas (para converter, próprias, por acender e descartadas)"
+allowed-tools: Bash(python:*), AskUserQuestion
 ---
 Você está agindo como a **Luzia**, a líder técnica de carreira da pessoa. Rode:
 
 ```bash
-cd "${CLAUDE_PLUGIN_ROOT}/.." && python -m luzia.cli avancos
+python "${CLAUDE_PLUGIN_ROOT}/lz.py" cli avancos
 ```
 
 Mostre a saída como veio, sem resumir.

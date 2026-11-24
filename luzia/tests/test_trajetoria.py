@@ -24,43 +24,50 @@ def _lumen(con, prisma, lm, luz='propria'):
                     (prisma, lm, luz))
 
 
-def test_declarar_nivel_registra_origem(con):
-    antes = {p['nome']: p for p in trajetoria.prismas(con)}
-    assert antes[DDD]['nivel'] == 1
-    trajetoria.declarar_nivel(con, DDD, 3)
-    depois = {p['nome']: p for p in trajetoria.prismas(con)}
-    assert depois[DDD]['nivel'] == 3
-    ultimo = con.execute('SELECT * FROM nivel_registro WHERE prisma = ? ORDER BY quando, id DESC', (DDD,)).fetchall()
-    ult = max(ultimo, key=lambda r: r['id'])
-    assert (ult['origem'], ult['de'], ult['para']) == ('declarado', 1, 3)
-    assert trajetoria.desde(con, DDD) == ult['quando']  # "lm desde o último nível" parte do último registro, qualquer origem
-    assert jogo.niveis(pipeline.load_state()['plano'])[DDD]['nivel'] == 3
-    with pytest.raises(ValueError):
-        trajetoria.declarar_nivel(con, 'Inexistente', 2)
+def _centelha(con, fid, prisma, estado, lm):
+    with banco.transacao(con):
+        jogo._inserir_avanco(con, {'id': fid, 'skill_plano': prisma, 'skill': prisma, 'tipo': 'explicar',
+                                   'titulo': f'Centelha {fid}', 'duracao_min': 10, 'valor_lm': lm,
+                                   'estado': estado, 'origem': 'rota'})
 
 
 def test_arquivado_fora_da_trajetoria_mas_lumens_contam(con):
+    plan = pipeline.load_state()['plano']
     _lumen(con, DDD, 60)
     _lumen(con, TESTES, 40, 'refletida')
-    antes = trajetoria.resumo(con)
-    # DDD: 1 → 4 (3 níveis), Testes: 2 → 4 (2), Front: 3 → 4 (1)
-    assert antes['niveis_total'] == 6 and antes['lm_total'] == 100 and antes['luz_propria'] == 60
+    _centelha(con, 'c1', DDD, 'propria', 60)
+    _centelha(con, 'c2', DDD, 'apagada', 60)
+    _centelha(con, 'c3', TESTES, 'refletida', 40)
+    antes = jogo.luz(plan, con)
+    assert (antes['tot'], antes['propria'], antes['pct']) == (160, 60, 38)
+    assert trajetoria.lumens_totais(con) == (100, 60)
     with banco.transacao(con):
         con.execute("UPDATE prisma SET estado = 'arquivado' WHERE nome = ?", (DDD,))
-    depois = trajetoria.resumo(con)
-    assert depois['niveis_total'] == 3
-    assert depois['lm_total'] == 100 and depois['luz_propria'] == 60  # lúmens do arquivado continuam
+    depois = jogo.luz(plan, con)
+    assert (depois['tot'], depois['propria']) == (40, 0)  # a luz do arquivado sai da trajetória
+    assert trajetoria.lumens_totais(con) == (100, 60)  # lúmens do arquivado continuam
     assert DDD not in [p['nome'] for p in trajetoria.prismas(con)]
     assert DDD in [p['nome'] for p in trajetoria.prismas(con, incluir_arquivados=True)]
-    assert DDD not in jogo.niveis(pipeline.load_state()['plano'])
+    assert DDD not in jogo.ativos(plan, con)
     with banco.transacao(con):  # reativar devolve tudo
         con.execute("UPDATE prisma SET estado = 'ativo' WHERE nome = ?", (DDD,))
-    assert trajetoria.resumo(con) == antes
+    assert jogo.luz(plan, con) == antes
+
+
+def test_historico_de_niveis_e_so_leitura(con):
+    with banco.transacao(con):
+        con.execute("INSERT INTO nivel_registro (prisma, de, para, quando, origem, lm, luz_propria) "
+                    "VALUES (?, 1, 2, '2026-11-01T10:00:00', 'conquistado', 160, 70)", (DDD,))
+        con.execute("INSERT INTO nivel_registro (prisma, de, para, quando, origem) "
+                    "VALUES (?, 1, 3, '2026-11-02T10:00:00', 'declarado')", (DDD,))
+    assert trajetoria.historico_subidas(con) == [
+        {'quando': '2026-11-01T10:00:00', 'skill': DDD, 'para': 2, 'lm': 160, 'luz_propria': 70}]  # só os conquistados
+    for antigo in ('declarar_nivel', 'registrar_subida', 'acrescentar_subida', 'resumo', 'declarados', 'base_de', 'desde'):
+        assert not hasattr(trajetoria, antigo)  # nada mais escreve nem lê níveis como medida de progresso
 
 
 def test_nova_versao_guarda_foto(con):
     n1 = trajetoria.versoes(con)[-1]['numero']  # a migração já gravou a nº 1 (triagem)
-    trajetoria.declarar_nivel(con, DDD, 2)
     with banco.transacao(con):
         con.execute("UPDATE prisma SET estado = 'arquivado' WHERE nome = ?", (TESTES,))
     n2 = trajetoria.nova_versao(con, 'pedido', None)
@@ -68,24 +75,20 @@ def test_nova_versao_guarda_foto(con):
     foto = trajetoria.versoes(con)[-1]
     assert foto['origem'] == 'pedido' and foto['numero'] == n2
     nomes = {p['nome']: p for p in foto['prismas']}
-    assert set(nomes) == {DDD, FRONT} and nomes[DDD]['nivel'] == 2 and nomes[DDD]['meta'] == 4
+    assert set(nomes) == {DDD, FRONT} and nomes[DDD]['meta'] == 4
     assert trajetoria.versoes(con)[0]['numero'] == n1  # as antigas ficam como estavam
     assert len(trajetoria.versoes(con)[0]['prismas']) == 3
 
 
-def test_rota_compat(privado):
-    plan = pipeline.load_state()['plano']
-    r = jogo.rota(plan)
-    for chave in ('degraus_total', 'degraus_feitos', 'niveis_total', 'niveis_feitos', 'marcos', 'skills', 'lm_total',
-                  'luz_propria', 'pct'):
-        assert chave in r
-    assert r['degraus_total'] == r['niveis_total'] == 6 and r['degraus_feitos'] == r['niveis_feitos'] == 0
-    s = r['skills'][0]
-    for chave in ('nome', 'nivel', 'meta', 'proximo', 'na_meta', 'lm', 'propria', 'refletida', 'luz_propria', 'limiar',
-                  'feixes', 'falta', 'pronto'):
-        assert chave in s
-    assert jogo.garantir_base(plan)['base'][DDD] == 1
+def test_rotulos_vem_do_plano(privado):
     assert pipeline.rotulos(pipeline.load_state()) == ('Júnior 3', 'Plena')
+
+
+def test_autoavaliacao_da_triagem_e_so_leitura_do_perfil(con):
+    assert pipeline.trajetoria_autoavaliacao() == {}  # a pessoa ainda não declarou nada
+    with banco.transacao(con):
+        trajetoria.perfil_gravar(con, 'autoavaliacao', {DDD: 3, 'Inexistente': 2})
+    assert pipeline.trajetoria_autoavaliacao() == {DDD: 3}  # só prismas ativos; nada é escrito
 
 
 def test_estado_vive_no_perfil(privado):
@@ -113,38 +116,6 @@ def test_observer_e_statusline_veem_o_plano_atualizado(privado):
     assert observer.plano()['trechos'] == ['novo']
     assert statusline.trajetoria.plano()['trechos'] == ['novo']
     assert not (privado / 'career_state.json').read_text(encoding='utf-8').count('novo')  # o arquivo já não é a fonte
-
-
-def _post(path, dados):
-    from luzia import server
-    h = server.Handler.__new__(server.Handler)
-    resp = []
-    h._json = lambda d, code=200: resp.append((code, d))
-    h._post(path, dados)
-    return resp[-1]
-
-
-def test_confirmar_nivel_sem_mudar_declara(privado):
-    with trajetoria.abrir() as con:
-        assert DDD not in trajetoria.declarados(con)
-    assert _post('/api/autoavaliacao', {DDD: 1})[0] == 200  # o nível sugerido (1), confirmado sem mudar
-    with trajetoria.abrir() as con:
-        assert trajetoria.declarados(con)[DDD] == 1
-        ult = con.execute('SELECT * FROM nivel_registro WHERE prisma = ? ORDER BY id DESC', (DDD,)).fetchone()
-        assert (ult['origem'], ult['de'], ult['para']) == ('declarado', 1, 1)
-        assert trajetoria.perfil_ler(con, 'autoavaliacao')[DDD] == 1
-        n = con.execute('SELECT COUNT(*) FROM nivel_registro').fetchone()[0]
-    _post('/api/autoavaliacao', {DDD: 1})  # confirmar de novo não acumula registros
-    with trajetoria.abrir() as con:
-        assert con.execute('SELECT COUNT(*) FROM nivel_registro').fetchone()[0] == n
-
-
-def test_autoavaliacao_rejeita_nome_e_nivel_invalidos(privado):
-    assert _post('/api/autoavaliacao', {'Inexistente': 2})[0] == 400
-    assert _post('/api/autoavaliacao', {DDD: 'dois'})[0] == 400
-    assert _post('/api/autoavaliacao', {DDD: 2, 'Inexistente': 2})[0] == 400
-    with trajetoria.abrir() as con:
-        assert {p['nome']: p['nivel'] for p in trajetoria.prismas(con)}[DDD] == 1  # nada foi gravado
 
 
 def test_triagem_nova_cria_prisma_e_versao_na_mesma_transacao(privado):

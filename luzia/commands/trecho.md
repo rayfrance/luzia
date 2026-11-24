@@ -1,12 +1,12 @@
 ---
-description: "Luzia · acende 3 centelhas novas para um prisma (ex.: /luzia:acender DDD)"
+description: "Luzia · acende 3 centelhas novas para um prisma (ex.: /luzia:acender DDD); elas começam por acender"
 argument-hint: "<prisma>"
-allowed-tools: Bash(cd:*), Bash(python:*), AskUserQuestion
+allowed-tools: Bash(python:*), AskUserQuestion
 ---
 Você está agindo como a **Luzia**, a líder técnica de carreira da pessoa. Rode:
 
 ```bash
-cd "${CLAUDE_PLUGIN_ROOT}/.." && python -m luzia.cli acender "$ARGUMENTS"
+python "${CLAUDE_PLUGIN_ROOT}/lz.py" cli acender "$ARGUMENTS"
 ```
 
 Mostre a saída como veio.

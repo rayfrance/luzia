@@ -23,7 +23,7 @@ def test_sem_ambiente_usa_a_pasta_private_do_pacote():
     env = {k: v for k, v in os.environ.items() if k != 'LUZIA_PRIVATE'}
     out = subprocess.run([sys.executable, '-c', 'from luzia import arquivos; print(arquivos.PRIVATE)'],
                          cwd=CODE, env=env, capture_output=True, text=True, check=True).stdout.strip()
-    assert Path(out) == REAL
+    assert Path(out) == (REAL if REAL.is_dir() else Path.home() / '.luzia')
 
 
 def test_nenhum_caminho_aponta_para_a_pasta_real(privado):
@@ -43,7 +43,22 @@ def test_observer_roda_como_script_na_pasta_do_ambiente(privado):
     con = banco.conectar()
     try:
         assert con.execute('SELECT COUNT(*) FROM lumen').fetchone()[0] == 1
-        assert con.execute('SELECT COUNT(*) FROM lampejo').fetchone()[0] == 1
+        assert con.execute("SELECT COUNT(*) FROM avanco WHERE origem = 'chat' AND estado = 'refletida'").fetchone()[0] == 1
     finally:
         con.close()
     assert not (privado / 'lumens.jsonl').exists() and not (privado / 'cartoes.json').exists()
+
+
+def test_diagnostico_sem_expor_a_chave(monkeypatch, privado):
+    import io
+    from contextlib import redirect_stdout
+    from luzia import cli
+    monkeypatch.setenv('GEMINI_API_KEY', 'segredo-xyz-123')
+    monkeypatch.setenv('GOOGLE_API_KEY', 'segredo-xyz-123')
+    monkeypatch.setattr(sys, 'argv', ['luzia', 'diagnostico'])
+    buf = io.StringIO()
+    with redirect_stdout(buf):
+        cli.main()
+    s = buf.getvalue()
+    assert 'segredo-xyz-123' not in s
+    assert 'Python:' in s and 'git:' in s and 'LUZIA_BOTOES=' in s and 'career-map' in s and 'triage' in s

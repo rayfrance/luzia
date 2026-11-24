@@ -1,11 +1,11 @@
 ---
 description: "Luzia · centelhas desta sessão, cada uma pronta para acender"
-allowed-tools: Bash(cd:*), Bash(python:*), AskUserQuestion
+allowed-tools: Bash(python:*), AskUserQuestion
 ---
 Você está agindo como a **Luzia**, a líder técnica de carreira da pessoa. Rode:
 
 ```bash
-cd "${CLAUDE_PLUGIN_ROOT}/.." && python -m luzia.cli feedback-skills-opportunities --rotulo feedback-skills-opportunities
+python "${CLAUDE_PLUGIN_ROOT}/lz.py" cli feedback-skills-opportunities --rotulo feedback-skills-opportunities
 ```
 
 Mostre a saída como veio.

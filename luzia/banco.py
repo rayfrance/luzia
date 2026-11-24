@@ -31,7 +31,7 @@ if os.name == 'nt':
 else:
     import fcntl
 
-ESQUEMA_VERSAO = 3  # 2: acesso_sessao e acesso_link (entrada no painel herdada do agente); 3: pedido 'dividir'
+ESQUEMA_VERSAO = 4  # 2: acesso_sessao e acesso_link; 3: pedido 'dividir'; 4: centelhas (estados de luz, onde, meta_estado)
 ESPERA_MS = 5000
 ESPERA_CURTA_MS = 1500  # caminho quente do hook: abrir e gravar cabem no tempo dele
 PENDENTES = 'pendentes.jsonl'
@@ -47,13 +47,15 @@ OPERACOES = {
     'lumen': ('quando', 'prisma', 'lm', 'luz', 'fonte', 'ref'),
     'sessao_evento': ('quando', 'sessao', 'prisma', 'extensao', 'ferramenta', 'modo', 'lm', 'luz', 'interveio'),
     'lampejo': ('prisma', 'sessao', 'quando', 'estado', 'usado_em'),
-    # Um reconhecimento do observador inteiro (sessão visto + lúmen + evento + lampejo): aplicado por `_reconhecer`.
-    'reconhecimento': ('quando', 'sessao', 'chave', 'prisma', 'lm', 'luz', 'fonte', 'ref', 'teto', 'extensao',
-                       'ferramenta', 'modo', 'interveio', 'lampejo'),
+    # Um reconhecimento do observador inteiro (centelha + luz + evento da sessão): aplicado por `_reconhecer`.
+    # `centelha` é o id; `nova_json` traz a centelha a criar se ela ainda não existe (origem 'chat').
+    # As colunas antigas (lm, luz, fonte, ref, teto, lampejo) só chegam de pendentes gravados por um código anterior.
+    'reconhecimento': ('quando', 'sessao', 'chave', 'prisma', 'centelha', 'nova_json', 'onde', 'extensao',
+                       'ferramenta', 'modo', 'interveio', 'lm', 'luz', 'fonte', 'ref', 'teto', 'lampejo'),
 }
 # Colunas NOT NULL sem padrão (`quando` vem da hora do evento quando falta) e valores aceitos pelos CHECK do esquema.
 OBRIGATORIAS = {'lumen': ('prisma', 'lm', 'luz', 'fonte'), 'sessao_evento': (), 'lampejo': ('prisma',),
-               'reconhecimento': ('sessao', 'chave', 'prisma', 'lm', 'luz', 'fonte')}
+               'reconhecimento': ('sessao', 'chave', 'prisma')}
 VALORES = {'luz': ('propria', 'refletida'), 'estado': ('aberto', 'convertido', 'guardado')}
 
 # Reservas marcadas em meta pela transação aberta de cada conexão (id(con) → arquivos): só podem ser apagadas
@@ -83,7 +85,8 @@ ESQUEMA = (
         estado TEXT NOT NULL DEFAULT 'ativo' CHECK (estado IN ('ativo', 'arquivado')),
         origem TEXT NOT NULL DEFAULT 'triagem' CHECK (origem IN ('triagem', 'pedido')),
         ultimo_nivel_em TEXT,
-        criado_em TEXT
+        criado_em TEXT,
+        meta_estado TEXT NOT NULL DEFAULT 'definida'  -- 'a_propor': a Luzia ainda vai propor as centelhas da meta
     )""",
     """CREATE TABLE IF NOT EXISTS leitura (
         id INTEGER PRIMARY KEY,
@@ -160,7 +163,9 @@ ESQUEMA = (
         tentativas INTEGER NOT NULL DEFAULT 0,
         revisitas INTEGER NOT NULL DEFAULT 0,
         revisita_aberta INTEGER NOT NULL DEFAULT 0,
-        criado_em TEXT NOT NULL
+        criado_em TEXT NOT NULL,
+        onde TEXT,           -- onde a luz apareceu (chat de DD/MM, extensão; nunca o caminho)
+        confirmada_em TEXT   -- a Luzia confirmou o entendimento; falta o sim da pessoa para virar luz própria
     )""",
     """CREATE TABLE IF NOT EXISTS avanco_evento (
         id INTEGER PRIMARY KEY,
@@ -366,11 +371,14 @@ def _validar(operacao: str, dados: dict) -> dict:
     return dict(dados)
 
 
-def _reconhecer(con: sqlite3.Connection, d: dict) -> int | None:
-    """Aplica um reconhecimento: o primeiro que chega ganha (`sessao_visto`, INSERT OR IGNORE).
+def _reconhecer(con: sqlite3.Connection, d: dict) -> dict | None:
+    """Aplica um reconhecimento do observador a uma centelha (docs/specs/2026-11-18-centelhas-conversao.md).
 
-    Só se a linha de `sessao_visto` foi criada agora: lúmen (limitado por `teto` no dia do evento, contando os passivos
-    já no livro), evento da sessão e, se pedido, lampejo. Devolve o lm aplicado, ou None se já tinha sido reconhecido.
+    - o agente aplicou o conceito (`chave` != 'prompt'): `apagada` → `refletida`;
+    - o prompt da pessoa citou o conceito: `apagada`/`refletida`/`convertendo` → `propria` (lúmen próprio, fonte 'prompt').
+    Se a centelha não existe e `nova_json` veio, ela nasce (origem 'chat') antes da transição. Cada centelha muda de luz
+    uma vez só, então repetir o conceito não infla nada; `sessao_visto` (prisma = 'c:<id>') só evita repetir o aviso.
+    Devolve {'centelha', 'estado', 'lm', 'luz', 'novo', 'mudou'} ou None quando não há nada a mostrar.
     Roda igual na hora (hook) e na absorção dos pendentes, então nada se perde e nada se duplica.
     """
     quando = d['quando']
@@ -379,26 +387,61 @@ def _reconhecer(con: sqlite3.Connection, d: dict) -> int | None:
         con.execute('DELETE FROM sessao_visto WHERE quando < ?', (corte,))
     except ValueError:
         pass
-    c = con.execute('INSERT OR IGNORE INTO sessao_visto (sessao, chave, prisma, quando) VALUES (?, ?, ?, ?)',
-                    (d['sessao'], d['chave'], d['prisma'], quando))
-    if c.rowcount != 1:
+    cid = d.get('centelha')
+    if not cid:  # pendente de um código anterior (modelo de níveis): só o fato da sessão, sem lúmen
+        con.execute('INSERT INTO sessao_evento (quando, sessao, prisma, extensao, ferramenta, modo, lm, luz, interveio) '
+                    'VALUES (?, ?, ?, ?, ?, ?, 0, ?, 0)',
+                    (quando, d['sessao'], d['prisma'], d.get('extensao'), d.get('ferramenta'), d.get('modo'), d.get('luz')))
         return None
-    lm = int(d['lm'])
-    if d.get('teto') is not None:
-        ja = con.execute("SELECT COALESCE(SUM(lm), 0) FROM lumen WHERE prisma = ? AND fonte LIKE 'passivo%' "
-                         'AND substr(quando, 1, 10) = ?', (d['prisma'], quando[:10])).fetchone()[0]
-        lm = min(lm, max(0, int(d['teto']) - int(ja)))
-    if lm:
+    agente = d['chave'] != 'prompt'
+    novo = False
+    r = con.execute('SELECT estado, valor_lm, prisma, origem FROM avanco WHERE id = ?', (cid,)).fetchone()
+    if r is not None and d.get('nova_json') and (r['origem'] != 'chat' or r['prisma'] != d['prisma']):
+        return None  # o id pedido para uma centelha do chat já é de outra centelha: nunca mexe na luz dela
+    if r is None:
+        try:
+            nova = json.loads(d.get('nova_json') or 'null')
+        except ValueError:
+            nova = None
+        if not isinstance(nova, dict):
+            return None
+        con.execute(
+            'INSERT OR IGNORE INTO avanco (id, prisma, tipo, titulo, conteudo_json, duracao_min, valor_lm, conta_json,'
+            " origem, estado, criado_em, onde) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'chat', 'apagada', ?, ?)",
+            (cid, d['prisma'], nova.get('tipo') or 'explicar', nova.get('titulo') or '',
+             json.dumps(nova.get('conteudo') or {}, ensure_ascii=False), nova.get('duracao_min'), int(nova.get('valor_lm') or 10),
+             json.dumps(nova.get('conta'), ensure_ascii=False) if nova.get('conta') is not None else None, quando, d.get('onde')))
+        novo = True
+        r = con.execute('SELECT estado, valor_lm, prisma, origem FROM avanco WHERE id = ?', (cid,)).fetchone()
+    estado, lm = r['estado'], int(r['valor_lm'] or 0)
+    if estado == 'descartada':
+        return None
+    visto = con.execute('INSERT OR IGNORE INTO sessao_visto (sessao, chave, prisma, quando) VALUES (?, ?, ?, ?)',
+                        (d['sessao'], d['chave'], f'c:{cid}', quando)).rowcount == 1
+    para = None
+    if agente and estado == 'apagada':
+        para, luz, fonte, evento = 'refletida', 'refletida', 'agente', 'refletida pelo agente'
+    elif not agente and estado in ('apagada', 'refletida') and r['origem'] == 'chat':
+        para, luz, fonte, evento = 'propria', 'propria', 'prompt', 'própria pelo prompt'
+    if para is None and not visto:
+        return None
+    if para is not None:
+        if para == 'propria':
+            con.execute('UPDATE avanco SET estado = ?, onde = COALESCE(?, onde), lm_ganho = ? WHERE id = ?',
+                        (para, d.get('onde'), lm, cid))
+        else:
+            con.execute('UPDATE avanco SET estado = ?, onde = COALESCE(?, onde) WHERE id = ?', (para, d.get('onde'), cid))
+        con.execute('INSERT INTO avanco_evento (avanco_id, quando, evento, onde, extra_json) VALUES (?, ?, ?, ?, ?)',
+                    (cid, quando, evento, d.get('onde'),
+                     json.dumps({'fonte': 'historico', 'sessao': d['sessao'], 'lm': lm}, ensure_ascii=False)))
         con.execute('INSERT INTO lumen (quando, prisma, lm, luz, fonte, ref) VALUES (?, ?, ?, ?, ?, ?)',
-                    (quando, d['prisma'], lm, d['luz'], d['fonte'], d.get('ref') or ''))
+                    (quando, r['prisma'], lm, luz, fonte, cid))
+    luz_atual = 'propria' if (para or estado) == 'propria' else 'refletida'
     con.execute('INSERT INTO sessao_evento (quando, sessao, prisma, extensao, ferramenta, modo, lm, luz, interveio) '
                 'VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
-                (quando, d['sessao'], d['prisma'], d.get('extensao'), d.get('ferramenta'), d.get('modo'), lm, d['luz'],
-                 1 if d.get('interveio') and lm > 0 else 0))
-    if d.get('lampejo') and lm > 0:  # sem lúmen (teto do dia cheio) não há card, então também não há lampejo a converter
-        con.execute("INSERT INTO lampejo (prisma, sessao, quando, estado) VALUES (?, ?, ?, 'aberto')",
-                    (d['prisma'], d['sessao'], quando))
-    return lm
+                (quando, d['sessao'], r['prisma'], d.get('extensao'), d.get('ferramenta'), d.get('modo'),
+                 lm if para else 0, luz_atual, 1 if d.get('interveio') and para else 0))
+    return {'centelha': cid, 'estado': para or estado, 'lm': lm, 'luz': luz_atual, 'novo': novo, 'mudou': para is not None}
 
 
 def _inserir(con: sqlite3.Connection, operacao: str, dados: dict, quando: str):
@@ -703,8 +746,8 @@ def _onde(erro: BaseException) -> str:
 def _bloqueada(marca: dict) -> RuntimeError:
     return RuntimeError(
         f"migração bloqueada: a migração dos dados antigos falhou ({marca.get('erro')} em {marca.get('onde')}); "
-        f'veja private/erros.log. Ela só é tentada de novo quando o código da migração mudar ou quando '
-        f'private/{MIGRACAO_FALHOU} for apagado.')
+        f'veja {arquivos.PRIVATE / "erros.log"}. Ela só é tentada de novo quando o código da migração mudar ou quando '
+        f'{arquivos.PRIVATE / MIGRACAO_FALHOU} for apagado.')
 
 
 def _completar(con: sqlite3.Connection) -> None:
@@ -722,13 +765,71 @@ TIPOS_PEDIDO_V2 = "CHECK (tipo IN ('incluir', 'arquivar', 'reativar', 'mudar_met
 TIPOS_PEDIDO_V3 = "CHECK (tipo IN ('incluir', 'arquivar', 'reativar', 'mudar_meta', 'dividir'))"
 
 
-def _subir_esquema(con: sqlite3.Connection) -> None:
+COLUNAS_V4 = (('avanco', 'onde', 'TEXT'), ('avanco', 'confirmada_em', 'TEXT'),
+              ('prisma', 'meta_estado', "TEXT NOT NULL DEFAULT 'definida'"))
+
+
+def _colunas_v4(con: sqlite3.Connection) -> None:
+    """4: colunas novas das centelhas (ADD COLUMN só acrescenta; nada do que existe muda)."""
+    for tabela, coluna, tipo in COLUNAS_V4:
+        if coluna not in {r[1] for r in con.execute(f'PRAGMA table_info({tabela})')}:
+            con.execute(f'ALTER TABLE {tabela} ADD COLUMN {coluna} {tipo}')
+
+
+def _estados_v4(con: sqlite3.Connection) -> None:
+    """Estados do modelo de níveis → estados de luz (idempotente: só toca nos nomes antigos).
+
+    `conquistado` com nota 3 ou 4 vira `propria` (com o lm cheio); com nota 0–2 volta a `convertendo` e o lm antigo
+    fica na história; `sugerido` vira `apagada`; `na_fila` e `em_andamento` viram `convertendo`.
+    """
+    agora_ = datetime.now().isoformat(timespec='seconds')
+    for fid, lm_ganho, nota in con.execute(
+            "SELECT id, lm_ganho, nota FROM avanco WHERE estado = 'conquistado' AND COALESCE(nota, 0) < 3").fetchall():
+        con.execute("INSERT INTO avanco_evento (avanco_id, quando, evento, nota, extra_json) VALUES (?, ?, 'volta a convertendo', ?, ?)",
+                    (fid, agora_, nota, json.dumps({'fonte': 'historico', 'lm_antigo': lm_ganho,
+                                                    'motivo': 'nota abaixo de 3 no modelo de níveis'})))
+    con.execute("UPDATE avanco SET estado = 'convertendo', lm_ganho = 0 WHERE estado = 'conquistado' AND COALESCE(nota, 0) < 3")
+    con.execute("UPDATE avanco SET estado = 'propria', lm_ganho = COALESCE(valor_lm, lm_ganho) WHERE estado = 'conquistado'")
+    con.execute("UPDATE avanco SET estado = 'convertendo' WHERE estado IN ('na_fila', 'em_andamento')")
+    con.execute("UPDATE avanco SET estado = 'apagada' WHERE estado = 'sugerido'")
+    con.execute("UPDATE avanco SET estado = 'descartada' WHERE estado = 'descartado'")
+
+
+def _backup_antes_centelhas(con: sqlite3.Connection) -> None:
+    """Cópia do banco antes de subir do modelo de níveis (esquema 3) para o de centelhas."""
+    pasta = _pasta_do_banco(con)
+    if pasta is None:
+        return
+    destino = pasta / f'backup-antes-centelhas-{datetime.now():%Y%m%d-%H%M%S}-{os.getpid()}-{time.monotonic_ns()}'
+    destino.mkdir(parents=True, exist_ok=False)
+    # Copia por uma conexão de leitura à parte: no WAL ela lê o estado confirmado (o esquema antigo) sem esperar a trava
+    # exclusiva que `con` segura; copiar pela própria `con` dentro da transação trava o SQLite esperando por si mesmo.
+    arquivo = con.execute('PRAGMA database_list').fetchone()[2]
+    origem = sqlite3.connect(f'file:{Path(arquivo).as_posix()}?mode=ro', uri=True)
+    copia = sqlite3.connect(destino / 'luzia.db')
+    try:
+        origem.backup(copia)
+        versao = copia.execute("SELECT valor FROM meta WHERE chave = 'esquema'").fetchone()
+        if versao is None or int(versao[0]) >= 4:
+            raise RuntimeError('backup antes das centelhas não é do esquema antigo')
+    finally:
+        copia.close()
+        origem.close()
+
+
+def _subir_esquema(con: sqlite3.Connection, versao_antes: str | None = None) -> None:
     """Passos de um esquema antigo para o atual, dentro da transação exclusiva de `garantir` (sem migrar de novo).
+
+    4: colunas das centelhas; vindo de um esquema anterior, os prismas ativos ficam com a meta `a_propor`
+    (a Luzia propõe as centelhas apagadas que a meta pede). Os estados são mapeados em `garantir`, depois da migração.
 
     3: o CHECK de `pedido.tipo` ganha 'dividir'. Só alarga um CHECK (o formato no disco não muda), então segue o
     procedimento do SQLite para isso: trocar o SQL da tabela em `sqlite_master` e somar 1 ao `schema_version`
     (recriar a tabela exigiria desligar as chaves estrangeiras, o que não pode acontecer dentro de uma transação).
     """
+    _colunas_v4(con)
+    if versao_antes is not None and int(versao_antes) < 4:
+        con.execute("UPDATE prisma SET meta_estado = 'a_propor' WHERE estado = 'ativo'")
     linha = con.execute("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'pedido'").fetchone()
     if linha is None or TIPOS_PEDIDO_V2 not in linha[0]:
         return
@@ -767,9 +868,13 @@ def garantir(con: sqlite3.Connection) -> None:
         with transacao(con, 'EXCLUSIVE', absorver=False):
             if _pronto(con):  # outro processo terminou enquanto esperávamos a trava
                 return
+            marcas = _meta(con)
+            versao_antes = marcas.get('esquema')
+            if versao_antes is not None and int(versao_antes) < 4 and marcas.get('migrado_em'):
+                _backup_antes_centelhas(con)  # com a trava exclusiva: ninguém sobe o banco no meio da cópia
             for sql in ESQUEMA:
                 con.execute(sql)
-            _subir_esquema(con)
+            _subir_esquema(con, versao_antes)
             con.execute("INSERT INTO meta (chave, valor) VALUES ('esquema', ?) "
                         'ON CONFLICT (chave) DO UPDATE SET valor = excluded.valor', (str(ESQUEMA_VERSAO),))
             if not _meta(con).get('migrado_em'):
@@ -782,6 +887,7 @@ def garantir(con: sqlite3.Connection) -> None:
                     raise
                 con.execute("INSERT INTO meta (chave, valor) VALUES ('migrado_em', ?)",
                             (datetime.now().isoformat(timespec='seconds'),))
+            _estados_v4(con)
     except Exception as e:
         if e is not falha:
             raise

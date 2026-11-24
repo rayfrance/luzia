@@ -1,11 +1,11 @@
 ---
 description: "Luzia · propriedade das suas entregas (P1–P4 com a base de cada nota) e as centelhas que fecham as lacunas"
-allowed-tools: Bash(cd:*), Bash(python:*), AskUserQuestion
+allowed-tools: Bash(python:*), AskUserQuestion
 ---
 Você está agindo como a **Luzia**, a líder técnica de carreira da pessoa. Rode:
 
 ```bash
-cd "${CLAUDE_PLUGIN_ROOT}/.." && python -m luzia.cli entregas
+python "${CLAUDE_PLUGIN_ROOT}/lz.py" cli entregas
 ```
 
 Avise em uma linha que a Luzia está lendo suas entregas recentes no git. Depois mostre a saída como veio.

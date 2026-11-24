@@ -1,9 +1,9 @@
-"""Trajetória da pessoa no banco: prismas, níveis, perfil e versões da trajetória.
+"""Trajetória da pessoa no banco: prismas, perfil e versões da trajetória.
 
-Um prisma é uma skill da trajetória (nome, palavras para o observador, nível, meta). O nível atual fica em
-`prisma.nivel` e a história em `nivel_registro` (livro só de acréscimo; cada registro diz a origem: `conquistado`,
-`declarado`, `migrado` ou `pedido`). Prisma arquivado sai dos totais da trajetória (níveis), mas os lúmens dele
-continuam em todos os totais.
+Um prisma é uma skill da trajetória (nome, palavras para o observador). O progresso dele é a luz própria das
+centelhas (`jogo.luz`), não um nível. As colunas `prisma.nivel` e `prisma.meta` ficam só como dado de partida da
+triagem, e `nivel_registro` é histórico somente de leitura do modelo anterior (`historico_subidas`).
+Prisma arquivado sai da trajetória, mas os lúmens dele continuam em todos os totais.
 
 As leituras abrem o banco por `abrir()`; as escritas recebem a conexão e usam `banco.transacao`.
 """
@@ -11,7 +11,6 @@ As leituras abrem o banco por `abrir()`; as escritas recebem a conexão e usam `
 from __future__ import annotations
 
 import json
-import math
 import sqlite3
 from contextlib import contextmanager
 from datetime import datetime
@@ -57,7 +56,7 @@ def perfil_gravar(con: sqlite3.Connection, chave: str, valor) -> None:
 
 # ------------------------------------------------------------------ prismas
 def prismas(con: sqlite3.Connection, incluir_arquivados: bool = False) -> list[dict]:
-    """Prismas na ordem em que entraram. Chaves: nome, nivel, meta, estado, palavras, origem."""
+    """Prismas na ordem em que entraram. Chaves: nome, nivel e meta (dado de partida), estado, palavras, origem."""
     sql = 'SELECT * FROM prisma' + ('' if incluir_arquivados else " WHERE estado = 'ativo'") + ' ORDER BY rowid'
     out = []
     for r in con.execute(sql):
@@ -69,46 +68,6 @@ def prismas(con: sqlite3.Connection, incluir_arquivados: bool = False) -> list[d
                     'meta': int(r['meta'] if r['meta'] is not None else 5),
                     'estado': r['estado'], 'palavras': palavras, 'origem': r['origem']})
     return out
-
-
-def registros(con: sqlite3.Connection, nome: str) -> list[sqlite3.Row]:
-    """Livro de níveis do prisma, do mais antigo ao mais novo (quando, id)."""
-    return con.execute('SELECT * FROM nivel_registro WHERE prisma = ? ORDER BY quando, id', (nome,)).fetchall()
-
-
-def base_de(con: sqlite3.Connection, p: dict) -> int:
-    """Nível de partida: o primeiro registro do livro (ou o nível atual, se o prisma ainda não tem registro)."""
-    r = registros(con, p['nome'])
-    return int(r[0]['para']) if r else p['nivel']
-
-
-def desde(con: sqlite3.Connection, nome: str) -> str:
-    """De quando contam os lúmens do próximo nível: o último registro de qualquer origem (ou '' se não há)."""
-    r = registros(con, nome)
-    return r[-1]['quando'] if r else ''
-
-
-def declarados(con: sqlite3.Connection) -> dict[str, int]:
-    """Nível dos prismas ativos que a pessoa declarou ou conquistou (não só a sugestão da Luzia)."""
-    auto = perfil_ler(con, 'autoavaliacao', {}) or {}
-    com_registro = {r['prisma'] for r in
-                    con.execute("SELECT DISTINCT prisma FROM nivel_registro WHERE origem != 'migrado'")}
-    return {p['nome']: p['nivel'] for p in prismas(con) if p['nome'] in auto or p['nome'] in com_registro}
-
-
-def declarar_nivel(con: sqlite3.Connection, nome: str, nivel: int) -> None:
-    """A pessoa diz qual é o nível dela: registro `declarado` no livro e novo nível no prisma."""
-    nivel = int(nivel)
-    quando = agora()
-    with banco.transacao(con):
-        atual = con.execute('SELECT nivel FROM prisma WHERE nome = ?', (nome,)).fetchone()
-        if atual is None:
-            raise ValueError(f'prisma desconhecido: {nome}')
-        con.execute("INSERT INTO nivel_registro (prisma, de, para, quando, origem) VALUES (?, ?, ?, ?, 'declarado')",
-                    (nome, atual['nivel'], nivel, quando))
-        con.execute('UPDATE prisma SET nivel = ?, ultimo_nivel_em = ? WHERE nome = ?', (nivel, quando, nome))
-        auto = perfil_ler(con, 'autoavaliacao', {}) or {}
-        perfil_gravar(con, 'autoavaliacao', {**auto, nome: nivel})
 
 
 def estado(espera_ms: int | None = None) -> dict:
@@ -126,30 +85,8 @@ def plano(espera_ms: int | None = None) -> dict:
     return estado(espera_ms).get('plano', {})
 
 
-def acrescentar_subida(con: sqlite3.Connection, nome: str, de: int, para: int, lm: int, luz_propria: int) -> None:
-    """Como `registrar_subida`, dentro de uma transação já aberta; exige que o nível ainda seja `de` (senão ValueError)."""
-    atual = con.execute('SELECT nivel FROM prisma WHERE nome = ?', (nome,)).fetchone()
-    if atual is None:
-        raise ValueError(f'prisma desconhecido: {nome}')
-    if int(atual['nivel'] or 0) != int(de):
-        raise ValueError(f'o nível de {nome} mudou durante a subida')
-    quando = agora()
-    con.execute("INSERT INTO nivel_registro (prisma, de, para, quando, origem, lm, luz_propria) "
-                "VALUES (?, ?, ?, ?, 'conquistado', ?, ?)", (nome, atual['nivel'], para, quando, lm, luz_propria))
-    con.execute('UPDATE prisma SET nivel = ?, ultimo_nivel_em = ? WHERE nome = ?', (para, quando, nome))
-
-
-def registrar_subida(con: sqlite3.Connection, nome: str, para: int, lm: int, luz_propria: int) -> None:
-    """Nível conquistado (150 lm, luz própria, avanço, sim da pessoa): registro `conquistado` com o saldo do momento."""
-    with banco.transacao(con):
-        atual = con.execute('SELECT nivel FROM prisma WHERE nome = ?', (nome,)).fetchone()
-        if atual is None:
-            raise ValueError(f'prisma desconhecido: {nome}')
-        acrescentar_subida(con, nome, int(atual['nivel'] or 0), para, lm, luz_propria)
-
-
 def historico_subidas(con: sqlite3.Connection) -> list[dict]:
-    """Níveis conquistados (a evidência do dossiê), no formato que o painel e o dossiê já usam."""
+    """Níveis conquistados no modelo anterior (somente leitura; aparece no dossiê como histórico), no formato antigo."""
     return [{'quando': r['quando'], 'skill': r['prisma'], 'para': r['para'], 'lm': r['lm'] or 0,
              'luz_propria': int(r['luz_propria'] or 0)}
             for r in con.execute("SELECT * FROM nivel_registro WHERE origem = 'conquistado' ORDER BY quando, id")]
@@ -182,27 +119,6 @@ def lumens_totais(con: sqlite3.Connection) -> tuple[int, int]:
     total, propria = con.execute("SELECT COALESCE(SUM(lm), 0), COALESCE(SUM(CASE WHEN luz = 'propria' THEN lm END), 0) "
                                  'FROM lumen').fetchone()
     return int(total), int(propria)
-
-
-def niveis_do_prisma(con: sqlite3.Connection, p: dict) -> tuple[int, int]:
-    """(níveis que faltavam desde a base, níveis já feitos) de um prisma."""
-    base = base_de(con, p)
-    falta = max(0, p['meta'] - base)
-    return falta, max(0, min(falta, p['nivel'] - base))
-
-
-def resumo(con: sqlite3.Connection) -> dict:
-    """Totais da trajetória: níveis só dos prismas ativos, lúmens de todos."""
-    total = feitos = 0
-    for p in prismas(con):
-        falta, feito = niveis_do_prisma(con, p)
-        total += falta
-        feitos += feito
-    lm_total, lm_propria = lumens_totais(con)
-    return {'niveis_total': total, 'niveis_feitos': feitos,
-            'marcos': [math.ceil(total * k / 3) for k in (1, 2, 3)] if total else [],
-            'lm_total': lm_total, 'luz_propria': round(100 * lm_propria / lm_total) if lm_total else 0,
-            'pct': round(100 * feitos / total) if total else 100}
 
 
 def sincronizar_prismas(con: sqlite3.Connection, skills: list[dict]) -> bool:

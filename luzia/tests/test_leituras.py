@@ -84,7 +84,8 @@ def test_lote_uma_chamada(con, monkeypatch):
     assert l_ddd is not None
     assert l_ddd['modelo'] == 'gemini/gemini-3.5-flash-lite'
     assert l_ddd['criado_em']
-    assert l_ddd['base']['nivel'] == 1 and l_ddd['base']['meta'] == 4
+    assert l_ddd['base']['luz']['pct'] == 0 and l_ddd['base']['luz']['tot'] == 0
+    assert 'nivel' not in l_ddd['base'] and 'meta' not in l_ddd['base']
     assert l_ddd['vencida'] is False
 
     det = entregas.detalhe(con, eid)
@@ -106,7 +107,14 @@ def test_nao_regenera_sem_mudar_base(con, monkeypatch):
     assert len(chamadas) == 1  # nenhuma chamada nova se o hash da base não mudou
 
 
-def test_regenera_quando_nivel_sobe(con, monkeypatch):
+def _acender_centelha(con, fid: str, prisma: str, estado: str, lm: int = 40) -> None:
+    with banco.transacao(con):
+        jogo._inserir_avanco(con, {'id': fid, 'skill_plano': prisma, 'skill': prisma, 'tipo': 'explicar',
+                                   'titulo': f'Centelha {fid}', 'duracao_min': 10, 'valor_lm': lm,
+                                   'estado': estado, 'origem': 'rota'})
+
+
+def test_regenera_quando_a_luz_do_prisma_muda(con, monkeypatch):
     from luzia import leituras
 
     chamadas = []
@@ -114,14 +122,35 @@ def test_regenera_quando_nivel_sobe(con, monkeypatch):
     assert leituras.gerar(con) == 3
     assert leituras.obter(con, 'prisma', DDD)['vencida'] is False
 
-    trajetoria.declarar_nivel(con, DDD, 2)
+    _acender_centelha(con, 'c001', DDD, 'apagada')  # entra uma centelha: o total do prisma muda
     assert leituras.obter(con, 'prisma', DDD)['vencida'] is True
     assert leituras.vencidas(con) == [('prisma', DDD)]
 
     assert leituras.gerar(con) == 1
     assert len(chamadas) == 2
+    base = leituras.obter(con, 'prisma', DDD)['base']
     assert leituras.obter(con, 'prisma', DDD)['vencida'] is False
-    assert leituras.obter(con, 'prisma', DDD)['base']['nivel'] == 2
+    assert base['luz']['tot'] == 40 and base['luz']['propria'] == 0 and base['luz']['pct'] == 0
+
+    with banco.transacao(con):  # a centelha vira luz própria: a leitura vence de novo
+        con.execute("UPDATE avanco SET estado = 'propria', lm_ganho = 40 WHERE id = 'c001'")
+    assert leituras.vencidas(con) == [('prisma', DDD)]
+    assert leituras.gerar(con) == 1
+    luz = leituras.obter(con, 'prisma', DDD)['base']['luz']
+    assert luz['propria'] == 40 and luz['pct'] == 100 and luz['centelhas']['propria'] == 1
+
+
+def test_base_do_prisma_conta_so_a_luz_das_centelhas_que_valem(con):
+    from luzia import leituras
+
+    _acender_centelha(con, 'p001', DDD, 'propria', 60)
+    _acender_centelha(con, 'r001', DDD, 'refletida', 20)
+    _acender_centelha(con, 'v001', DDD, 'convertendo', 20)
+    _acender_centelha(con, 'a001', DDD, 'apagada', 20)
+    _acender_centelha(con, 'd001', DDD, 'descartada', 100)  # descartada não entra em nada
+    luz = leituras.base(con, 'prisma', DDD)['luz']
+    assert (luz['tot'], luz['propria'], luz['refletida'], luz['pct']) == (120, 60, 40, 50)
+    assert luz['centelhas'] == {'propria': 1, 'convertendo': 1, 'refletida': 1, 'apagada': 1}
 
 
 def test_falha_no_meio_nao_grava_nada(con, monkeypatch):

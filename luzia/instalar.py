@@ -27,8 +27,8 @@ from . import arquivos
 HERE = Path(__file__).resolve().parent
 CLAUDE = Path.home() / '.claude'
 SETTINGS = CLAUDE / 'settings.json'
-OBSERVER = f'"{Path(sys.executable).as_posix()}" "{(HERE / "observer.py").as_posix()}"'
-STATUS = f'"{Path(sys.executable).as_posix()}" "{(HERE / "statusline.py").as_posix()}"'
+OBSERVER = f'"{Path(sys.executable).as_posix()}" "{(HERE / "lz.py").as_posix()}" observer'
+STATUS = f'"{Path(sys.executable).as_posix()}" "{(HERE / "lz.py").as_posix()}" statusline'
 
 
 def resolver(texto: str) -> str:
@@ -65,7 +65,7 @@ def hooks() -> list[str]:
     feitos = []
     for evento, matcher in (('SessionStart', None), ('UserPromptSubmit', None), ('PostToolUse', 'Edit|Write|MultiEdit|Bash')):
         lista = dados.setdefault('hooks', {}).setdefault(evento, [])
-        if any('observer.py' in h.get('command', '') for g in lista for h in g.get('hooks', [])):
+        if any(('observer.py' in h.get('command', '') or 'lz.py" observer' in h.get('command', '')) for g in lista for h in g.get('hooks', [])):
             continue
         grupo = {'hooks': [{'type': 'command', 'command': OBSERVER, 'timeout': 10}]}
         if matcher:
@@ -79,7 +79,7 @@ def hooks() -> list[str]:
 def statusline() -> str:
     dados = _settings()
     atual = (dados.get('statusLine') or {}).get('command', '')
-    if atual and 'statusline.py' not in atual:
+    if atual and 'statusline.py' not in atual and 'lz.py" statusline' not in atual:
         return 'já existe outra linha de status; deixei a sua como está'
     dados['statusLine'] = {'type': 'command', 'command': STATUS, 'padding': 0}
     arquivos.gravar_json(SETTINGS, dados)

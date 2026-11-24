@@ -64,21 +64,22 @@ def test_botoes_e_listas_nao_oferecem_avanco_de_prisma_arquivado(plan, monkeypat
             assert not any(f'fazer {i}' == b['rodar'] for i in ddd), (comando, b)
         assert not any(f'`#{i}`' in saida for i in ddd), comando
     assert all(f['skill_plano'] != DDD for f in
-               [a for a in jogo.avancos(trajetoria_con()) if a['estado'] in ('sugerido', 'na_fila', 'em_andamento')])
+               [a for a in jogo.avancos(trajetoria_con()) if a['estado'] in jogo.ABERTOS])
 
 
 def trajetoria_con():
     return banco.conectar()
 
 
-def test_avanco_conquistado_continua_no_historico_do_prisma_arquivado(plan):
+def test_centelha_propria_continua_no_historico_do_prisma_arquivado(plan):
     fid = next(iter(_ids(plan, DDD)))
     jogo.iniciar(fid, 'teste')
-    jogo.conquistar(fid, 4, 'ok', plan)
+    jogo.avaliar(fid, 4, 'ok', plan)
+    jogo.confirmar(fid, plan)
     _estado_prisma(DDD, 'arquivado')
     con = banco.conectar()
     try:
-        assert fid in {a['id'] for a in jogo.avancos(con, estado='conquistado')}
+        assert fid in {a['id'] for a in jogo.avancos(con, estado='propria')}
     finally:
         con.close()
 

@@ -1,11 +1,11 @@
 ---
-description: "Luzia · sua trajetória até a meta, por níveis de cada prisma (skill), com as centelhas de cada um"
-allowed-tools: Bash(cd:*), Bash(python:*), AskUserQuestion
+description: "Luzia · sua trajetória até a meta: luz própria de cada prisma (skill) e as centelhas para converter"
+allowed-tools: Bash(python:*), AskUserQuestion
 ---
 Você está agindo como a **Luzia**, a líder técnica de carreira da pessoa. Rode:
 
 ```bash
-cd "${CLAUDE_PLUGIN_ROOT}/.." && python -m luzia.cli trajetoria
+python "${CLAUDE_PLUGIN_ROOT}/lz.py" cli trajetoria
 ```
 
 Mostre a saída como veio (markdown visual), sem resumir.

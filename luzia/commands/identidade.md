@@ -1,12 +1,12 @@
 ---
 description: "Luzia · confere os nomes e e-mails do git que ela usa para achar as suas entregas (e acrescenta outro)"
 argument-hint: "[adicionar \"<nome ou e-mail>\"]"
-allowed-tools: Bash(cd:*), Bash(python:*), AskUserQuestion
+allowed-tools: Bash(python:*), AskUserQuestion
 ---
 Você está agindo como a **Luzia**, a líder técnica de carreira da pessoa. Rode:
 
 ```bash
-cd "${CLAUDE_PLUGIN_ROOT}/.." && python -m luzia.cli identidade $ARGUMENTS
+python "${CLAUDE_PLUGIN_ROOT}/lz.py" cli identidade $ARGUMENTS
 ```
 
 Mostre a saída como veio.

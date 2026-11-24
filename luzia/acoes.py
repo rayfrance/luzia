@@ -112,7 +112,10 @@ def registrar_evento(acao_id: str, evento: str, **extra) -> dict:
 
 
 def evidencias() -> list[dict]:
-    """Ações concluídas com nota (as que contam para P3/P4): só os eventos 'concluida', nunca o histórico do feixe."""
+    """Ações concluídas com nota registradas à parte (eventos 'concluida', dados migrados e `registrar_evento`).
+
+    O histórico da centelha (`confirmada`, `luz própria`...) fica de fora: P3/P4 leem as centelhas próprias direto (`entregas`).
+    """
     return [e for e in eventos() if e.get('evento') == 'concluida']
 
 
@@ -147,9 +150,9 @@ def guardar(skill: str, pergunta: str, contexto: str = '') -> dict:
         'guardada_em': datetime.now().isoformat(timespec='seconds'),
     }
     acao['id'] = aid('guardada', acao['titulo'])
-    from . import jogo  # a ação guardada é um avanço de origem 'lampejo'; valor e skill do plano vêm do próximo sync
+    from . import jogo  # a ação guardada é uma centelha apagada de origem 'lampejo'; valor e skill do plano vêm do próximo sync
     with trajetoria.abrir() as con, banco.transacao(con):
-        jogo._inserir_avanco(con, {**acao, 'skill_plano': skill, 'estado': 'sugerido', 'criado_em': _agora()})
+        jogo._inserir_avanco(con, {**acao, 'skill_plano': skill, 'estado': 'apagada', 'criado_em': _agora()})
     return acao
 
 
@@ -176,10 +179,10 @@ def derivadas(plan: dict) -> list[dict]:
         if a:
             out.append({**a, 'origem': 'sessão', 'gatilho': op.get('gatilho', ''),
                         'id': aid('sessao', a.get('titulo', ''))})
-    for t in plan.get('trechos', []):  # feixes que acendem quando a skill sobe de degrau ou fica sem feixe aberto
+    for t in plan.get('trechos', []):  # centelhas que a Luzia acende para um prisma (comando acender)
         for a in t.get('acoes', []):
             out.append({**a, 'skill': t.get('skill') or a.get('skill', ''), 'dimensao': None, 'origem': 'trecho',
-                        'horizonte': f"nível {t.get('para', '')}", 'id': aid('trecho', t.get('skill', '') + a.get('titulo', ''))})
+                        'horizonte': '', 'id': aid('trecho', t.get('skill', '') + a.get('titulo', ''))})
     return out  # as ações guardadas já são avanços no banco: o catálogo as mantém
 
 
@@ -199,7 +202,7 @@ RUBRICA_TXT = ('0 = não explicou · 1 = descreveu o que o código faz · 2 = ex
 
 def comando_registrar(acao_id: str) -> str:
     return (f'{arquivos.CLI} registrar {acao_id} '
-            '--nota <0-4> --resumo "<1 linha do que a pessoa demonstrou>"')
+            "--nota <0-4> --resumo '<1 linha do que a pessoa demonstrou, sem aspas simples>'")
 
 
 def prompt_completo(a: dict) -> str:
@@ -215,7 +218,8 @@ def prompt_completo(a: dict) -> str:
         f"Meu pedido: {a.get('prompt', '')}\n\n"
         'Regras: faça UMA pergunta por vez e espere minha resposta; não faça o trabalho no meu lugar; '
         'se precisar mostrar código do repositório, mostre só o essencial.\n'
-        f'No fim, avalie minha resposta pela rubrica 0-4 ({RUBRICA_TXT}), diga a nota com um ponto forte e '
+        f'No fim, avalie minha resposta pela rubrica 0-4 ({RUBRICA_TXT}). Nota 3 ou 4 confirma o meu entendimento; '
+        'só então eu dou o sim e a centelha vira luz própria. Diga a nota com um ponto forte e '
         'um próximo passo, e registre a evidência rodando no terminal:\n'
         + comando_registrar(a['id'])
     )

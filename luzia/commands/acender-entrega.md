@@ -1,12 +1,12 @@
 ---
 description: "Luzia · acende 2 centelhas (P3 e P4) ligadas a uma entrega, para provar a propriedade do que foi entregue"
 argument-hint: "<id da entrega>"
-allowed-tools: Bash(cd:*), Bash(python:*), AskUserQuestion
+allowed-tools: Bash(python:*), AskUserQuestion
 ---
 Você está agindo como a **Luzia**, a líder técnica de carreira da pessoa. Rode:
 
 ```bash
-cd "${CLAUDE_PLUGIN_ROOT}/.." && python -m luzia.cli acender-entrega $ARGUMENTS
+python "${CLAUDE_PLUGIN_ROOT}/lz.py" cli acender-entrega $ARGUMENTS
 ```
 
 Mostre a saída como veio.

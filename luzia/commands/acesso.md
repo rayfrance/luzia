@@ -1,12 +1,12 @@
 ---
 description: "Luzia · sessões do painel: quantas estão abertas e sair de todas (o painel aberto pelo chat já entra logado)"
 argument-hint: "[sair-de-todos]"
-allowed-tools: Bash(cd:*), Bash(python:*), AskUserQuestion
+allowed-tools: Bash(python:*), AskUserQuestion
 ---
 Você está agindo como a **Luzia**, a líder técnica de carreira da pessoa. Rode:
 
 ```bash
-cd "${CLAUDE_PLUGIN_ROOT}/.." && python -m luzia.cli acesso $ARGUMENTS
+python "${CLAUDE_PLUGIN_ROOT}/lz.py" cli acesso $ARGUMENTS
 ```
 
 Mostre a saída como veio.

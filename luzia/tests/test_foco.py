@@ -61,52 +61,48 @@ def test_observer_script_le_prompt_com_acentos_em_utf8(privado):
     assert 'luz própria' in json.loads(r.stdout)['hookSpecificOutput']['additionalContext']
 
 
-# ------------------------------------------------------------------ B2 · o lampejo mostra os lúmens de verdade
+# ------------------------------------------------------------------ B2 · o cartão mostra a centelha de verdade
 def _evento(privado, conteudo='class Pedido : Aggregate { }', sessao='s-b2'):
     cfg = json.loads((privado / 'observer.json').read_text(encoding='utf-8'))
     return {'session_id': sessao, 'tool_name': 'Write', 'cwd': cfg['autorizados'][0],
             'tool_input': {'file_path': 'Pedido.cs', 'content': conteudo}}, cfg
 
 
-def _encher_teto(prisma, lm):
-    from luzia import jogo
-    jogo.lancar(prisma, lm, 'refletida', 'passivo-refletida', 'antes')
-
-
-def test_lampejo_mostra_os_lumens_reais_do_teto_do_dia(privado, capsys):
-    _encher_teto(DDD, 35)  # sobram 5 lm hoje
+def test_cartao_mostra_a_centelha_e_o_lm_para_converter(privado, capsys):
     evento, cfg = _evento(privado)
     observer.ao_usar_ferramenta(evento, cfg)
     saida = json.loads(capsys.readouterr().out)['hookSpecificOutput']['additionalContext']
-    assert '+5 lm' in saida and '+10 lm' not in saida
+    cid, lm = _consulta("SELECT id, valor_lm FROM avanco WHERE origem = 'chat'")[0]
+    assert f'#{cid}' in saida and f'{lm} lm para converter' in saida and 'Converter agora' in saida
+    assert 'Pedido.cs' not in saida.split('[Luzia')[0]
 
 
-def test_sem_lumens_no_dia_nao_ha_card_nem_lampejo(privado, capsys):
-    _encher_teto(DDD, 40)
+def test_conceito_ja_refletido_nao_repete_o_cartao(privado, capsys):
     evento, cfg = _evento(privado)
     observer.ao_usar_ferramenta(evento, cfg)
+    capsys.readouterr()
+    observer.ao_usar_ferramenta({**evento, 'session_id': 'outra'}, cfg)  # já é refletida: nada novo para converter
     assert capsys.readouterr().out == ''
-    assert _consulta('SELECT 1 FROM lampejo') == []
-    assert [r['lm'] for r in _consulta('SELECT lm FROM sessao_evento')] == [0]  # o reconhecimento da sessão fica registrado
+    assert len(_consulta("SELECT 1 FROM avanco WHERE origem = 'chat'")) == 1
 
 
-def test_card_de_reconhecimento_pendurado_nao_promete_lampejo(privado, monkeypatch, capsys):
-    """Com o banco ocupado o valor é provisório e o lampejo pode nunca nascer: o card não convida a responder."""
+def test_card_de_reconhecimento_pendurado_nao_promete_conversao(privado, monkeypatch, capsys):
+    """Com o banco ocupado o resultado é provisório: o card não convida a converter."""
     monkeypatch.setattr(banco, 'gravar_ou_pendurar', lambda *a, **k: False)
     evento, cfg = _evento(privado)
     observer.ao_usar_ferramenta(evento, cfg)
     saida = json.loads(capsys.readouterr().out)['hookSpecificOutput']['additionalContext']
     assert 'a confirmar' in saida
-    assert 'AskUserQuestion' not in saida and 'Responder agora' not in saida
+    assert 'AskUserQuestion' not in saida and 'Converter agora' not in saida
 
 
-def test_lampejo_passa_para_o_proximo_prisma_se_o_primeiro_estava_no_teto(privado, capsys):
-    _encher_teto(DDD, 40)
+def test_um_cartao_por_mudanca_com_a_centelha_que_mais_vale(privado, capsys):
     evento, cfg = _evento(privado, conteudo='Aggregate e xunit Assert')
     observer.ao_usar_ferramenta(evento, cfg)
     saida = json.loads(capsys.readouterr().out)['hookSpecificOutput']['additionalContext']
-    assert f'o prisma {TESTES}' in saida and f'Prisma {TESTES}' not in saida and '+10 lm' in saida
-    assert [r['prisma'] for r in _consulta('SELECT prisma FROM lampejo')] == [TESTES]
+    chat = _consulta("SELECT prisma, valor_lm FROM avanco WHERE origem = 'chat' ORDER BY valor_lm DESC")
+    assert {r['prisma'] for r in chat} == {DDD, TESTES}  # as duas acenderam
+    assert saida.count('✦ Centelha da sessão') == 1 and f'{chat[0]["valor_lm"]} lm para converter' in saida
 
 
 # ------------------------------------------------------------------ B3 · palavras do banco
@@ -121,8 +117,9 @@ def test_prisma_incluido_por_pedido_ganha_lumens_pelas_palavras_do_banco(privado
     evento, cfg = _evento(privado, conteudo='using OpenTelemetry; // sem nenhuma palavra dos outros prismas')
     observer.ao_usar_ferramenta(evento, cfg)
     saida = json.loads(capsys.readouterr().out)['hookSpecificOutput']['additionalContext']
-    assert 'o prisma Observabilidade' in saida
-    assert [(r['prisma'], r['lm']) for r in _consulta('SELECT prisma, lm FROM lumen')] == [('Observabilidade', 10)]
+    assert '(Observabilidade)' in saida
+    assert [(r['prisma'], r['luz']) for r in _consulta('SELECT prisma, luz FROM lumen')] == [('Observabilidade', 'refletida')]
+    assert [r['titulo'] for r in _consulta("SELECT titulo FROM avanco WHERE origem = 'chat'")] == ['Por que o agente usou OpenTelemetry']
 
 
 def test_prisma_arquivado_nao_ganha_lumens(privado, capsys):

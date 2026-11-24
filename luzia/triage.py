@@ -51,12 +51,17 @@ def read_pdf(data: bytes | Path | None) -> str:
             return data.read_text(encoding='utf-8', errors='replace').strip()
     from io import BytesIO
 
-    from pypdf import PdfReader
-
-    stream = BytesIO(data) if isinstance(data, bytes) else open(data, 'rb')
-    with stream:
-        reader = PdfReader(stream)
-        return '\n'.join((page.extract_text() or '') for page in reader.pages).strip()
+    try:
+        from pypdf import PdfReader
+    except ImportError:  # pypdf é opcional: sem ele, a triagem segue sem o currículo em PDF
+        return ''
+    try:
+        stream = BytesIO(data) if isinstance(data, bytes) else open(data, 'rb')
+        with stream:
+            reader = PdfReader(stream)
+            return '\n'.join((page.extract_text() or '') for page in reader.pages).strip()
+    except Exception:  # PDF ilegível ou protegido: segue sem ele
+        return ''
 
 
 def github_profile(username: str, timeout: float = 8.0) -> dict:

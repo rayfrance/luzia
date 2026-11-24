@@ -1,4 +1,4 @@
-"""Testes da Tarefa 12 — CLI, comandos, foco e vocabulário novo."""
+"""Testes da CLI: comandos, conversão de centelhas (registrar e confirmar), barra de luz e vocabulário."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ import io
 import json
 import re
 import sys
-from contextlib import redirect_stdout
+from contextlib import contextmanager, redirect_stderr, redirect_stdout
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -29,6 +29,12 @@ def rodar(monkeypatch, *argv: str) -> str:
     with redirect_stdout(buf):
         cli.main()
     return buf.getvalue()
+
+
+@contextmanager
+def contextlib_suprimir_stderr():
+    with redirect_stderr(io.StringIO()):
+        yield
 
 
 def visivel(saida: str) -> str:
@@ -65,11 +71,26 @@ def _semear_entrega(con) -> int:
     return eid
 
 
+def _apagadas(plan) -> list[str]:
+    return [k for k, f in jogo.sincronizar(plan).items() if f['estado'] == 'apagada']
+
+
+def _forcar_estado(fid: str, estado: str) -> None:
+    """Põe a centelha num estado de luz sem passar pelo fluxo (cenário de teste)."""
+    with trajetoria.abrir() as con, banco.transacao(con):
+        con.execute('UPDATE avanco SET estado = ? WHERE id = ?', (estado, fid))
+
+
+def _converter_ate_confirmar(monkeypatch, fid: str, nota: int = 4, resumo: str = 'Explicou as invariantes do agregado') -> str:
+    rodar(monkeypatch, 'fazer', fid)
+    return rodar(monkeypatch, 'registrar', fid, '--nota', str(nota), '--resumo', resumo)
+
+
 def test_toda_saida_termina_em_botoes(privado, monkeypatch):
     plan = pipeline.load_state()['plano']
     cat = jogo.sincronizar(plan)
-    sugeridos = [k for k, f in cat.items() if f['estado'] == 'sugerido']
-    f1, f2 = sugeridos[0], sugeridos[1]
+    apagadas = [k for k, f in cat.items() if f['estado'] == 'apagada']
+    f1, f2, f3 = apagadas[0], apagadas[1], apagadas[2]
 
     with trajetoria.abrir() as con:
         eid = _semear_entrega(con)
@@ -82,16 +103,22 @@ def test_toda_saida_termina_em_botoes(privado, monkeypatch):
         ('next-level',),
         ('avancos',),
         ('acoes',),
+        ('centelhas',),
+        ('centelhas', '--estado', 'todas'),
+        ('centelhas', '--estado', 'propria'),
         ('fila',),
         ('fazer', f1),
+        ('confirmar', f1),                      # a Luzia ainda não confirmou: explica e termina em botões
+        ('registrar', f1, '--nota', '2', '--resumo', 'Faltou explicar o porquê'),
         ('registrar', f1, '--nota', '3', '--resumo', 'Explicou invariantes do agregado'),
+        ('confirmar', f1),
+        ('confirmar', f1),                      # já é luz própria
+        ('converter', f3),
         ('descartar', f2, '--motivo', 'agora_nao'),
         ('restaurar', f2),
         ('enviar', f2),
-        ('guardar', DDD, '--pergunta', 'Como separar domínio e infraestrutura?'),
-        ('cartao', DDD, '--acao', 'guardar'),
         ('subir', DDD),
-        ('nivel', DDD, '2'),
+        ('subir',),
         ('entregas',),
         ('entrega', str(eid)),
         ('dossie',),
@@ -104,20 +131,229 @@ def test_toda_saida_termina_em_botoes(privado, monkeypatch):
         assert tem_rodape_botoes(s), f'Comando {argv} não terminou com botões válidos:\n{s}'
 
 
-def test_avancos_filtros(privado, monkeypatch):
+def test_centelhas_filtros_e_padrao_para_converter(privado, monkeypatch):
     plan = pipeline.load_state()['plano']
-    jogo.sincronizar(plan)
+    ids = _apagadas(plan)
+    refletida = next(i for i in ids if jogo._um(i)['skill_plano'] == DDD)
+    _forcar_estado(refletida, 'refletida')
 
-    s_ddd = rodar(monkeypatch, 'avancos', '--estado', 'sugerido', '--prisma', DDD)
-    v_ddd = visivel(s_ddd)
-    assert 'Modelar um agregado de exemplo' in v_ddd
-    assert 'Escrever um teste de unidade guiado' not in v_ddd
-    assert tem_rodape_botoes(s_ddd)
+    padrao = rodar(monkeypatch, 'centelhas')  # padrão: converter (refletida + convertendo); apagadas ficam de fora
+    v = visivel(padrao)
+    assert 'Centelhas · para converter · 1' in v
+    assert 'Modelar um agregado de exemplo' in v and 'Luz refletida' in v
+    assert 'Escrever um teste de unidade guiado' not in v and 'Por acender' not in v
+    assert tem_rodape_botoes(padrao)
 
-    s_testes = rodar(monkeypatch, 'avancos', '--prisma', TESTES, '--tipo', 'praticar')
-    v_testes = visivel(s_testes)
-    assert 'Escrever um teste de unidade guiado' in v_testes
-    assert 'Modelar um agregado de exemplo' not in v_testes
+    s_apagada = visivel(rodar(monkeypatch, 'avancos', '--estado', 'apagada', '--prisma', DDD))
+    assert 'Modelar um agregado de exemplo' not in s_apagada and 'Nada com esses filtros' in s_apagada
+    s_apagada = visivel(rodar(monkeypatch, 'acoes', '--estado', 'apagada'))
+    assert 'Por acender' in s_apagada and 'Escrever um teste de unidade guiado' in s_apagada
+
+    s_testes = visivel(rodar(monkeypatch, 'avancos', '--estado', 'todas', '--prisma', TESTES, '--tipo', 'praticar'))
+    assert 'Escrever um teste de unidade guiado' in s_testes and 'Modelar um agregado de exemplo' not in s_testes
+
+    erro = rodar(monkeypatch, 'centelhas', '--estado', 'inventado')
+    assert 'Não conheço o estado' in visivel(erro) and tem_rodape_botoes(erro)
+
+
+def test_centelhas_duas_linhas_e_resumo_do_resto(privado, monkeypatch):
+    plan = pipeline.load_state()['plano']
+    ids = _apagadas(plan)
+    for i in ids:
+        _forcar_estado(i, 'refletida')
+    with trajetoria.abrir() as con, banco.transacao(con):  # 5 centelhas para converter: 3 aparecem, 2 viram resumo
+        for n in range(2):
+            jogo._inserir_avanco(con, {'id': f'extra{n}', 'skill_plano': DDD, 'tipo': 'explicar', 'titulo': f'Extra {n}',
+                                       'duracao_min': 5, 'valor_lm': 20, 'estado': 'refletida', 'origem': 'chat'})
+    v = visivel(rodar(monkeypatch, 'centelhas')).splitlines()
+    assert v[0] == '## Luzia · Centelhas · para converter · 5'
+    titulos = [l for l in v if l.startswith('◑ Luz refletida · **')]
+    detalhes = [l for l in v if l.startswith('  ') and ' lm · #' in l]
+    assert len(titulos) == 3 and len(detalhes) == 3
+    assert re.fullmatch(r'  \w+ · .+ · \d+ lm · #\w+', detalhes[0]), detalhes[0]
+    assert '◑ mais 2 com luz refletida' in v
+
+
+# ------------------------------------------------------------------ barra de luz, hoje, trajetória
+def test_barra_luz_txt_um_glifo_por_estado():
+    barra = cli.barra_luz_txt(50, 10, 30, 10, largura=10)
+    assert barra == '█████▓▒▒▒░' and len(barra) == 10
+    assert cli.barra_luz_txt(0, 0, 0, 0) == '░' * cli.LARGURA_BARRA  # sem centelhas: tudo por acender
+    assert cli.barra_luz_txt(100, 0, 0, 0) == '█' * cli.LARGURA_BARRA
+    assert set(cli.barra_luz_txt(1, 1, 1, 500)) == {'█', '▓', '▒', '░'}  # quem tem lm aparece com ao menos 1 glifo
+    assert all(len(cli.barra_luz_txt(a, b, c, d)) == cli.LARGURA_BARRA
+               for a, b, c, d in ((7, 13, 29, 51), (1, 2, 3, 4), (33, 33, 33, 1)))
+    p = {'propria': 40, 'convertendo': 20, 'refletida': 50, 'apagada': 30}  # prisma de jogo.luz: refletida inclui convertendo
+    assert cli.barra_de(p, 14) == cli.barra_luz_txt(40, 20, 30, 30, 14)
+
+
+def test_trajetoria_duas_linhas_por_prisma_sem_niveis(privado, monkeypatch):
+    plan = pipeline.load_state()['plano']
+    ids = _apagadas(plan)
+    ddd = next(i for i in ids if jogo._um(i)['skill_plano'] == DDD)
+    _forcar_estado(ddd, 'refletida')
+    v = visivel(rodar(monkeypatch, 'trajetoria'))
+    linhas = v.splitlines()
+    assert linhas[0].startswith('## Luzia · Trajetória · v1')
+    assert re.fullmatch(r'Júnior 3 → Plena  [█▓▒░]{12}  \d+% seu', linhas[1]), linhas[1]
+    i = next(n for n, l in enumerate(linhas) if re.fullmatch(r'DDD  [█▓▒░]{12}  0%', l))
+    assert re.fullmatch(r'   0 de \d+ lm · 1 para converter · 0 por acender', linhas[i + 1]), linhas[i + 1]
+    assert not any('nível' in l.lower() or '▰' in l or '▱' in l for l in linhas)
+    assert 'Domain-Driven Design' not in v  # nome curto; o completo fica no painel
+    assert sum(1 for l in linhas if re.fullmatch(r'\S.*  [█▓▒░]{12}  \d+%', l)) == 3  # um por prisma
+
+
+def test_trajetoria_prisma_todo_proprio_esta_na_meta(privado, monkeypatch):
+    plan = pipeline.load_state()['plano']
+    for i in _apagadas(plan):
+        _forcar_estado(i, 'propria')
+    v = visivel(rodar(monkeypatch, 'trajetoria'))
+    assert v.count('Na meta · tudo é luz própria') == 3 and '100%' in v and '█' * 12 in v
+
+
+def test_hoje_mostra_a_centelha_que_mais_vale_converter(privado, monkeypatch):
+    plan = pipeline.load_state()['plano']
+    ids = _apagadas(plan)
+    a, b, c = ids
+    _forcar_estado(a, 'refletida')
+    _forcar_estado(b, 'refletida')
+    rodar(monkeypatch, 'fazer', c)  # c está convertendo: vem antes das refletidas, mesmo valendo menos
+    s = rodar(monkeypatch, 'hoje')
+    v = visivel(s)
+    linhas = v.splitlines()
+    assert linhas[0] == '## Luzia · Hoje'
+    assert re.fullmatch(r'Júnior 3 → Plena  [█▓▒░]{12}  \d+% seu', linhas[1]), linhas[1]
+    assert re.fullmatch(r'3 centelhas para converter · \d+ lm', linhas[2]), linhas[2]
+    assert linhas[3] == '' and linhas[4].startswith('◐ **') and jogo._um(c)['titulo'] in linhas[4]
+    assert re.fullmatch(r'  Apareceu em .+ · \w+ · \d+ min · \+\d+ lm|  Da .+ · \w+ · \d+ min · \+\d+ lm', linhas[5]), linhas[5]
+    assert sum(1 for l in linhas if l.startswith('◑ Luz refletida · **')) == 2  # até 2 outras
+    assert 'Perto de subir' not in v and 'pronto para subir' not in v and 'nível' not in v.lower()
+    bts = botoes_de(s)
+    assert bts[0]['rodar'] == f'fazer {c}' and bts[0]['rotulo'].startswith('Continuar: ')
+    assert any(x['rodar'] == 'centelhas --estado converter' and x['rotulo'] == 'Ver centelhas para converter' for x in bts)
+
+
+def test_hoje_sem_nada_para_converter_oferece_acender(privado, monkeypatch):
+    s = rodar(monkeypatch, 'hoje')
+    assert '0 centelhas para converter · 0 lm' in visivel(s) and 'Nada para converter agora' in visivel(s)
+    assert tem_rodape_botoes(s)
+
+
+def test_hoje_oferece_decidir_a_meta_quando_a_propor(privado, monkeypatch):
+    plan = pipeline.load_state()['plano']
+    _forcar_estado(_apagadas(plan)[0], 'refletida')
+    with trajetoria.abrir() as con, banco.transacao(con):
+        con.execute("UPDATE prisma SET meta_estado = 'a_propor' WHERE nome = ?", (DDD,))
+    bts = botoes_de(rodar(monkeypatch, 'hoje'))
+    assert any(b['rotulo'] == 'Decidir a meta de DDD' and b['rodar'] == 'trajetoria' for b in bts), bts
+
+
+# ------------------------------------------------------------------ conversão: registrar e confirmar
+def test_registrar_nota_2_continua_convertendo_com_a_dica(privado, monkeypatch):
+    plan = pipeline.load_state()['plano']
+    f1 = _apagadas(plan)[0]
+    s = _converter_ate_confirmar(monkeypatch, f1, nota=2, resumo='Falta comparar com uma alternativa')
+    v = visivel(s).splitlines()
+    assert v[0] == '◐ Nota 2 de 4 · ainda convertendo'
+    assert 'Dica: Falta comparar com uma alternativa' in v
+    bts = botoes_de(s)
+    assert bts[0]['rodar'] == f'fazer {f1}' and bts[0]['rotulo'].startswith('Continuar: ')
+    assert all(b['rodar'] != f'confirmar {f1}' for b in bts)
+    f = jogo._um(f1)
+    assert f['estado'] == 'convertendo' and f['tentativas'] == 1 and not f['confirmada_em']
+    assert jogo.livro() == []  # nenhum lm antes do sim
+
+
+def test_registrar_nota_4_confirma_e_oferece_acender_luz_propria(privado, monkeypatch):
+    plan = pipeline.load_state()['plano']
+    f1 = _apagadas(plan)[0]
+    s = _converter_ate_confirmar(monkeypatch, f1, nota=4)
+    linhas = visivel(s).splitlines()
+    assert linhas[0] == '◐ Nota 4 de 4 · a Luzia confirmou seu entendimento'
+    assert 'Falta o seu sim' in visivel(s)
+    primeiro = botoes_de(s)[0]
+    assert primeiro['rotulo'] == 'Acender luz própria' and primeiro['rodar'] == f'confirmar {f1}'
+    f = jogo._um(f1)
+    assert f['estado'] == 'convertendo' and f['confirmada_em']  # ainda não é luz própria: falta o sim
+    assert jogo.livro() == []
+    s3 = _converter_ate_confirmar(monkeypatch, _apagadas(plan)[0], nota=3)  # nota 3 também confirma
+    assert visivel(s3).splitlines()[0] == '◐ Nota 3 de 4 · a Luzia confirmou seu entendimento'
+
+
+def test_confirmar_vira_luz_propria_e_mostra_o_ganho(privado, monkeypatch):
+    plan = pipeline.load_state()['plano']
+    f1 = _apagadas(plan)[0]
+    antes = jogo._um(f1)
+    _converter_ate_confirmar(monkeypatch, f1, nota=4)
+    s = rodar(monkeypatch, 'confirmar', f1)
+    v = visivel(s)
+    abertura = v.splitlines()[0]
+    pct = jogo.luz(plan)['por_prisma'][antes['skill_plano']]['pct']
+    assert abertura == f"✦ **+{antes['valor_lm']} lm de luz própria** · DDD 0% → {pct}%", abertura
+    assert pct > 0 and antes['titulo'] in v and 'Parabéns' not in v
+    assert re.search(r'Júnior 3 → Plena  [█▓▒░]{12}  \d+% seu', v)
+    f = jogo._um(f1)
+    assert f['estado'] == 'propria' and f['lm_ganho'] == antes['valor_lm']
+    assert [(x['lm'], x['luz'], x['ref']) for x in jogo.livro()] == [(antes['valor_lm'], 'propria', f1)]
+    assert tem_rodape_botoes(s)
+    s2 = rodar(monkeypatch, 'confirmar', f1)  # o segundo sim não lança lúmen de novo
+    assert 'já é luz própria' in visivel(s2) and len(jogo.livro()) == 1
+
+
+def test_confirmar_sem_a_luzia_ter_confirmado_explica(privado, monkeypatch):
+    plan = pipeline.load_state()['plano']
+    f1 = _apagadas(plan)[0]
+    rodar(monkeypatch, 'fazer', f1)
+    s = rodar(monkeypatch, 'confirmar', f1)
+    assert 'ainda não confirmou' in visivel(s) and tem_rodape_botoes(s)
+    assert jogo._um(f1)['estado'] == 'convertendo' and jogo.livro() == []
+    assert 'não encontrada' in visivel(rodar(monkeypatch, 'confirmar', 'zzzz'))
+    assert 'Use: confirmar' in visivel(rodar(monkeypatch, 'confirmar'))
+
+
+def test_confirmar_no_marco_menciona_o_dossie(privado, monkeypatch):
+    plan = pipeline.load_state()['plano']
+    ids = _apagadas(plan)
+    for i in ids[:-1]:
+        _forcar_estado(i, 'propria')  # 2 de 3 próprias já passam de 1/3; o marco 1/3 dispara ao confirmar a próxima
+    _converter_ate_confirmar(monkeypatch, ids[-1], nota=4)
+    v = visivel(rodar(monkeypatch, 'confirmar', ids[-1]))
+    assert re.search(r'✦ Marco \d de 3 · dossiê gerado em `.+dossie-.+\.md`', v), v
+
+
+def test_converter_e_apelido_de_fazer(privado, monkeypatch):
+    plan = pipeline.load_state()['plano']
+    ids = _apagadas(plan)
+    s = rodar(monkeypatch, 'converter', ids[0])
+    v = visivel(s)
+    assert v.startswith('## Luzia · Convertendo `#') and 'ROTEIRO PARA O AGENTE' in v and 'registrar' in v and 'confirmar' in v
+    assert jogo._um(ids[0])['estado'] == 'convertendo' and tem_rodape_botoes(s)
+    _forcar_estado(ids[1], 'refletida')
+    rodar(monkeypatch, 'fazer', ids[1])
+    assert jogo._um(ids[1])['estado'] == 'convertendo'
+    p = visivel(rodar(monkeypatch, 'prompt', ids[2]))
+    assert ids[2] in p and jogo._um(ids[2])['estado'] == 'convertendo'
+
+
+def test_subir_explica_que_o_progresso_vem_de_converter(privado, monkeypatch):
+    for argv in (('subir', DDD), ('subir',)):
+        s = rodar(monkeypatch, *argv)
+        v = visivel(s)
+        assert 'O progresso agora vem de converter centelhas' in v and 'nível' in v
+        assert 'Parabéns' not in v and len(v.splitlines()) <= 3
+        assert botoes_de(s)[0]['rodar'] == 'centelhas --estado converter' and tem_rodape_botoes(s)
+
+
+def test_comandos_de_nivel_e_lampejo_sairam(privado, monkeypatch):
+    for comando in ('nivel', 'revisitar', 'lampejo', 'cartao', 'guardar'):
+        monkeypatch.setattr(sys, 'argv', ['luzia', comando, DDD])
+        with pytest.raises(SystemExit), redirect_stdout(io.StringIO()), contextlib_suprimir_stderr():
+            cli.main()
+
+
+def test_next_level_continua_apelido_da_trajetoria(privado, monkeypatch):
+    assert visivel(rodar(monkeypatch, 'next-level')) == visivel(rodar(monkeypatch, 'trajetoria'))
+    assert visivel(rodar(monkeypatch, 'rota')) == visivel(rodar(monkeypatch, 'trajetoria'))
 
 
 def test_pedido_fluxo_completo_pelo_chat(privado, monkeypatch):
@@ -187,14 +423,14 @@ def test_pedido_fluxo_completo_pelo_chat(privado, monkeypatch):
 
     s_traj = rodar(monkeypatch, 'trajetoria')
     v_traj = visivel(s_traj)
-    assert 'Observabilidade' in v_traj
-    assert '▰' in v_traj
+    assert re.search(r'Observabilidade  [█▓▒░]{12}  0%', v_traj)
+    assert '1 por acender' in v_traj  # a centelha da proposta nasce apagada
 
 
 def test_vocabulario_sem_termos_antigos(privado, monkeypatch):
     plan = pipeline.load_state()['plano']
     cat = jogo.sincronizar(plan)
-    f1 = next(k for k, f in cat.items() if f['estado'] == 'sugerido')
+    f1 = next(k for k, f in cat.items() if f['estado'] == 'apagada')
 
     with trajetoria.abrir() as con:
         eid = _semear_entrega(con)
@@ -203,12 +439,14 @@ def test_vocabulario_sem_termos_antigos(privado, monkeypatch):
     saidas = [
         rodar(monkeypatch, 'hoje'),
         rodar(monkeypatch, 'trajetoria'),
-        rodar(monkeypatch, 'avancos'),
+        rodar(monkeypatch, 'centelhas'),
+        rodar(monkeypatch, 'avancos', '--estado', 'todas'),
         rodar(monkeypatch, 'fila'),
         rodar(monkeypatch, 'fazer', f1),
+        rodar(monkeypatch, 'registrar', f1, '--nota', '2', '--resumo', 'Falta o porquê'),
         rodar(monkeypatch, 'registrar', f1, '--nota', '3', '--resumo', 'Explicou bem'),
+        rodar(monkeypatch, 'confirmar', f1),
         rodar(monkeypatch, 'subir', DDD),
-        rodar(monkeypatch, 'nivel', DDD, '2'),
         rodar(monkeypatch, 'entregas'),
         rodar(monkeypatch, 'entrega', str(eid)),
         rodar(monkeypatch, 'dossie'),
@@ -218,20 +456,19 @@ def test_vocabulario_sem_termos_antigos(privado, monkeypatch):
         texto = visivel(s)
         achado = RE_TERMOS_ANTIGOS.search(texto)
         assert achado is None, f'Termo antigo "{achado.group(0)}" encontrado na saída visível:\n{texto}'
+        assert 'Parabéns' not in texto
 
     v_traj = visivel(rodar(monkeypatch, 'trajetoria'))
     assert '(prisma · skill)' not in v_traj and not re.search(r'\bPrisma [^(s]', v_traj)
-    assert 'DDD `' in v_traj and 'Domain-Driven Design' not in v_traj  # nome curto; o completo fica no painel
-    assert '▰' in v_traj or '▱' in v_traj
+    assert 'DDD  ' in v_traj and 'Domain-Driven Design' not in v_traj  # nome curto; o completo fica no painel
 
     v_modo = visivel(rodar(monkeypatch, 'modo'))
     assert 'em foco' in v_modo.lower() and 'lampejo' not in v_modo.lower()
 
-    # Verifica também o lampejo do observador e a linha de status
-    cartao = observer.cartao_refletida(DDD, 'Como isolar o domínio?')
-    assert '✦ Centelha da sessão · DDD · +10 lm refletida' in cartao and 'Prisma Domain' not in cartao
-    assert 'lampejo' not in cartao.split('lampejo --skill')[0].lower()  # o comando interno pode manter o nome
-    assert RE_TERMOS_ANTIGOS.search(cartao) is None
+    # o aviso do observador e a linha de status falam a mesma língua
+    cartao = observer.cartao_refletida(DDD, 'Como isolar o domínio?', 'ab12', 30)
+    assert '✦ Centelha da sessão · DDD · Como isolar o domínio? · 30 lm para converter' in cartao
+    assert 'Prisma Domain' not in cartao and RE_TERMOS_ANTIGOS.search(cartao) is None
 
     linha_st = statusline.linha({'workspace': {'current_dir': str(privado)}})
     assert RE_TERMOS_ANTIGOS.search(linha_st) is None
@@ -240,16 +477,10 @@ def test_vocabulario_sem_termos_antigos(privado, monkeypatch):
 def test_dossie_formal(privado, monkeypatch):
     plan = pipeline.load_state()['plano']
     cat = jogo.sincronizar(plan)
-    f1 = next(k for k, f in cat.items() if f['estado'] == 'sugerido' and f.get('skill_plano') == DDD)
+    f1 = next(k for k, f in cat.items() if f['estado'] == 'apagada' and f.get('skill_plano') == DDD)
 
-    # Declara nível em TESTES (não deve entrar em "Níveis conquistados")
-    rodar(monkeypatch, 'nivel', TESTES, '3')
-
-    # Conquista nível em DDD
-    rodar(monkeypatch, 'fazer', f1)
-    rodar(monkeypatch, 'registrar', f1, '--nota', '4', '--resumo', 'Modelou agregado com invariantes claras')
-    jogo.lancar(DDD, 160, 'propria', 'feixe', 'extra')
-    rodar(monkeypatch, 'subir', DDD)
+    _converter_ate_confirmar(monkeypatch, f1, nota=4, resumo='Modelou agregado com invariantes claras')
+    rodar(monkeypatch, 'confirmar', f1)
 
     # Pedido de mudança aceito (arquivar e reativar sem modelo)
     with trajetoria.abrir() as con:
@@ -262,16 +493,14 @@ def test_dossie_formal(privado, monkeypatch):
     assert m, f'Caminho do dossiê não encontrado em:\n{s}'
     conteudo = Path(m.group(1).strip()).read_text(encoding='utf-8')
 
-    assert '## Níveis conquistados' in conteudo
-    assert '## Ações concluídas' in conteudo
-    assert '## Pedidos de mudança aceitos' in conteudo
-    assert 'pontos de evidência' in conteudo
-    assert 'autoria própria' in conteudo
-    # O nível declarado não entra na seção de níveis conquistados
-    secao_conq = conteudo.split('## Níveis conquistados')[1].split('## Ações concluídas')[0]
-    assert DDD in secao_conq
-    assert TESTES not in secao_conq
+    assert '## Ações com autoria própria' in conteudo
+    assert '## Pedidos de mudança aceitos' in conteudo and '## Por skill' in conteudo
+    assert 'pontos de evidência' in conteudo and 'autoria própria' in conteudo
+    secao_proprias = conteudo.split('## Ações com autoria própria')[1].split('## Pedidos')[0]
+    assert jogo._um(f1)['titulo'] in secao_proprias and 'nota 4/4' in secao_proprias
+    assert 'Modelou agregado com invariantes claras' in secao_proprias
     assert 'Pausa temporária' in conteudo
+    assert 'Histórico (modelo anterior' not in conteudo  # sem registro de níveis antigos, a seção não aparece
 
 
 # ------------------------------------------------------------------ entrega: propriedade P1–P4 com base (A4)
@@ -435,7 +664,8 @@ def test_acender_entrega_liga_avancos_e_acende_p3(privado, monkeypatch):
         ligados = [a for a in jogo.avancos(con) if a.get('entrega_id') == eid]
     assert sorted(a['dimensao'] for a in ligados) == ['P3', 'P4']
     assert {a['skill_plano'] for a in ligados} == {DDD} and {a['origem'] for a in ligados} == {'entrega'}
-    assert all(a['estado'] == 'sugerido' and 10 <= a['valor_lm'] <= 100 for a in ligados)
+    assert all(a['estado'] == 'refletida' and 10 <= a['valor_lm'] <= 100 for a in ligados)  # o agente aplicou o conceito
+    assert all(a['entrega_id'] == eid and a['onde'] == f'entrega #{eid}' for a in ligados)
     p3 = next(a for a in ligados if a['dimensao'] == 'P3')
     assert p3['titulo'] == 'Explicar o agregado desta entrega'  # a primeira é sempre a P3
 
@@ -443,7 +673,9 @@ def test_acender_entrega_liga_avancos_e_acende_p3(privado, monkeypatch):
     assert 'já tem centelhas P3 e P4 abertas' in visivel(s) and len(chamadas) == 1 and tem_rodape_botoes(s)
 
     rodar(monkeypatch, 'fazer', p3['id'])
-    s = rodar(monkeypatch, 'registrar', p3['id'], '--nota', '4', '--resumo', 'Explicou as invariantes do agregado')
+    assert 'propriedade agora' not in visivel(rodar(monkeypatch, 'registrar', p3['id'], '--nota', '4',
+                                                    '--resumo', 'Explicou as invariantes do agregado'))
+    s = rodar(monkeypatch, 'confirmar', p3['id'])  # a propriedade só muda com o sim: a centelha vira luz própria
     assert 'propriedade agora' in visivel(s)
     v = visivel(rodar(monkeypatch, 'entrega', str(eid)))
     assert 'P3 Aplicação de conceito: **100** (evidência)' in v and 'Explicou as invariantes do agregado' in v
@@ -506,27 +738,18 @@ def test_leituras_pelo_chat(privado, monkeypatch):
 def test_erros_do_motor_ja_nascem_no_vocabulario_novo(privado, monkeypatch):
     """Sem tradução na hora de exibir: o painel (que recebe o texto cru) e o chat mostram as mesmas palavras."""
     plan = pipeline.load_state()['plano']
-    jogo.sincronizar(plan)
-    fid = next(f['id'] for f in jogo.catalogo(plan))
+    fid = _apagadas(plan)[0]
     mensagens = [
-        jogo.conquistar('zzzz', 3, 'x', plan)['erro'],            # avanço inexistente
-        jogo.conquistar(fid, 3, 'x', plan)['erro'],               # ainda não iniciado
-        *jogo.progresso_skill(DDD)['falta'],
+        jogo.avaliar('zzzz', 3, 'x', plan)['erro'],               # centelha inexistente
+        jogo.avaliar(fid, 3, 'x', plan)['erro'],                  # ainda não está em conversão
+        jogo.confirmar('zzzz', plan)['erro'],
+        jogo.confirmar(fid, plan)['erro'],                        # a Luzia ainda não confirmou
     ]
     for m in mensagens:
         assert RE_TERMOS_ANTIGOS.search(m) is None, m
-    assert '1 centelha acesa' in mensagens
     saida = visivel(rodar(monkeypatch, 'registrar', fid, '--nota', '3', '--resumo', 'x'))
     assert RE_TERMOS_ANTIGOS.search(saida) is None and 'centelha' in saida
     assert not hasattr(cli, '_vocab_novo')
-
-
-def test_trajetoria_compacta_a_falta_e_usa_o_nome_curto(privado, monkeypatch):
-    saida = visivel(rodar(monkeypatch, 'trajetoria'))
-    assert '(prisma · skill)' not in saida and 'skill)' not in saida
-    falta = [l for l in saida.splitlines() if ' · falta ' in l]
-    assert falta and all('conquistar 1' not in l and len(l) < 120 for l in falta), falta
-    assert any(l.strip().startswith('DDD `') and '1 → 4' in l and '/150 lm · falta ' in l for l in falta), falta
 
 
 def test_acender_sem_modelo_no_chat_nao_quebra_nem_grava(privado, monkeypatch):

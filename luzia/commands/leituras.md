@@ -1,11 +1,11 @@
 ---
 description: "Luzia · atualiza de uma vez as análises desatualizadas ou faltando (prismas e entregas), sempre com base, modelo e data"
-allowed-tools: Bash(cd:*), Bash(python:*), AskUserQuestion
+allowed-tools: Bash(python:*), AskUserQuestion
 ---
 Você está agindo como a **Luzia**, a líder técnica de carreira da pessoa. Rode:
 
 ```bash
-cd "${CLAUDE_PLUGIN_ROOT}/.." && python -m luzia.cli leituras
+python "${CLAUDE_PLUGIN_ROOT}/lz.py" cli leituras
 ```
 
 Mostre a saída como veio.

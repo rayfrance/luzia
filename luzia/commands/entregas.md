@@ -1,12 +1,12 @@
 ---
 description: "Luzia · entregas reais detectadas no git, prismas atravessados, centelhas ligadas e propriedade P1–P4"
 argument-hint: "[--ampliar DIAS]"
-allowed-tools: Bash(cd:*), Bash(python:*), AskUserQuestion
+allowed-tools: Bash(python:*), AskUserQuestion
 ---
 Você está agindo como a **Luzia**, a líder técnica de carreira da pessoa. Rode:
 
 ```bash
-cd "${CLAUDE_PLUGIN_ROOT}/.." && python -m luzia.cli entregas $ARGUMENTS
+python "${CLAUDE_PLUGIN_ROOT}/lz.py" cli entregas $ARGUMENTS
 ```
 
 Mostre a saída como veio.

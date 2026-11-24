@@ -42,7 +42,7 @@ def test_totais_iguais(antigos):
     # Os números conferidos à mão nos dados sintéticos (a linha cortada de lumens.jsonl fica de fora, como no jogo).
     assert esperado == {
         'lumens_total': 201, 'lumens_propria': 141,
-        'avancos_por_estado': {'conquistado': 2, 'descartado': 1, 'em_andamento': 1, 'na_fila': 1, 'sugerido': 2},
+        'avancos_por_estado': {'apagada': 2, 'convertendo': 3, 'descartada': 1, 'propria': 1},
         'niveis': {DDD: 2, TST: 3, FRONT: 3},
     }
     con = banco.conectar()
@@ -65,7 +65,7 @@ def test_totais_iguais(antigos):
                      con.execute("SELECT extra_json FROM avanco_evento WHERE avanco_id = '3fb7'"))
     assert fontes == {'historico': 4, 'evidencias': 2}
     guardada = con.execute("SELECT estado, origem, prisma FROM avanco WHERE id = 'f479'").fetchone()
-    assert tuple(guardada) == ('sugerido', 'lampejo', TST)
+    assert tuple(guardada) == ('apagada', 'lampejo', TST)
     assert con.execute("SELECT origem FROM avanco WHERE id = 'c04e'").fetchone()[0] == 'lampejo'
     assert con.execute("SELECT prisma FROM avanco WHERE id = 'e1a0'").fetchone()[0] == DDD
     assert con.execute("SELECT revisita_aberta FROM avanco WHERE id = '3878'").fetchone()[0] == 1
@@ -100,6 +100,7 @@ def test_idempotente(antigos, tmp_path):
     # Marcado pelo stub antigo (migrado_em sem a marca 'migracao'): a migração ainda roda quando chamada.
     cru.execute("INSERT INTO meta (chave, valor) VALUES ('migrado_em', '2026-11-12T08:00:00')")
     primeira = migrar.migrar(cru)
+    banco._estados_v4(cru)  # como banco.garantir faz logo depois de migrar (esquema 4)
     depois = _contagens(cru)
     segunda = migrar.migrar(cru)
     assert _contagens(cru) == depois == antes

@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 
 import pytest
 
-from luzia import acoes, banco, entregas, jogo, pipeline, propriedade
+from luzia import banco, entregas, jogo, pipeline, propriedade
 
 DDD = 'Domain-Driven Design (DDD)'
 TESTES = 'Testes e Qualidade / SQL'
@@ -77,7 +77,7 @@ def test_p2_sobre_entrega(con):
         con.execute(
             "INSERT INTO avanco (id, prisma, tipo, titulo, conteudo_json, duracao_min, valor_lm, origem, entrega_id, "
             "dimensao, estado, nota, lm_ganho, criado_em) VALUES (?, ?, 'explicar', 'Explicar invariantes do agregado', "
-            "?, 15, 45, 'entrega', ?, 'P3', 'conquistado', 4, 45, ?)",
+            "?, 15, 45, 'entrega', ?, 'P3', 'propria', 4, 45, ?)",
             ('av-e1', DDD, json.dumps({'resumo': 'Explicou invariantes e fronteira transacional'}), eid, _data(7)),
         )
     det = entregas.detalhe(con, eid)
@@ -99,7 +99,7 @@ def test_lumens_ligados_janela_e_prisma(con):
     with banco.transacao(con):
         con.execute(
             "INSERT INTO avanco (id, prisma, tipo, titulo, estado, entrega_id, valor_lm, lm_ganho, criado_em) "
-            "VALUES ('av-da-entrega', ?, 'explicar', 'Avanço da entrega', 'conquistado', ?, 40, 40, ?)",
+            "VALUES ('av-da-entrega', ?, 'explicar', 'Avanço da entrega', 'propria', ?, 40, 40, ?)",
             (DDD, eid, _data(2)),
         )
         # 1. Lúmen do avanço da própria entrega (mesmo fora da janela de datas, entra por ref)
@@ -160,11 +160,11 @@ def test_avancos_uteis_mesmos_prismas(con, privado):
         # Avanço feito para a própria entrega: vai em avancos_feitos, não repete em avancos_uteis
         con.execute(
             "INSERT INTO avanco (id, prisma, tipo, titulo, estado, entrega_id, valor_lm, criado_em) "
-            "VALUES ('feito-1', ?, 'explicar', 'Feito para a entrega', 'em_andamento', ?, 60, ?)",
+            "VALUES ('feito-1', ?, 'explicar', 'Feito para a entrega', 'convertendo', ?, 60, ?)",
             (DDD, eid, _data(5)),
         )
-        # 4 avanços abertos do mesmo prisma (DDD) + 1 conquistado + 1 descartado + 1 de outro prisma
-        for i, (est, val) in enumerate([('em_andamento', 50), ('na_fila', 80), ('sugerido', 75), ('sugerido', 30)], 1):
+        # 4 avanços abertos do mesmo prisma (DDD) + 1 própria + 1 descartada + 1 de outro prisma
+        for i, (est, val) in enumerate([('convertendo', 50), ('refletida', 80), ('apagada', 75), ('apagada', 30)], 1):
             con.execute(
                 "INSERT INTO avanco (id, prisma, tipo, titulo, estado, valor_lm, criado_em) "
                 "VALUES (?, ?, 'praticar', ?, ?, ?, ?)",
@@ -172,17 +172,17 @@ def test_avancos_uteis_mesmos_prismas(con, privado):
             )
         con.execute(
             "INSERT INTO avanco (id, prisma, tipo, titulo, estado, valor_lm, criado_em) "
-            "VALUES ('conq-ddd', ?, 'estudar', 'Já conquistado', 'conquistado', 90, ?)",
+            "VALUES ('conq-ddd', ?, 'estudar', 'Já própria', 'propria', 90, ?)",
             (DDD, _data(4)),
         )
         con.execute(
             "INSERT INTO avanco (id, prisma, tipo, titulo, estado, valor_lm, criado_em) "
-            "VALUES ('desc-ddd', ?, 'estudar', 'Descartado', 'descartado', 95, ?)",
+            "VALUES ('desc-ddd', ?, 'estudar', 'Descartado', 'descartada', 95, ?)",
             (DDD, _data(4)),
         )
         con.execute(
             "INSERT INTO avanco (id, prisma, tipo, titulo, estado, valor_lm, criado_em) "
-            "VALUES ('util-front', ?, 'praticar', 'Outro prisma', 'em_andamento', 99, ?)",
+            "VALUES ('util-front', ?, 'praticar', 'Outro prisma', 'convertendo', 99, ?)",
             (FRONT, _data(4)),
         )
 
@@ -192,10 +192,55 @@ def test_avancos_uteis_mesmos_prismas(con, privado):
     assert len(uteis) == 3
     assert [a['id'] for a in uteis] == ['util-1', 'util-2', 'util-3']
     assert all((a.get('skill_plano') or a.get('prisma')) == DDD for a in uteis)
-    assert all(a['estado'] in ('em_andamento', 'na_fila', 'sugerido') for a in uteis)
+    assert all(a['estado'] in jogo.ABERTOS for a in uteis)
 
     lista = entregas.listar(con)
     assert len(lista) == 1 and lista[0]['id'] == eid
     texto_dump = json.dumps(det, ensure_ascii=False)
     assert 'h1' not in texto_dump  # hash de commit nunca sai do banco
     assert det['ids'] == ['42'] and lista[0]['ids'] == ['42']  # o número do PR/ticket fica visível para a dona
+
+
+def _centelha_da_entrega(con, fid, eid, dimensao, estado, nota, resumo=None):
+    with banco.transacao(con):
+        con.execute(
+            'INSERT INTO avanco (id, prisma, tipo, titulo, conteudo_json, duracao_min, valor_lm, origem, entrega_id, '
+            "dimensao, estado, nota, lm_ganho, criado_em) VALUES (?, ?, 'explicar', ?, ?, 15, 45, 'entrega', ?, ?, ?, ?, 0, ?)",
+            (fid, DDD, f'Centelha {fid}', json.dumps({'resumo': resumo} if resumo else {}), eid, dimensao, estado, nota,
+             _data(6)))
+
+
+def test_p3_e_p4_vem_so_de_centelhas_proprias(con):
+    eid = _criar_entrega(con)
+    # confirmada pela Luzia (nota 4), mas ainda sem o sim da pessoa: continua convertendo e não conta
+    _centelha_da_entrega(con, 'c-conv', eid, 'P3', 'convertendo', 4, 'Ainda sem o sim')
+    assert entregas.detalhe(con, eid)['propriedade']['dimensoes']['P3'] is None
+
+    with banco.transacao(con):  # o sim da pessoa: vira própria
+        con.execute("UPDATE avanco SET estado = 'propria', lm_ganho = 45 WHERE id = 'c-conv'")
+    p3 = entregas.detalhe(con, eid)['propriedade']['dimensoes']['P3']
+    assert p3['nota'] == 100 and p3['tipo'] == 'evidência' and 'Ainda sem o sim' in p3['base']
+
+    # própria pelo prompt, sem nota da rubrica: vale 2 (50), e o texto diz de onde veio
+    _centelha_da_entrega(con, 'c-prompt', eid, 'P4', 'propria', None)
+    p4 = entregas.detalhe(con, eid)['propriedade']['dimensoes']['P4']
+    assert p4['nota'] == entregas.NOTA_PROMPT * 25 == 50 and 'prompt' in p4['base']
+
+    # centelha apagada ou refletida nunca vira evidência
+    _centelha_da_entrega(con, 'c-refl', eid, 'P4', 'refletida', 4)
+    assert entregas.detalhe(con, eid)['propriedade']['dimensoes']['P4']['nota'] == 50
+
+
+def test_evento_luz_propria_conta_como_evidencia_e_o_legado_continua(con):
+    eid = _criar_entrega(con)
+    _centelha_da_entrega(con, 'c-ev', eid, 'P3', 'convertendo', None)
+    with banco.transacao(con):
+        con.execute("INSERT INTO avanco_evento (avanco_id, quando, evento, nota, resumo, extra_json) "
+                    "VALUES ('c-ev', ?, 'luz própria', 3, 'Comparou com outra decisão', '{}')", (_data(5),))
+    p3 = entregas.detalhe(con, eid)['propriedade']['dimensoes']['P3']
+    assert p3['nota'] == 75 and 'Comparou' in p3['base']
+
+    with banco.transacao(con):  # evento antigo de dado migrado ('conquistado') segue lido
+        con.execute("INSERT INTO avanco_evento (avanco_id, quando, evento, nota, resumo, extra_json) "
+                    "VALUES ('c-ev', ?, 'conquistado', 4, 'Defendeu a decisão', '{}')", (_data(4),))
+    assert entregas.detalhe(con, eid)['propriedade']['dimensoes']['P3']['nota'] == 100

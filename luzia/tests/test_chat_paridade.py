@@ -125,4 +125,4 @@ def test_trajetoria_repassa_os_argumentos():
 @pytest.mark.parametrize('nome', ['identidade', 'leituras', 'acender-entrega'])
 def test_comandos_novos_do_lote_a_tem_arquivo_de_comando(nome):
     texto = (COMANDOS / f'{nome}.md').read_text(encoding='utf-8')
-    assert f'python -m luzia.cli {nome}' in texto and 'LUZIA_BOTOES' in texto
+    assert f'/lz.py" cli {nome}' in texto and 'LUZIA_BOTOES' in texto

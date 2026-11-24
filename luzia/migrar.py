@@ -672,10 +672,19 @@ def _bruto_int(valor) -> int | None:
         return None
 
 
+def _estado_v4(estado: str, nota) -> str:
+    """O estado antigo no modelo de centelhas, pela mesma regra de `banco._estados_v4` (conferência independente)."""
+    if estado == 'conquistado':
+        return 'propria' if (_bruto_int(nota) or 0) >= 3 else 'convertendo'
+    return {'sugerido': 'apagada', 'na_fila': 'convertendo', 'em_andamento': 'convertendo',
+            'descartado': 'descartada'}.get(estado, estado)
+
+
 def totais_json(pasta: Path) -> dict:
     """Totais lidos direto dos arquivos antigos, pelas regras do jogo antigo.
 
     Não usa os leitores nem as normalizações da migração: é a conferência independente do que ela gravou.
+    Os estados já saem no modelo de centelhas (esquema 4), que o banco aplica logo depois de migrar.
     Onde o jogo antigo quebraria (valor que não é número), o registro fica de fora, como na migração.
     """
     pasta = Path(pasta)
@@ -686,7 +695,8 @@ def totais_json(pasta: Path) -> dict:
             lumens.append((lm, r.get('luz')))
     cat = _bruto_json(pasta / 'feixes.json', {})
     feixes = [f for f in cat.values() if isinstance(f, dict)]
-    estados = Counter(f['estado'] if isinstance(f.get('estado'), str) and f['estado'] else 'sugerido' for f in feixes)
+    estados = Counter(_estado_v4(f['estado'] if isinstance(f.get('estado'), str) and f['estado'] else 'sugerido', f.get('nota'))
+                      for f in feixes)
     iniciadas, concluidas = set(), set()  # acoes.status_map → jogo.sincronizar, para as guardadas fora do catálogo
     for e in _bruto_jsonl(pasta / 'evidencias.jsonl'):
         if not isinstance(e.get('id'), (str, int)):
@@ -699,7 +709,7 @@ def totais_json(pasta: Path) -> dict:
     for a in _bruto_json(pasta / 'acoes_guardadas.json', []):
         if isinstance(a, dict) and isinstance(a.get('id'), str) and a['id'] and a['id'] not in vistas:
             vistas.add(a['id'])
-            estados['em_andamento' if a['id'] in iniciadas - concluidas else 'sugerido'] += 1
+            estados['convertendo' if a['id'] in iniciadas - concluidas else 'apagada'] += 1
     plano = _bruto_json(pasta / 'career_state.json', {}).get('plano')
     plano = plano if isinstance(plano, dict) else {}
     auto = _bruto_json(pasta / 'autoavaliacao.json', {})

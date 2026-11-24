@@ -1,7 +1,8 @@
 """Regras atuais do jogo, da CLI e do instalador (rede de segurança para a troca de JSON por SQLite).
 
-Antes eram os roteiros avulsos teste_lote1.py (22 verificações) e teste_lote23.py (17), que copiavam a pasta
-privada real. Agora cada teste roda na fixture `privado`, com dados sintéticos.
+Antes eram os roteiros avulsos teste_lote1.py e teste_lote23.py, que copiavam a pasta privada real. Agora cada teste
+roda na fixture `privado`, com dados sintéticos. O modelo é o das centelhas (docs/specs/2026-11-18-centelhas-conversao.md):
+luz própria, refletida e por acender; converter = a Luzia confirma (nota 3 ou 4) e a pessoa dá o sim.
 """
 
 import io
@@ -25,21 +26,15 @@ def plan(privado):
 
 
 @pytest.fixture
-def sugeridos(plan):
+def apagadas(plan):
     cat = jogo.sincronizar(plan)
-    return [k for k, f in cat.items() if f['estado'] == 'sugerido']
+    return [k for k, f in cat.items() if f['estado'] == 'apagada']
 
 
-def _conquistado_nota_3(plan, fid):
+def _confirmada(plan, fid, nota=3):
+    """Centelha em conversão que a Luzia já confirmou (falta só o sim da pessoa)."""
     jogo.iniciar(fid, 'teste')
-    return jogo.conquistar(fid, 3, 't', plan)
-
-
-def _revisitado(plan, fid):
-    _conquistado_nota_3(plan, fid)
-    jogo.enfileirar(fid)
-    jogo.iniciar(fid, 'revisita')
-    return jogo.conquistar(fid, 4, 't', plan)
+    return jogo.avaliar(fid, nota, 't', plan)
 
 
 def _linhas(sql):
@@ -50,7 +45,7 @@ def _linhas(sql):
         con.close()
 
 
-def _feixes():
+def _centelhas():
     con = banco.conectar()
     try:
         return {f['id']: f for f in jogo.avancos(con)}
@@ -58,126 +53,91 @@ def _feixes():
         con.close()
 
 
-# ------------------------------------------------------------------ lote 1 · revisita paga só uma vez
-def test_registrar_sem_iniciar_e_recusado(plan, sugeridos):
-    assert jogo.conquistar(sugeridos[0], 4, 't', plan).get('erro', '').startswith('esta centelha ainda não foi iniciada')
+# ------------------------------------------------------------------ conversão: a Luzia confirma, a pessoa dá o sim
+def test_registrar_sem_iniciar_e_recusado(plan, apagadas):
+    assert jogo.avaliar(apagadas[0], 4, 't', plan).get('erro', '').startswith('esta centelha ainda não está em conversão')
 
 
-def test_nota_3_rende_75_por_cento(plan, sugeridos):
-    f1 = sugeridos[0]
-    v = _feixes()[f1]['valor_lm']
-    assert _conquistado_nota_3(plan, f1)['ganho'] == round(v * 0.75)
+def test_nota_3_confirma_o_entendimento_mas_so_o_sim_vira_luz_propria(plan, apagadas):
+    f1 = apagadas[0]
+    r = _confirmada(plan, f1)
+    assert r['confirmada'] and not r['tente_de_novo']
+    assert _centelhas()[f1]['estado'] == 'convertendo' and _centelhas()[f1]['confirmada_em']
+    assert jogo.livro() == []  # a nota sozinha não rende lúmen
 
 
-def test_enviar_para_revisita_mantem_conquistado(plan, sugeridos):
-    f1 = sugeridos[0]
-    _conquistado_nota_3(plan, f1)
+def test_o_sim_paga_o_valor_inteiro_sem_credito_parcial(plan, apagadas):
+    f1, f2 = apagadas[0], apagadas[1]
+    v1, v2 = _centelhas()[f1]['valor_lm'], _centelhas()[f2]['valor_lm']
+    _confirmada(plan, f1, nota=3)
+    _confirmada(plan, f2, nota=4)
+    assert jogo.confirmar(f1, plan)['ganho'] == v1  # nota 3 vale o mesmo que nota 4
+    assert jogo.confirmar(f2, plan)['ganho'] == v2
+    assert _centelhas()[f1]['lm_ganho'] == v1 and _centelhas()[f1]['estado'] == 'propria'
+
+
+def test_enviar_para_a_fila_coloca_em_conversao(plan, apagadas):
+    f1 = apagadas[0]
     assert jogo.enfileirar(f1)
-    assert _feixes()[f1]['estado'] == 'conquistado'
+    assert _centelhas()[f1]['estado'] == 'convertendo'
 
 
-def test_revisita_sem_abrir_e_recusada(plan, sugeridos):
-    f1 = sugeridos[0]
-    _conquistado_nota_3(plan, f1)
-    jogo.enfileirar(f1)
-    assert 'abra a revisita' in jogo.conquistar(f1, 4, 't', plan).get('erro', '')
+def test_confirmar_sem_a_confirmacao_da_luzia_e_recusado(plan, apagadas):
+    f1 = apagadas[0]
+    assert 'ainda não confirmou' in jogo.confirmar(f1, plan).get('erro', '')
+    jogo.iniciar(f1)
+    assert 'ainda não confirmou' in jogo.confirmar(f1, plan).get('erro', '')
+    assert jogo.livro() == []
 
 
-def test_revisita_paga_so_a_diferenca(plan, sugeridos):
-    f1 = sugeridos[0]
-    v = _feixes()[f1]['valor_lm']
-    r = _revisitado(plan, f1)
-    assert r['ganho'] == v - round(v * 0.75)
-    assert r['feixe']['lm_ganho'] == v
-
-
-def test_depois_da_revisita_nao_volta_para_a_fila_nem_reabre(plan, sugeridos):
-    f1 = sugeridos[0]
-    _revisitado(plan, f1)
-    assert jogo.enfileirar(f1) is None
-    assert jogo.iniciar(f1) is None
-
-
-def test_terceiro_registro_e_recusado(plan, sugeridos):
-    f1 = sugeridos[0]
-    _revisitado(plan, f1)
-    assert 'já foi revisitada' in jogo.conquistar(f1, 4, 't', plan).get('erro', '')
-
-
-def test_livro_de_lumens_soma_o_valor_do_feixe(plan, sugeridos):
-    f1 = sugeridos[0]
-    v = _feixes()[f1]['valor_lm']
-    _revisitado(plan, f1)
-    jogo.conquistar(f1, 4, 't', plan)  # terceiro registro, recusado
+def test_segundo_sim_e_recusado_e_o_livro_soma_o_valor_uma_vez(plan, apagadas):
+    f1 = apagadas[0]
+    v = _centelhas()[f1]['valor_lm']
+    _confirmada(plan, f1, nota=4)
+    jogo.confirmar(f1, plan)
+    assert 'já é luz própria' in jogo.confirmar(f1, plan).get('erro', '')
+    assert 'já é luz própria' in jogo.avaliar(f1, 4, 't', plan).get('erro', '')
     assert sum(x['lm'] for x in jogo.livro() if x['ref'] == f1) == v
 
 
-# ------------------------------------------------------------------ lote 1 · tente de novo
-def test_nota_1_tente_de_novo_mantem_em_andamento(plan, sugeridos):
-    f2 = sugeridos[1]
+def test_luz_propria_nao_volta_a_ser_conversao(plan, apagadas):
+    f1 = apagadas[0]
+    _confirmada(plan, f1, nota=4)
+    jogo.confirmar(f1, plan)
+    assert jogo.iniciar(f1) is None and jogo.enfileirar(f1) is None and jogo.descartar(f1, 'agora_nao') is None
+    assert _centelhas()[f1]['estado'] == 'propria'
+
+
+# ------------------------------------------------------------------ tente de novo
+def test_nota_1_tente_de_novo_mantem_convertendo(plan, apagadas):
+    f2 = apagadas[1]
     jogo.iniciar(f2)
-    r = jogo.conquistar(f2, 1, 't', plan)
-    assert r.get('tente_de_novo')
-    assert _feixes()[f2]['estado'] == 'em_andamento'
+    r = jogo.avaliar(f2, 1, 'Falta o porquê', plan)
+    assert r.get('tente_de_novo') and not r['confirmada']
+    f = _centelhas()[f2]
+    assert f['estado'] == 'convertendo' and f['tentativas'] == 1 and not f['confirmada_em']
 
 
-def test_segunda_tentativa_na_mesma_sessao_e_aceita(plan, sugeridos):
-    f2 = sugeridos[1]
+def test_segunda_tentativa_na_mesma_sessao_e_aceita(plan, apagadas):
+    f2 = apagadas[1]
     jogo.iniciar(f2)
-    jogo.conquistar(f2, 1, 't', plan)
-    assert jogo.conquistar(f2, 4, 't', plan)['ganho'] > 0
+    jogo.avaliar(f2, 1, 't', plan)
+    assert jogo.avaliar(f2, 4, 't', plan)['confirmada']
+    assert jogo.confirmar(f2, plan)['ganho'] > 0
 
 
-def test_feixe_com_lumens_e_estado_perdido_nao_paga_de_novo(plan, sugeridos):
-    f3 = sugeridos[2]
+def test_centelha_propria_com_estado_perdido_nao_paga_de_novo(plan, apagadas):
+    f3 = apagadas[2]
     con = banco.conectar()
     with banco.transacao(con):
-        con.execute("UPDATE avanco SET estado = 'em_andamento', lm_ganho = 20, nota = 4 WHERE id = ?", (f3,))
+        con.execute("UPDATE avanco SET estado = 'propria', lm_ganho = 20, nota = 4 WHERE id = ?", (f3,))
     con.close()
-    assert 'erro' in jogo.conquistar(f3, 4, 't', plan)
+    assert 'erro' in jogo.avaliar(f3, 4, 't', plan) and 'erro' in jogo.confirmar(f3, plan)
+    assert jogo.livro() == []
 
 
-# ------------------------------------------------------------------ lote 1 · cartão converte uma vez
-def test_converter_sem_cartao_e_recusado(plan):
-    assert 'erro' in jogo.converter(plan['skills'][0]['nome'], 4)
-
-
-def test_cartao_aberto_converte_30_lm(plan):
-    skill = plan['skills'][0]['nome']
-    jogo.abrir_lampejo(skill, 'abc')
-    assert jogo.converter(skill, 4).get('lm') == 30
-
-
-def test_segunda_conversao_do_mesmo_cartao_e_recusada(plan):
-    skill = plan['skills'][0]['nome']
-    jogo.abrir_lampejo(skill, 'abc')
-    jogo.converter(skill, 4)
-    assert 'erro' in jogo.converter(skill, 4)
-
-
-# ------------------------------------------------------------------ lote 1 · degrau exige um feixe
-def _passivos_160(skill):
-    for _ in range(8):
-        jogo.lancar(skill, 20, 'propria', 'passivo-prompt', 'x')
-
-
-def test_160_lm_so_passivos_nao_sobem_degrau(plan):
-    sk2 = plan['skills'][1]['nome']
-    _passivos_160(sk2)
-    p = jogo.progresso_skill(sk2)
-    assert not p['pronto']
-    assert '1 centelha acesa' in p['falta']
-
-
-def test_com_um_feixe_conquistado_o_degrau_fica_pronto(plan):
-    sk2 = plan['skills'][1]['nome']
-    _passivos_160(sk2)
-    jogo.lancar(sk2, 30, 'propria', 'feixe', 'zzzz')
-    assert jogo.progresso_skill(sk2)['pronto']
-
-
-# ------------------------------------------------------------------ lote 1 · arquivos
-def test_catalogo_sem_mudanca_nao_e_regravado(plan, sugeridos):
+# ------------------------------------------------------------------ arquivos
+def test_catalogo_sem_mudanca_nao_e_regravado(plan, apagadas):
     espiao = banco.conectar()  # data_version muda quando outra conexão confirma uma gravação
     antes = espiao.execute('PRAGMA data_version').fetchone()[0]
     jogo.catalogo(plan)
@@ -192,45 +152,46 @@ def _corromper(privado):
     return caminho
 
 
-def test_json_corrompido_devolve_o_padrao(privado, sugeridos):
+def test_json_corrompido_devolve_o_padrao(privado, apagadas):
     assert arquivos.ler_json(_corromper(privado), {}) == {}
 
 
-def test_uma_unica_copia_do_arquivo_ruim(privado, sugeridos):
+def test_uma_unica_copia_do_arquivo_ruim(privado, apagadas):
     caminho = _corromper(privado)
     arquivos.ler_json(caminho, {})
     arquivos.ler_json(caminho, {})
     assert len(list(privado.glob('config-teste.json.corrompido-*'))) == 1
 
 
-def test_erro_registrado_so_com_o_tipo(privado, sugeridos):
+def test_erro_registrado_so_com_o_tipo(privado, apagadas):
     arquivos.ler_json(_corromper(privado), {})
     log = (privado / 'erros.log').read_text(encoding='utf-8')
     assert 'JSONDecodeError' in log
     assert 'quebrado' not in log
 
 
-def test_gravacoes_nao_deixam_temporario(privado, plan, sugeridos):
-    _conquistado_nota_3(plan, sugeridos[0])
-    jogo.abrir_lampejo(DDD, 's')
-    acoes.enfileirar(sugeridos[1], 't')
+def test_gravacoes_nao_deixam_temporario(privado, plan, apagadas):
+    _confirmada(plan, apagadas[0])
+    jogo.confirmar(apagadas[0], plan)
+    acoes.enfileirar(apagadas[1], 't')
     assert not list(privado.glob('.*.tmp'))
 
 
-# ------------------------------------------------------------------ lote 1 · observador
-def test_hook_mostra_o_cartao_e_o_abre(privado, plan, capsys):
+# ------------------------------------------------------------------ observador
+def test_hook_agente_aplicou_o_conceito_vira_luz_refletida(privado, plan, capsys):
     cfg = json.loads((privado / 'observer.json').read_text(encoding='utf-8'))
     lac = observer.lacunas(plan)
     _, info = next(iter(lac.items()))
     evento = {'session_id': 's-teste', 'tool_name': 'Write', 'cwd': cfg['autorizados'][0],
               'tool_input': {'file_path': 'x.cs', 'content': ' '.join(info['palavras'][:3])}}
     observer.ao_usar_ferramenta(evento, cfg)
-    abertos = [r for r in _linhas('SELECT * FROM lampejo') if r['estado'] == 'aberto']
-    assert 'luz refletida' in capsys.readouterr().out
-    assert abertos
+    saida = capsys.readouterr().out
+    assert 'luz refletida' in saida and 'Converter agora' in saida
+    nascidas = _linhas("SELECT estado, origem FROM avanco WHERE origem = 'chat'")
+    assert [(r['estado'], r['origem']) for r in nascidas] == [('refletida', 'chat')]
 
 
-# ------------------------------------------------------------------ lote 2 · CLI termina em botões
+# ------------------------------------------------------------------ CLI termina em botões
 def rodar(monkeypatch, *argv):
     monkeypatch.setattr(sys, 'argv', ['luzia', *argv])
     buf = io.StringIO()
@@ -254,38 +215,42 @@ def test_hoje_oferece_botoes_com_cli_e_pergunta(privado, monkeypatch):
     assert 1 <= len(botoes_de(s)) <= 3
 
 
-def test_hoje_primeiro_botao_continua_o_feixe_em_andamento(sugeridos, monkeypatch):
-    jogo.iniciar(sugeridos[1], 'aqui')
+def test_hoje_primeiro_botao_continua_a_centelha_convertendo(apagadas, monkeypatch):
+    jogo.iniciar(apagadas[1], 'aqui')
     b = botoes_de(rodar(monkeypatch, 'hoje'))
-    assert b[0]['rodar'] == f'fazer {sugeridos[1]}'
+    assert b[0]['rodar'] == f'fazer {apagadas[1]}'
     assert 'Continuar' in b[0]['rotulo']
 
 
-def test_hoje_sem_comando_cru_na_parte_visivel(sugeridos, monkeypatch):
-    jogo.iniciar(sugeridos[0], 'aqui')
+def test_hoje_sem_comando_cru_na_parte_visivel(apagadas, monkeypatch):
+    jogo.iniciar(apagadas[0], 'aqui')
     s = rodar(monkeypatch, 'hoje')
-    assert 'python -m luzia.cli subir' not in s
-    assert 'cd /c/' not in s
+    visivel = chr(10).join(l for l in s.splitlines() if not l.startswith('LUZIA_'))
+    assert '/lz.py' not in visivel
+    assert 'cd /c/' not in visivel
 
 
-def test_degrau_pronto_vira_o_primeiro_botao(plan, monkeypatch):
-    sk = plan['skills'][0]['nome']
-    jogo.lancar(sk, 160, 'propria', 'feixe', 'teste')
-    assert botoes_de(rodar(monkeypatch, 'hoje'))[0]['rodar'] == f'subir "{sk}"'
+def test_entendimento_confirmado_vira_o_primeiro_botao_de_hoje(plan, apagadas, monkeypatch):
+    _confirmada(plan, apagadas[0], nota=4)
+    b = botoes_de(rodar(monkeypatch, 'hoje'))
+    assert b[0]['rodar'] == f'confirmar {apagadas[0]}' and b[0]['rotulo'] == 'Acender luz própria'
 
 
-def test_depois_de_subir_o_primeiro_botao_acende_o_proximo_trecho(plan, monkeypatch):
-    sk = plan['skills'][0]['nome']
-    jogo.lancar(sk, 160, 'propria', 'feixe', 'teste')
-    s = rodar(monkeypatch, 'subir', sk)
-    assert '** no nível 2' in s
-    assert botoes_de(s)[0]['rodar'] == f'trecho "{sk}"'
+def test_depois_do_sim_o_primeiro_botao_converte_a_proxima_luz_refletida(plan, apagadas, monkeypatch):
+    con = banco.conectar()
+    with banco.transacao(con):
+        con.execute("UPDATE avanco SET estado = 'refletida' WHERE id = ?", (apagadas[1],))
+    con.close()
+    _confirmada(plan, apagadas[0], nota=4)
+    s = rodar(monkeypatch, 'confirmar', apagadas[0])
+    assert s.startswith('✦ **+')
+    assert botoes_de(s)[0]['rodar'] == f'fazer {apagadas[1]}'
 
 
-# ------------------------------------------------------------------ lote 2 · trecho (modelo simulado)
+# ------------------------------------------------------------------ trecho (modelo simulado)
 @pytest.fixture
 def modelo_falso(privado, monkeypatch):
-    fake = {'acoes': [{'titulo': f'Feixe novo {i}', 'tipo': 'praticar', 'skill': 'qualquer', 'por_que': 'p',
+    fake = {'acoes': [{'titulo': f'Centelha nova {i}', 'tipo': 'praticar', 'skill': 'qualquer', 'por_que': 'p',
                        'conceitos': ['c'], 'como': ['a', 'b'], 'onde_explorar': 'o', 'prompt': 'x', 'duracao_min': 15}
                       for i in range(3)]}
     registro = {'quando': jogo.agora(), 'tempo_total_s': 1, 'pico_memoria_mib': 1, 'tokens_entrada': 1,
@@ -293,10 +258,28 @@ def modelo_falso(privado, monkeypatch):
     monkeypatch.setattr(pipeline, 'run_plan', lambda payload, **kw: (SimpleNamespace(plan=fake), registro))
 
 
-def test_trecho_cria_3_feixes_da_skill_certa(modelo_falso):
+def test_trecho_cria_3_centelhas_da_skill_certa_apagadas_e_com_valor(modelo_falso):
     res = cli.gerar_trecho(DDD)
     assert len(res['feixes']) == 3
     assert all(f['skill_plano'] == DDD and f['origem'] == 'trecho' for f in res['feixes'])
+    assert all(f['estado'] == 'apagada' and 10 <= f['valor_lm'] <= 100 for f in res['feixes'])
+
+
+def test_trecho_nao_recalcula_o_valor_das_centelhas_que_ja_existem(modelo_falso):
+    plan = pipeline.load_state()['plano']
+    antes = {k: f['valor_lm'] for k, f in jogo.sincronizar(plan).items()}
+    cli.gerar_trecho(DDD)
+    depois = {k: f['valor_lm'] for k, f in jogo.sincronizar(pipeline.load_state()['plano']).items()}
+    assert all(depois[k] == v for k, v in antes.items())
+
+
+def test_trecho_recusa_prisma_que_ja_e_todo_luz_propria(modelo_falso, plan):
+    for k, f in jogo.sincronizar(plan).items():
+        con = banco.conectar()
+        with banco.transacao(con):
+            con.execute("UPDATE avanco SET estado = 'propria' WHERE id = ?", (k,))
+        con.close()
+    assert 'todo luz própria' in cli.gerar_trecho(DDD)['erro']
 
 
 def test_trecho_fica_salvo_no_estado_privado(modelo_falso):
@@ -304,25 +287,40 @@ def test_trecho_fica_salvo_no_estado_privado(modelo_falso):
     assert len(pipeline.load_state()['plano'].get('trechos', [])) == 1
 
 
-def test_comando_trecho_oferece_os_feixes_novos_em_botoes(modelo_falso, monkeypatch):
+def test_comando_trecho_oferece_as_centelhas_novas_em_botoes(modelo_falso, monkeypatch):
     b = botoes_de(rodar(monkeypatch, 'trecho', DDD))
     assert len(b) == 3
     assert all(x['rodar'].startswith('fazer ') for x in b)
 
 
-# ------------------------------------------------------------------ lote 2 · registrar e descartar
-def test_registrar_nota_3_oferece_revisitar_agora(plan, monkeypatch):
-    f = next(x for x in acoes.todas(plan) if x['estado'] == 'sugerido')
-    rodar(monkeypatch, 'fazer', f['id'])
-    s = rodar(monkeypatch, 'registrar', f['id'], '--nota', '3', '--resumo', 'teste')
-    assert 'centelha acesa' in s
-    assert any(x['rotulo'] == 'Revisitar agora' for x in botoes_de(s))
+# ------------------------------------------------------------------ registrar, confirmar e descartar
+def test_registrar_nota_3_oferece_acender_a_luz_propria(plan, apagadas, monkeypatch):
+    rodar(monkeypatch, 'fazer', apagadas[0])
+    s = rodar(monkeypatch, 'registrar', apagadas[0], '--nota', '3', '--resumo', 'teste')
+    assert 'a Luzia confirmou seu entendimento' in s
+    assert botoes_de(s)[0]['rotulo'] == 'Acender luz própria'
 
 
-def test_descartar_oferece_desfazer(plan, monkeypatch):
-    g = next(x for x in acoes.todas(plan) if x['estado'] == 'sugerido')
-    b = botoes_de(rodar(monkeypatch, 'descartar', g['id'], '--motivo', 'agora_nao'))
-    assert b and b[0]['rodar'] == f"restaurar {g['id']}"
+def test_descartar_oferece_desfazer(plan, apagadas, monkeypatch):
+    b = botoes_de(rodar(monkeypatch, 'descartar', apagadas[0], '--motivo', 'agora_nao'))
+    assert b and b[0]['rodar'] == f"restaurar {apagadas[0]}"
+
+
+def test_descartar_luz_propria_nao_muda_nada(plan, apagadas, monkeypatch):
+    _confirmada(plan, apagadas[0], nota=4)
+    jogo.confirmar(apagadas[0], plan)
+    s = rodar(monkeypatch, 'descartar', apagadas[0])
+    assert 'já é luz própria' in s and _centelhas()[apagadas[0]]['estado'] == 'propria'
+
+
+def test_restaurar_volta_ao_estado_de_antes(plan, apagadas, monkeypatch):
+    con = banco.conectar()
+    with banco.transacao(con):
+        con.execute("UPDATE avanco SET estado = 'refletida' WHERE id = ?", (apagadas[0],))
+    con.close()
+    rodar(monkeypatch, 'descartar', apagadas[0])
+    s = rodar(monkeypatch, 'restaurar', apagadas[0])
+    assert 'voltou para luz refletida' in s and _centelhas()[apagadas[0]]['estado'] == 'refletida'
 
 
 # ------------------------------------------------------------------ lote 3 · instalador num HOME falso
@@ -341,7 +339,7 @@ def test_comandos_instalados_com_o_caminho_resolvido(casa):
     instalar.comandos()
     hoje_md = (casa / 'commands' / 'luzia' / 'hoje.md').read_text(encoding='utf-8')
     assert '${CLAUDE_PLUGIN_ROOT}' not in hoje_md
-    assert 'luzia/..' in hoje_md
+    assert '/lz.py" cli' in hoje_md
 
 
 def test_hooks_registrados_uma_vez_so(casa):
@@ -369,4 +367,4 @@ def test_backup_do_settings_feito(casa):
 def test_regras_para_outros_agentes_com_o_caminho_certo(privado):
     regras = instalar.regras()
     assert '<LUZIA_CLI>' not in regras
-    assert 'python -m luzia.cli' in regras
+    assert '/lz.py" cli' in regras

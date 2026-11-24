@@ -1,0 +1,7 @@
+# Dependências da Luzia: pip install -r requirements.txt
+google-genai
+# Opcionais (só se você trocar de provedor ou quiser mais recursos):
+# anthropic
+# openai
+# psutil
+# pypdf

@@ -46,7 +46,7 @@ def test_estado_forma_completa(api):
     code, st = api('GET', '/api/estado')
     assert code == 200
     for chave in (
-        'perfil', 'trajetoria', 'rota', 'prismas', 'skills',
+        'perfil', 'trajetoria', 'luz', 'centelhas', 'hero', 'carreira', 'prismas', 'skills',
         'avancos', 'acoes', 'entregas', 'lumens', 'pedidos',
         'regras', 'modelo', 'modo', 'modo_nome',
     ):
@@ -57,12 +57,61 @@ def test_estado_forma_completa(api):
     assert isinstance(st['trajetoria']['versoes'], list)
     assert len(st['prismas']) >= 2
     p0 = st['prismas'][0]
-    assert 'espectro' in p0 and len(p0['espectro']) == 5
     assert 'leitura' in p0
+    for removida in ('nivel', 'espectro', 'voce', 'alvo', 'sugere', 'proximo', 'pronto', 'degraus'):
+        assert removida not in p0, removida
+    assert 'rota' not in st and 'limiar' not in st['regras'] and st['regras']['nota_converte'] == jogo.NOTA_CONVERTE
+
+
+def test_estado_luz_centelhas_hero_carreira(api):
+    _, st = api('GET', '/api/estado')
+    luz = st['luz']
+    assert 'por_prisma' not in luz and {'tot', 'propria', 'refletida', 'pct', 'por_estado', 'n_converter'} <= set(luz)
+    assert set(st['carreira']) == {'de', 'para'}
+    ids = {c['id'] for c in st['centelhas']}
+    assert ids and len(ids) == len(st['centelhas'])
+    for c in st['centelhas']:
+        assert {'id', 'prisma', 'titulo', 'desc', 'porque', 'lm', 'estado', 'rotulo', 'origem', 'onde', 'tipo', 'min', 'guia',
+                'conta', 'confirmada', 'nota', 'tentativas', 'entrega_id', 'dimensao', 'hoje', 'na_fila'} <= set(c)
+        assert isinstance(c['guia'], list) and c['rotulo'] == jogo.ROTULO_ESTADO[c['estado']]
+    for p in luz['prismas']:
+        assert 'nivel' not in p and 'leitura' in p
+        estados = [jogo.ORDEM_ESTADO[x['estado']] for x in p['lista']]
+        assert estados == sorted(estados) and {x['id'] for x in p['lista']} <= ids
+    assert st['hero'] is None or st['hero'] in ids
+
+
+def test_converter_e_confirmar_pelo_painel(api):
+    _, st = api('GET', '/api/estado')
+    cid = next(c['id'] for c in st['centelhas'] if c['estado'] == 'apagada')
+    assert api('POST', '/api/confirmar', {'id': cid})[0] == 400  # ainda não está em conversão
+    c, r = api('POST', '/api/converter', {'id': cid})
+    assert c == 200 and r['ok'] and r['estado'] == 'convertendo'
+    _, st = api('GET', '/api/estado')
+    assert next(x for x in st['centelhas'] if x['id'] == cid)['estado'] == 'convertendo'
+    assert st['hero'] == cid or st['hero'] is not None
+    c, r = api('POST', '/api/confirmar', {'id': cid})
+    assert c == 400 and 'confirm' in r['erro']  # a Luzia ainda não avaliou
+    plan = pipeline.load_state()['plano']
+    assert jogo.avaliar(cid, 4, 'explicou bem', plan)['confirmada']
+    c, r = api('POST', '/api/confirmar', {'id': cid})
+    assert c == 200 and r['ganho'] > 0 and r['feixe'] == {'id': cid, 'estado': 'propria'}
+    assert r['pct_depois'] > r['pct_antes'] and 'prisma' in r and 'marco' in r
+    _, st = api('GET', '/api/estado')
+    assert next(x for x in st['centelhas'] if x['id'] == cid)['estado'] == 'propria'
+    assert api('POST', '/api/confirmar', {'id': cid})[0] == 400  # só uma vez
+    assert api('POST', '/api/confirmar', {'id': 'zzzz'})[0] == 404
+    assert api('POST', '/api/converter', {'id': 'zzzz'})[0] == 400
+
+
+def test_rotas_de_nivel_foram_removidas(api):
+    for rota in ('/api/nivel', '/api/autoavaliacao', '/api/subir'):
+        assert api('POST', rota, {'prisma': DDD, 'nivel': 2})[0] == 404, rota
+        assert rota not in server.ROTAS_POST
 
 
 def test_avancos_filtros_get(api):
-    q = f'/api/avancos?estado=sugerido&prisma={quote(DDD)}&tipo=praticar'
+    q = f'/api/avancos?estado=apagada&prisma={quote(DDD)}&tipo=praticar'
     code, data = api('GET', q)
     assert code == 200
     lista = data['avancos']
@@ -164,10 +213,7 @@ def test_pedido_fluxo_api(api, monkeypatch):
     assert 'Mensageria' in nomes_prismas
 
 
-def test_nivel_acender_leituras_api(api, monkeypatch):
-    c_nv, r_nv = api('POST', '/api/nivel', {'prisma': DDD, 'nivel': 2})
-    assert c_nv == 200 and r_nv.get('ok') is True
-
+def test_acender_leituras_api(api, monkeypatch):
     fake_trecho = {
         'acoes': [
             {
@@ -362,8 +408,6 @@ def test_validacoes_de_cada_acao_devolvem_400_ou_404_sem_gravar(api, privado):
     casos = [
         ('/api/modo', {'modo': 'inventado'}, 400, 'modo inválido'),
         ('/api/agente', {'agente': 'inventado'}, 400, 'agente inválido'),
-        ('/api/nivel', {'prisma': DDD, 'nivel': 'alto'}, 400, 'nível inválido'),
-        ('/api/nivel', {'prisma': 'Prisma que não existe', 'nivel': 2}, 400, 'prisma desconhecido'),
         ('/api/descartar', {'id': 'abcd', 'motivo': 'qualquer'}, 400, 'motivo inválido'),
         ('/api/enviar', {'id': 'zzzz'}, 404, 'não encontrada'),
         ('/api/iniciar', {'id': 'zzzz'}, 400, 'não pode ser iniciada'),
@@ -386,11 +430,6 @@ def test_acender_sem_modelo_devolve_400_e_nao_grava_avancos(api, monkeypatch):
     assert c == 400 and r.get('erro')
     _, depois = api('GET', '/api/estado')
     assert len(depois['avancos']) == len(antes['avancos'])
-
-
-def test_subir_sem_nivel_pronto_devolve_o_motivo(api):
-    c, r = api('POST', '/api/subir', {'prisma': DDD})
-    assert c == 400 and 'lm' in r['erro'] and 'feixe' not in r['erro'].lower()
 
 
 def test_ampliar_entregas_com_dias_invalidos_devolve_400(api):

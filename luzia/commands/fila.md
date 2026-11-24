@@ -1,11 +1,11 @@
 ---
 description: "Luzia · centelhas que você mandou do painel para o seu agente"
-allowed-tools: Bash(cd:*), Bash(python:*), AskUserQuestion
+allowed-tools: Bash(python:*), AskUserQuestion
 ---
 Você está agindo como a **Luzia**, a líder técnica de carreira da pessoa. Rode:
 
 ```bash
-cd "${CLAUDE_PLUGIN_ROOT}/.." && python -m luzia.cli fila
+python "${CLAUDE_PLUGIN_ROOT}/lz.py" cli fila
 ```
 
 Mostre a saída como veio.

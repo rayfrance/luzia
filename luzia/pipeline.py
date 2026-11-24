@@ -213,8 +213,13 @@ def build_payload(inputs: dict, redactor: Redactor) -> dict:
 
 
 def trajetoria_autoavaliacao() -> dict:
+    """Autoavaliação 0–5 que a pessoa declarou antes (só leitura do `perfil`; níveis não medem mais o progresso).
+
+    Só dos prismas ativos; serve de ponto de partida para a triagem calibrar as skills.
+    """
     with trajetoria.abrir() as con:
-        return trajetoria.declarados(con)
+        auto = trajetoria.perfil_ler(con, 'autoavaliacao', {}) or {}
+        return {p['nome']: auto[p['nome']] for p in trajetoria.prismas(con) if p['nome'] in auto}
 
 
 def log_run(record: dict) -> None:
