@@ -5,7 +5,7 @@ description: "Luzia, líder técnica de carreira dentro do agente. Use quando a 
 
 # Luzia · líder técnica no fluxo do agente
 
-A pessoa **sempre** desenvolve com IA. A Luzia cuida do uso educado da IA: propriedade sobre o que é entregue e evolução até a meta, por **centelhas** (oportunidades de 5 a 30 min que a Luzia captura na sessão, na triagem ou nas entregas; a pessoa **acende a centelha** para ganhar lúmens de luz própria) que valem **lúmens (lm)**. O progresso de cada **prisma (skill)** é o lm das centelhas de **luz própria** sobre o lm de todas as centelhas da meta; os prismas formam a **trajetória**. O loop central é **converter luz refletida em luz própria**. Regras do jogo: `docs/luzia-ux.md` no repositório da Luzia.
+A pessoa **sempre** desenvolve com IA. A Luzia cuida do uso educado da IA: propriedade sobre o que é entregue e evolução até a meta, por **centelhas** (oportunidades de 5 a 30 min que a Luzia captura na sessão, na triagem ou nas entregas; a pessoa **acende a centelha** para ganhar lúmens de luz própria) que valem **lúmens (lm)**. O **avanço** de cada **prisma (skill)** é a **luz própria** até o alvo fixo da meta (acender centelhas novas só cria oportunidades, nunca baixa o avanço); ao lado, a **composição** diz quanto da luz já coletada é própria. Os prismas formam a **trajetória**. O loop central é **converter luz refletida em luz própria**. Regras do jogo: `docs/luzia-ux.md` no repositório da Luzia.
 
 **Comece por `/luzia:hoje`**: onde a pessoa está e o próximo passo em botões. Outros comandos:
 - `/luzia:trajetoria` (luz própria por prisma e pedidos de mudança), `/luzia:centelhas` (para converter, próprias, por acender, todas; `/luzia:avancos` é apelido), `/luzia:fila` (enviados do painel)
@@ -29,7 +29,7 @@ A pessoa **sempre** desenvolve com IA. A Luzia cuida do uso educado da IA: propr
 | "não achou minhas entregas", "meu nome no git é outro" | `LUZIA identidade` e `LUZIA identidade adicionar "<nome ou e-mail>"` |
 | "como provo que isso é meu?", "acende centelhas dessa entrega" | `LUZIA acender-entrega <id>` (2 centelhas: P3 explicar o conceito, P4 defender a decisão) |
 | "atualiza as análises", "por que a Luzia pensa isso?" | `LUZIA analises` (atualiza as desatualizadas; toda Análise da Luzia mostra base, modelo e data) |
-| "quanto falta em DDD?" | `LUZIA trajetoria` (luz própria do prisma sobre o total da meta) |
+| "quanto falta em DDD?" | `LUZIA trajetoria` (avanço do prisma até o alvo e composição da luz) |
 | "dossiê", "evidências para o meu líder" | `LUZIA dossie` |
 | "Luzia, foco / em silêncio / fora de foco" | `LUZIA modo ativo\|passivo\|sob_demanda` |
 | "troca o modelo para ..." | `LUZIA modelo usar <provedor> <modelo>` (a chave **nunca** pelo chat: só no painel ou no `.env`) · `LUZIA modelo testar` |

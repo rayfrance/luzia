@@ -1,7 +1,7 @@
 """Linha de status da Luzia no rodapé do Claude Code.
 
 Lê o JSON da sessão no stdin e devolve uma linha curta:
-  ✦ Luzia · em foco · 62% própria · 3 para converter
+  ✦ Luzia · em foco · 62% do caminho · 3 para converter
 Só aparece nos repositórios autorizados; fora deles, não imprime nada.
 """
 
@@ -36,7 +36,7 @@ def linha(dados: dict) -> str:
     except Exception:
         return '✦ Luzia · em foco (/luzia:hoje)'
     foco_curto = 'em foco' if cfg['modo'] in ('ativo', 'passivo') else 'fora de foco'
-    partes = [f"✦ Luzia · {foco_curto} · {t['pct']}% própria"]
+    partes = [f"✦ Luzia · {foco_curto} · {t['pct']}% do caminho"]
     if t['n_converter'] > 0:
         partes.append(f"{t['n_converter']} para converter")
     return ' · '.join(partes)

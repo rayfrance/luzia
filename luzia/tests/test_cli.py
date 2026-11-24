@@ -183,8 +183,9 @@ def test_barra_luz_txt_um_glifo_por_estado():
     assert set(cli.barra_luz_txt(1, 1, 1, 500)) == {'█', '▓', '▒', '░'}  # quem tem lm aparece com ao menos 1 glifo
     assert all(len(cli.barra_luz_txt(a, b, c, d)) == cli.LARGURA_BARRA
                for a, b, c, d in ((7, 13, 29, 51), (1, 2, 3, 4), (33, 33, 33, 1)))
-    p = {'propria': 40, 'convertendo': 20, 'refletida': 50, 'apagada': 30}  # prisma de jogo.luz: refletida inclui convertendo
-    assert cli.barra_de(p, 14) == cli.barra_luz_txt(40, 20, 30, 30, 14)
+    # prisma de jogo.luz: refletida inclui convertendo; a barra vai até o alvo, e o que falta dele fica por acender
+    p = {'propria': 40, 'contado': 40, 'convertendo': 20, 'refletida': 50, 'apagada': 30, 'alvo_lm': 140}
+    assert cli.barra_de(p, 14) == cli.barra_luz_txt(40, 20, 30, 50, 14)
 
 
 def test_trajetoria_duas_linhas_por_prisma_sem_niveis(privado, monkeypatch):
@@ -195,9 +196,10 @@ def test_trajetoria_duas_linhas_por_prisma_sem_niveis(privado, monkeypatch):
     v = visivel(rodar(monkeypatch, 'trajetoria'))
     linhas = v.splitlines()
     assert linhas[0].startswith('## Luzia · Trajetória · v1')
-    assert re.fullmatch(r'Júnior 3 → Plena  [█▓▒░]{12}  \d+% seu', linhas[1]), linhas[1]
+    assert re.fullmatch(r'Júnior 3 → Plena  [█▓▒░]{12}  \d+% do caminho', linhas[1]), linhas[1]
     i = next(n for n, l in enumerate(linhas) if re.fullmatch(r'DDD  [█▓▒░]{12}  0%', l))
-    assert re.fullmatch(r'   0 de \d+ lm · 1 para converter · 0 por acender', linhas[i + 1]), linhas[i + 1]
+    assert re.fullmatch(r'   0 de \d+ lm do alvo · 0% da luz coletada é sua · 1 para converter · 0 oportunidades',
+                        linhas[i + 1]), linhas[i + 1]
     assert not any('nível' in l.lower() or '▰' in l or '▱' in l for l in linhas)
     assert 'Domain-Driven Design' not in v  # nome curto; o completo fica no painel
     assert sum(1 for l in linhas if re.fullmatch(r'\S.*  [█▓▒░]{12}  \d+%', l)) == 3  # um por prisma
@@ -208,7 +210,7 @@ def test_trajetoria_prisma_todo_proprio_esta_na_meta(privado, monkeypatch):
     for i in _apagadas(plan):
         _forcar_estado(i, 'propria')
     v = visivel(rodar(monkeypatch, 'trajetoria'))
-    assert v.count('Na meta · tudo é luz própria') == 3 and '100%' in v and '█' * 12 in v
+    assert v.count('Alvo alcançado') == 3 and '100%' in v and '█' * 12 in v
 
 
 def test_hoje_mostra_a_centelha_que_mais_vale_converter(privado, monkeypatch):
@@ -222,7 +224,7 @@ def test_hoje_mostra_a_centelha_que_mais_vale_converter(privado, monkeypatch):
     v = visivel(s)
     linhas = v.splitlines()
     assert linhas[0] == '## Luzia · Hoje'
-    assert re.fullmatch(r'Júnior 3 → Plena  [█▓▒░]{12}  \d+% seu', linhas[1]), linhas[1]
+    assert re.fullmatch(r'Júnior 3 → Plena  [█▓▒░]{12}  \d+% do caminho', linhas[1]), linhas[1]
     assert re.fullmatch(r'3 centelhas para converter · \d+ lm', linhas[2]), linhas[2]
     assert linhas[3] == '' and linhas[4].startswith('◐ **') and jogo._um(c)['titulo'] in linhas[4]
     assert re.fullmatch(r'  Apareceu em .+ · \w+ · \d+ min · \+\d+ lm|  Da .+ · \w+ · \d+ min · \+\d+ lm', linhas[5]), linhas[5]
@@ -292,7 +294,7 @@ def test_confirmar_vira_luz_propria_e_mostra_o_ganho(privado, monkeypatch):
     pct = jogo.luz(plan)['por_prisma'][antes['skill_plano']]['pct']
     assert abertura == f"✦ **+{antes['valor_lm']} lm de luz própria** · DDD 0% → {pct}%", abertura
     assert pct > 0 and antes['titulo'] in v and 'Parabéns' not in v
-    assert re.search(r'Júnior 3 → Plena  [█▓▒░]{12}  \d+% seu', v)
+    assert re.search(r'Júnior 3 → Plena  [█▓▒░]{12}  \d+% do caminho', v)
     f = jogo._um(f1)
     assert f['estado'] == 'propria' and f['lm_ganho'] == antes['valor_lm']
     assert [(x['lm'], x['luz'], x['ref']) for x in jogo.livro()] == [(antes['valor_lm'], 'propria', f1)]
@@ -425,7 +427,7 @@ def test_pedido_fluxo_completo_pelo_chat(privado, monkeypatch):
     s_traj = rodar(monkeypatch, 'trajetoria')
     v_traj = visivel(s_traj)
     assert re.search(r'Observabilidade  [█▓▒░]{12}  0%', v_traj)
-    assert '1 por acender' in v_traj  # a centelha da proposta nasce apagada
+    assert '1 oportunidade' in v_traj  # a centelha da proposta nasce apagada
 
 
 def test_vocabulario_sem_termos_antigos(privado, monkeypatch):

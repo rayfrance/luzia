@@ -71,8 +71,10 @@ def _base_prisma(con: sqlite3.Connection, nome: str) -> dict:
             lm_estado[r['estado']], n_estado[r['estado']] = int(r['lm']), int(r['n'])
     luz_tot = sum(lm_estado.values())
     luz_ref = lm_estado['refletida'] + lm_estado['convertendo']
-    luz = {'tot': luz_tot, 'propria': lm_estado['propria'], 'refletida': luz_ref,
-           'pct': round(100 * lm_estado['propria'] / luz_tot) if luz_tot else 0,
+    linha_alvo = con.execute('SELECT alvo_lm FROM prisma WHERE nome = ?', (nome,)).fetchone()
+    alvo = (linha_alvo[0] if linha_alvo else None) or luz_tot  # avanço: luz própria até o alvo fixo do prisma
+    luz = {'tot': luz_tot, 'alvo_lm': alvo, 'propria': lm_estado['propria'], 'refletida': luz_ref,
+           'pct': round(100 * min(lm_estado['propria'], alvo) / alvo) if alvo else 0,
            'centelhas': {'propria': n_estado['propria'], 'convertendo': n_estado['convertendo'],
                          'refletida': n_estado['refletida'], 'apagada': n_estado['apagada']}}
 
@@ -160,8 +162,8 @@ def _base_pedido(con: sqlite3.Connection, pedido_id: str) -> dict:
     r = con.execute('SELECT * FROM pedido WHERE id = ?', (pid,)).fetchone()
     plano = trajetoria.perfil_ler(con, 'plano') or {}
     t = jogo.luz(plano, con)
-    resumo = {'tot': t['tot'], 'propria': t['propria'], 'pct': t['pct']}
-    ativos = [{'nome': p['nome'], 'pct': p['pct'], 'tot': p['tot'], 'propria': p['propria']} for p in t['prismas']]
+    resumo = {'alvo_lm': t['alvo_lm'], 'propria': t['propria'], 'pct': t['pct']}
+    ativos = [{'nome': p['nome'], 'pct': p['pct'], 'alvo_lm': p['alvo_lm'], 'propria': p['propria']} for p in t['prismas']]
     if r is None:
         return {'pedido_id': str(pedido_id), 'trajetoria': resumo, 'prismas_ativos': ativos}
     return {

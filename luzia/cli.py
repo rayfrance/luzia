@@ -67,15 +67,23 @@ def barra_luz_txt(propria: float = 0, convertendo: float = 0, refletida: float =
     return ''.join(GLIFOS_LUZ[k] * n[k] for k, _ in partes)
 
 
+def _barra_alvo(contado: int, convertendo: int, refletida: int, alvo: int, largura: int) -> str:
+    """Barra rumo ao alvo: própria contada, convertendo e refletida; o resto do alvo fica por acender."""
+    resto = max(0, (alvo or 0) - contado - convertendo - refletida)
+    return barra_luz_txt(contado, convertendo, refletida, resto, largura)
+
+
 def barra_de(p: dict, largura: int = LARGURA_BARRA) -> str:
-    """Barra de um prisma de `jogo.luz` (a chave `refletida` dele já inclui o que está convertendo)."""
-    return barra_luz_txt(p.get('propria', 0), p.get('convertendo', 0),
-                         max(0, p.get('refletida', 0) - p.get('convertendo', 0)), p.get('apagada', 0), largura)
+    """Barra de um prisma de `jogo.luz` rumo ao alvo (a chave `refletida` dele já inclui o que está convertendo)."""
+    conv = p.get('convertendo', 0)
+    alvo = p.get('alvo_lm') or p.get('tot') or (p.get('propria', 0) + p.get('refletida', 0) + p.get('apagada', 0))
+    return _barra_alvo(p.get('contado', p.get('propria', 0)), conv, max(0, p.get('refletida', 0) - conv), alvo, largura)
 
 
 def barra_total(t: dict, largura: int = LARGURA_BARRA) -> str:
     e = t.get('por_estado') or {}
-    return barra_luz_txt(e.get('propria', 0), e.get('convertendo', 0), e.get('refletida', 0), e.get('apagada', 0), largura)
+    return _barra_alvo(t.get('contado', e.get('propria', 0)), e.get('convertendo', 0), e.get('refletida', 0),
+                       t.get('alvo_lm', t.get('tot', 0)), largura)
 
 
 # ------------------------------------------------------------------ entradas e redação
@@ -104,7 +112,7 @@ def base_triagem(mascarado: bool, cfg: dict | None = None) -> str:
 
 
 def skills_summary(plan: dict) -> list[dict]:
-    return [{'nome': p['nome'], 'luz_propria_pct': p['pct'], 'lm_total': p['tot']} for p in jogo.luz(plan)['prismas']]
+    return [{'nome': p['nome'], 'avanco_pct': p['pct'], 'alvo_lm': p['alvo_lm']} for p in jogo.luz(plan)['prismas']]
 
 
 # ------------------------------------------------------------------ chamadas ao modelo
@@ -179,6 +187,69 @@ def nota_valida(bruta) -> int | None:
     return n if 0 <= n <= 4 else None
 
 
+def _pedir_centelhas(plan: dict, skill: str, pct: int, rotulo: str) -> tuple[list[dict], dict]:
+    """Uma chamada ao modelo: 3 centelhas novas para o prisma (só lê; quem chama grava o trecho)."""
+    t0 = time.perf_counter()
+    s = next((x for x in plan.get('skills', []) if x['nome'] == skill), {})
+    existentes = [f for f in acoes.todas(plan, descartados=True) if (f.get('skill_plano') or f.get('skill')) == skill]
+    payload = {
+        'objetivo': plan.get('aonde_quer_chegar', {}),
+        'skill': {'nome': skill, 'luz_propria_pct': pct, 'evidencia': s.get('evidencia', '')},
+        'feixes_existentes': [{'titulo': f.get('titulo'), 'estado': f.get('estado')} for f in existentes],
+        'feixes_descartados_pela_pessoa': [m for m in jogo.motivos_descartados() if jogo.skill_de(m.get('skill') or '', plan) == skill],
+    }
+    result, record = pipeline.run_plan(payload, prep_seconds=time.perf_counter() - t0, label=rotulo,
+                                       schema=planner.TRECHO_SCHEMA,
+                                       intro='Trajetória salva da pessoa e o prisma que precisa de 3 novas centelhas:')
+    novas = [a for a in result.plan.get('acoes', []) if isinstance(a, dict) and a.get('titulo')][:3]
+    for a in novas:  # a centelha é do prisma pedido, uma habilidade só, mesmo que o modelo escreva outro nome
+        a['skill'] = skill
+    return novas, record
+
+
+META_MINIMA = 3  # toda meta nasce com pelo menos 3 centelhas por prisma (o alvo é o lm delas)
+
+
+def completar_meta(rotulo: str = 'triage-meta') -> list[str]:
+    """Depois da triagem: completa os prismas com menos de 3 centelhas da meta e fixa os alvos de novo.
+
+    As chamadas ao modelo saem em paralelo (uma por prisma) e o plano é gravado uma vez só no fim. Um prisma que
+    falhar fica com o que tem (o alvo padrão cobre quem ficar sem nenhuma). Devolve os prismas completados.
+    """
+    from concurrent.futures import ThreadPoolExecutor
+
+    plan = pipeline.load_state().get('plano', {})
+    jogo.sincronizar(plan)
+    with trajetoria.abrir() as con:
+        n_meta = {r['prisma']: int(r['n']) for r in con.execute(
+            "SELECT prisma, COUNT(*) AS n FROM avanco WHERE estado != 'descartada' AND COALESCE(origem, '') != 'chat' "
+            'AND prisma IS NOT NULL GROUP BY prisma')}
+        faltam = [n for n in jogo.ativos(plan, con) if n_meta.get(n, 0) < META_MINIMA]
+
+    def pedir(skill: str):
+        try:
+            return skill, *_pedir_centelhas(plan, skill, 0, rotulo)
+        except Exception as e:  # sem rede ou resposta ruim: segue sem este prisma, o erro fica registrado
+            arquivos.registrar_erro('completar meta', e)
+            return skill, [], None
+
+    feitos, trechos, record = [], list(plan.get('trechos', [])), None
+    if faltam:
+        with ThreadPoolExecutor(max_workers=min(4, len(faltam))) as ex:
+            for skill, novas, rec in ex.map(pedir, faltam):
+                if novas and rec:
+                    trechos.append({'skill': skill, 'quando': rec['quando'], 'acoes': novas})
+                    feitos.append(skill)
+                    record = rec
+    if record:
+        pipeline.update_state({'trechos': trechos}, record)
+        plan = pipeline.load_state().get('plano', {})
+        jogo.sincronizar(plan)
+    with trajetoria.abrir() as con:
+        jogo.fixar_alvos(con, plan, refazer=True)  # a triagem define a trajetória: os alvos valem a partir daqui
+    return feitos
+
+
 def gerar_trecho(skill: str, rotulo: str = 'cmd-trecho') -> dict:
     """Acende 3 centelhas novas para um prisma (quando ele fica sem centelha aberta ou a pessoa pede mais).
 
@@ -190,24 +261,10 @@ def gerar_trecho(skill: str, rotulo: str = 'cmd-trecho') -> dict:
     if not p:
         return {'erro': 'prisma não encontrado na sua trajetória'}
     if p['na_meta']:
-        return {'erro': 'este prisma já é todo luz própria'}
-    t0 = time.perf_counter()
-    s = next((x for x in plan.get('skills', []) if x['nome'] == skill), {})
-    existentes = [f for f in acoes.todas(plan, descartados=True) if (f.get('skill_plano') or f.get('skill')) == skill]
-    payload = {
-        'objetivo': plan.get('aonde_quer_chegar', {}),
-        'skill': {'nome': skill, 'luz_propria_pct': p['pct'], 'evidencia': s.get('evidencia', '')},
-        'feixes_existentes': [{'titulo': f.get('titulo'), 'estado': f.get('estado')} for f in existentes],
-        'feixes_descartados_pela_pessoa': [m for m in jogo.motivos_descartados() if jogo.skill_de(m.get('skill') or '', plan) == skill],
-    }
-    result, record = pipeline.run_plan(payload, prep_seconds=time.perf_counter() - t0, label=rotulo,
-                                       schema=planner.TRECHO_SCHEMA,
-                                       intro='Trajetória salva da pessoa e o prisma que precisa de 3 novas centelhas:')
-    novas = [a for a in result.plan.get('acoes', []) if isinstance(a, dict) and a.get('titulo')][:3]
+        return {'erro': 'este prisma já chegou ao alvo da meta'}
+    novas, record = _pedir_centelhas(plan, skill, p['pct'], rotulo)
     if not novas:
         return {'erro': 'o modelo não devolveu centelhas; tente de novo'}
-    for a in novas:  # a centelha é do prisma pedido, uma habilidade só, mesmo que o modelo escreva outro nome
-        a['skill'] = skill
     trechos = plan.get('trechos', []) + [{'skill': skill, 'quando': record['quando'], 'acoes': novas}]
     pipeline.update_state({'trechos': trechos}, record)
     plan = pipeline.load_state().get('plano', {})
@@ -442,24 +499,25 @@ def oferecer(lista: list[dict], pergunta: str = 'Próximo passo?') -> None:
 
 
 def linha_rota(plan: dict, state: dict | None = None) -> dict:
-    """A trajetória em uma linha: `Júnior 3 → Plena  ███▓▒▒░░░░░░  62% seu`."""
+    """A trajetória em uma linha: `Júnior 3 → Plena  ███▓▒▒░░░░░░  62% do caminho`."""
     jogo.sincronizar(plan)  # as centelhas do plano entram no catálogo antes de somar a luz
     t = jogo.luz(plan)
     ini, fim = pipeline.rotulos(state or pipeline.load_state())
-    print(f"{ini} → {fim}  {barra_total(t)}  {t['pct']}% seu")
+    print(f"{ini} → {fim}  {barra_total(t)}  {t['pct']}% do caminho")
     return t
 
 
 def prisma_linhas(p: dict) -> list[str]:
-    """Duas linhas por prisma: o nome com a barra e o %, depois o que falta."""
+    """Duas linhas por prisma: o nome com a barra e o avanço, depois o alvo, a composição e as oportunidades."""
     out = [f"{nome_prisma(p['nome'])}  {barra_de(p)}  {p['pct']}%"]
+    composicao = f" · {p['luz_pct']}% da luz coletada é sua" if p.get('coletada') else ''
     if p['na_meta']:
-        out.append('   Na meta · tudo é luz própria')
+        out.append(f"   Alvo alcançado · {p['propria']} lm de luz própria{composicao}")
     elif not p['n']:
-        out.append('   Nenhuma centelha ainda · acenda 3 para começar')
+        out.append(f"   0 de {p['alvo_lm']} lm do alvo · nenhuma centelha ainda: acenda 3 para começar")
     else:
-        out.append(f"   {p['propria']} de {p['tot']} lm · {p['n_converter']} para converter · {p['n_apagada']} por acender"
-                   + (' · meta por decidir' if p.get('meta_estado') == 'a_propor' else ''))
+        out.append(f"   {p['contado']} de {p['alvo_lm']} lm do alvo{composicao} · {p['n_converter']} para converter · "
+                   f"{plural(p['n_apagada'], 'oportunidade')}" + (' · meta por decidir' if p.get('meta_estado') == 'a_propor' else ''))
     return out
 
 
@@ -479,7 +537,8 @@ def base_resumo(alvo_tipo: str | None, base: dict | None) -> str:
     b = base if isinstance(base, dict) else {}
     if alvo_tipo == 'prisma':
         lz = b.get('luz') or {}
-        return (f"{lz.get('pct', 0)}% de luz própria ({lz.get('propria', 0)} de {lz.get('tot', 0)} lm), "
+        alvo = lz.get('alvo_lm', lz.get('tot', 0))
+        return (f"{lz.get('pct', 0)}% do alvo ({min(lz.get('propria', 0), alvo)} de {alvo} lm), "
                 f"{plural(len(b.get('avancos_conquistados') or []), 'centelha própria', 'centelhas próprias')}, "
                 f"{plural(b.get('entregas_total', 0), 'entrega')}")
     if alvo_tipo == 'entrega':
@@ -1469,6 +1528,10 @@ def main() -> None:
                 json.dumps({'plano': plan, 'custo': rec, 'hits': hits}, ensure_ascii=False, indent=2), encoding='utf-8',
             )
             return
+        try:
+            completar_meta(rotulo + '-meta')
+        except Exception as e:  # a triagem já valeu; sem completar, os prismas ficam com o que vieram (alvo padrão)
+            arquivos.registrar_erro('cli triage completar meta', e)
         state = pipeline.load_state()
         plan = state.get('plano', {})
         print('## Luzia · Triagem')
@@ -1762,7 +1825,7 @@ def main() -> None:
         if res.get('marco'):
             print(f"✦ Marco {res['marco']['n']} de 3 · dossiê gerado em `{res['marco']['dossie']}` (local).")
         ini, fim = pipeline.rotulos(state)
-        print(f"{ini} → {fim}  {barra_total(res['luz'])}  {res['luz']['pct']}% seu")
+        print(f"{ini} → {fim}  {barra_total(res['luz'])}  {res['luz']['pct']}% do caminho")
         botoes([*proximos_botoes(plan, {a['id']})[:2], BT_CONVERTER], 'Próximo passo?')
         return
 

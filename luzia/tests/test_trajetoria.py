@@ -39,7 +39,8 @@ def test_arquivado_fora_da_trajetoria_mas_lumens_contam(con):
     _centelha(con, 'c2', DDD, 'apagada', 60)
     _centelha(con, 'c3', TESTES, 'refletida', 40)
     antes = jogo.luz(plan, con)
-    assert (antes['tot'], antes['propria'], antes['pct']) == (160, 60, 38)
+    assert (antes['tot'], antes['propria']) == (160, 60)
+    assert antes['pct'] == round(100 * 60 / antes['alvo_lm'])  # prisma sem centelha conta com o alvo padrão
     assert trajetoria.lumens_totais(con) == (100, 60)
     with banco.transacao(con):
         con.execute("UPDATE prisma SET estado = 'arquivado' WHERE nome = ?", (DDD,))

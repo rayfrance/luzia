@@ -31,7 +31,8 @@ if os.name == 'nt':
 else:
     import fcntl
 
-ESQUEMA_VERSAO = 4  # 2: acesso_sessao e acesso_link; 3: pedido 'dividir'; 4: centelhas (estados de luz, onde, meta_estado)
+ESQUEMA_VERSAO = 5  # 2: acesso_sessao e acesso_link; 3: pedido 'dividir'; 4: centelhas (estados de luz, onde, meta_estado)
+#                     5: prisma.alvo_lm (avanço com alvo fixo; nulo até a próxima sincronização fixar)
 ESPERA_MS = 5000
 ESPERA_CURTA_MS = 1500  # caminho quente do hook: abrir e gravar cabem no tempo dele
 PENDENTES = 'pendentes.jsonl'
@@ -86,7 +87,8 @@ ESQUEMA = (
         origem TEXT NOT NULL DEFAULT 'triagem' CHECK (origem IN ('triagem', 'pedido')),
         ultimo_nivel_em TEXT,
         criado_em TEXT,
-        meta_estado TEXT NOT NULL DEFAULT 'definida'  -- 'a_propor': a Luzia ainda vai propor as centelhas da meta
+        meta_estado TEXT NOT NULL DEFAULT 'definida',  -- 'a_propor': a Luzia ainda vai propor as centelhas da meta
+        alvo_lm INTEGER  -- lm de luz própria que completa o prisma; fixado quando a meta é definida (jogo.fixar_alvos)
     )""",
     """CREATE TABLE IF NOT EXISTS leitura (
         id INTEGER PRIMARY KEY,
@@ -766,11 +768,11 @@ TIPOS_PEDIDO_V3 = "CHECK (tipo IN ('incluir', 'arquivar', 'reativar', 'mudar_met
 
 
 COLUNAS_V4 = (('avanco', 'onde', 'TEXT'), ('avanco', 'confirmada_em', 'TEXT'),
-              ('prisma', 'meta_estado', "TEXT NOT NULL DEFAULT 'definida'"))
+              ('prisma', 'meta_estado', "TEXT NOT NULL DEFAULT 'definida'"), ('prisma', 'alvo_lm', 'INTEGER'))
 
 
 def _colunas_v4(con: sqlite3.Connection) -> None:
-    """4: colunas novas das centelhas (ADD COLUMN só acrescenta; nada do que existe muda)."""
+    """4 e 5: colunas novas das centelhas e do alvo (ADD COLUMN só acrescenta; nada do que existe muda)."""
     for tabela, coluna, tipo in COLUNAS_V4:
         if coluna not in {r[1] for r in con.execute(f'PRAGMA table_info({tabela})')}:
             con.execute(f'ALTER TABLE {tabela} ADD COLUMN {coluna} {tipo}')

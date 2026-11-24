@@ -6,7 +6,7 @@ Decidido com a Rayane em 12/11/2026 (persistência, trajetória, prismas e leitu
 Nome real primeiro; a metáfora de luz só onde explica algo.
 
 - **Trajetória**: o caminho do rótulo de carreira atual até a meta (ex.: Júnior 3 até Plena), versionado e ajustável por pedido formal de mudança.
-- **Prisma (skill)**: **uma única habilidade** da trajetória (ex.: *Domain-Driven Design (DDD)*, *SQL*, *React*), nunca um nome que junta assuntos. Nos rótulos aparece só o nome, sem "Prisma" na frente. Cada prisma mostra uma barra: a luz própria sobre o total da meta.
+- **Prisma (skill)**: **uma única habilidade** da trajetória (ex.: *Domain-Driven Design (DDD)*, *SQL*, *React*), nunca um nome que junta assuntos. Nos rótulos aparece só o nome, sem "Prisma" na frente. Cada prisma mostra uma barra: o avanço até o alvo da meta.
 - **Dividir um prisma composto** (`dividir "<prisma>"`, `dividir-todos` ou "Separar em habilidades" no painel): pedido de mudança formal, sem modelo. Cada habilidade herda a meta do antigo; cada centelha vai para a habilidade que ela trata, **com a luz que já tinha** (você confere, renomeia uma parte ou move uma centelha antes de aceitar); o antigo é arquivado com tudo o que acumulou.
 - **Centelha**: uma oportunidade de 5 a 30 min ligada a um conceito de um prisma. Nasce na sessão, na triagem, numa entrega ou num pedido de mudança. A origem aparece numa etiqueta curta: *da sessão*, *da triagem*, *da entrega*. Tipos: `praticar`, `explicar`, `estudar`, `explorar`. (No código e no banco, o nome continua `avanco`.) Toda centelha está num de quatro estados:
   - **Por acender** (`apagada`): a Luzia a captou; ninguém aplicou nem explicou o conceito ainda.
@@ -25,7 +25,7 @@ Nome real primeiro; a metáfora de luz só onde explica algo.
 > Nos **dossiês e textos formais** (para líder ou PDI), a Luzia usa linguagem formal ("skill", "ação", "pontos de evidência", "autoria própria"), sem o vocabulário do jogo.
 
 ## Progresso sem calendário
-- O progresso de um prisma é o **lm das centelhas de luz própria ÷ o lm de todas as centelhas da meta**. Descartadas ficam de fora. Não há níveis.
+- O **avanço** de um prisma é a luz própria dele, até o **alvo**, sobre o alvo. O alvo é o lm das centelhas da meta quando ela é definida (na triagem, que completa cada prisma com pelo menos 3 centelhas, ou ao mudar a meta) e fica fixo: acender centelhas novas cria oportunidades e capturar luz refletida não mexe nele, então o avanço só sobe. Ao lado aparece a **composição**: quanto da luz já coletada (própria + refletida + convertendo) é sua; as apagadas ficam de fora. Não há níveis.
 - A trajetória soma os prismas ativos. O rótulo de carreira (ex.: Júnior 3 → Plena) vem do plano.
 - A luz só muda com o seu sim: a Luzia confirma o entendimento, você decide acender.
 - O **prazo** declarado apenas calibra o ritmo sugerido. Não cria datas obrigatórias nem trava o progresso.

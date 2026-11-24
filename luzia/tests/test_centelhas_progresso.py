@@ -262,7 +262,8 @@ def test_prisma_so_com_centelhas_do_chat_nao_esta_na_meta(plan):
             jogo.descartar(f['id'], 'agora_nao')
     observer.reconhecer_em('modele o Aggregate', 'prompt', 's1', 'ativo', 'prompt', 'prompt', _gaps(plan))
     p = _prisma(plan, DDD)
-    assert p['pct'] == 100 and not p['na_meta']
+    # o alvo continua o da meta (descartar não o encolhe): a centelha do chat conta, mas não completa o prisma
+    assert 0 < p['propria'] < p['alvo_lm'] and p['pct'] == round(100 * p['propria'] / p['alvo_lm']) and not p['na_meta']
 
 
 def test_marcos_da_luz_nao_herdam_os_do_modelo_de_niveis(plan):

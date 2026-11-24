@@ -326,6 +326,8 @@ def sincronizar(plan: dict) -> dict[str, dict]:
                     _inserir_avanco(con, cat[fid])
                 for fid in mudaram:
                     _atualizar_conteudo(con, cat[fid], antes[fid][3])
+        if _sem_alvo(con, plan):  # prisma novo ou banco vindo do esquema 4: fixa o alvo uma vez
+            fixar_alvos(con, plan)
     return cat
 
 
@@ -493,11 +495,11 @@ def confirmar(fid: str, plan: dict) -> dict:
 
 
 def _marco(con: sqlite3.Connection, t: dict) -> int | None:
-    """Marcos do dossiê em 1/3, 2/3 e 100% do lm próprio da trajetória (cada um uma vez)."""
+    """Marcos do dossiê em 1/3, 2/3 e 100% do avanço da trajetória (luz própria até o alvo; cada um uma vez)."""
     feitos = list(trajetoria.perfil_ler(con, MARCOS, []) or [])
     novo = None
     for i, corte in enumerate((100 / 3, 200 / 3, 100), 1):
-        if t['tot'] and 100 * t['propria'] / t['tot'] >= corte - 1e-9 and i not in feitos:
+        if t['alvo_lm'] and 100 * t['contado'] / t['alvo_lm'] >= corte - 1e-9 and i not in feitos:
             feitos.append(i)
             novo = i
     if novo is not None:
@@ -549,24 +551,57 @@ def para_casar(con: sqlite3.Connection) -> dict[str, list[dict]]:
     return out
 
 
-# ------------------------------------------------------------------ trajetória: luz própria sobre o total da meta
+# ------------------------------------------------------------------ trajetória: avanço até o alvo e composição da luz
 SQL_LUZ = """SELECT prisma, estado, COUNT(*) AS n, SUM(COALESCE(valor_lm, 0)) AS lm FROM avanco
              WHERE estado != 'descartada' AND prisma IS NOT NULL GROUP BY prisma, estado"""
 SQL_PROXIMAS = """SELECT id, prisma, estado, valor_lm FROM avanco WHERE estado IN ('convertendo', 'refletida', 'apagada')"""
 SQL_DA_META = """SELECT DISTINCT prisma FROM avanco WHERE estado != 'descartada' AND COALESCE(origem, '') != 'chat'"""
+SQL_LM_META = """SELECT prisma, SUM(COALESCE(valor_lm, 0)) AS lm FROM avanco
+                 WHERE estado != 'descartada' AND COALESCE(origem, '') != 'chat' AND prisma IS NOT NULL GROUP BY prisma"""
+ALVO_PADRAO = 180  # alvo de um prisma que ainda não tem centelhas da meta (cerca de 3 centelhas médias)
+
+
+def fixar_alvos(con: sqlite3.Connection, plan: dict, refazer: bool = False) -> None:
+    """Fixa o alvo (lm de luz própria que completa o prisma) dos prismas ativos: o lm das centelhas da meta agora.
+
+    Sem `refazer`, só preenche quem ainda não tem alvo (primeira sincronização, banco vindo do esquema 4, prisma novo
+    de um pedido). Com `refazer`, redefine todos: é o que a triagem faz, porque ela define a trajetória de novo.
+    Depois de fixado, acender centelhas novas ou capturar luz refletida não mexe no alvo; por isso o avanço só sobe.
+    """
+    nomes = ativos(plan, con)
+    lm_meta = {r['prisma']: int(r['lm'] or 0) for r in con.execute(SQL_LM_META)}
+    cond = '' if refazer else ' AND alvo_lm IS NULL'
+    with banco.transacao(con):
+        for n in nomes:
+            con.execute(f'UPDATE prisma SET alvo_lm = ? WHERE nome = ?{cond}', (lm_meta.get(n) or ALVO_PADRAO, n))
+
+
+def _sem_alvo(con: sqlite3.Connection, plan: dict) -> bool:
+    nomes = ativos(plan, con)
+    if not nomes:
+        return False
+    marcas = ','.join('?' * len(nomes))
+    return con.execute(f'SELECT 1 FROM prisma WHERE alvo_lm IS NULL AND nome IN ({marcas}) LIMIT 1', nomes).fetchone() is not None
 
 
 def luz(plan: dict, con: sqlite3.Connection | None = None, espera_ms: int | None = None) -> dict:
     """Quanto da trajetória já é luz própria: por prisma ativo e no total (poucas consultas; o painel lê a cada 4 s).
 
-    Por prisma: tot, propria, refletida (refletida + convertendo), convertendo, apagada, pct, pct_refletida, n,
-    n_propria, n_converter, n_apagada, na_meta, proxima (a centelha a converter primeiro) e meta_estado.
+    Duas medidas (decisão de 24/11/2026):
+    - avanço `pct`: luz própria até o alvo do prisma (`contado`) sobre o alvo (`alvo_lm`); só sobe, porque o alvo é fixo;
+    - composição `luz_pct`: própria sobre a luz coletada (própria + refletida + convertendo; apagadas ficam de fora).
+    Por prisma também: tot (lm de todas as centelhas abertas ou próprias: as oportunidades), propria, refletida
+    (refletida + convertendo), convertendo, apagada, pct_refletida, n, n_propria, n_converter, n_apagada, na_meta
+    (chegou ao alvo), proxima (a centelha a converter primeiro) e meta_estado.
     """
     if con is None:
         with trajetoria.abrir(espera_ms) as nova:
             return luz(plan, nova)
     nomes = ativos(plan, con)
-    meta_estado = {r['nome']: r['meta_estado'] for r in con.execute('SELECT nome, meta_estado FROM prisma')}
+    meta_estado, alvos = {}, {}
+    for r in con.execute('SELECT nome, meta_estado, alvo_lm FROM prisma'):
+        meta_estado[r['nome']], alvos[r['nome']] = r['meta_estado'], r['alvo_lm']
+    lm_meta = None  # só consultado se algum prisma ainda não tiver alvo fixado (leitura sem gravar)
     base = {n: {'propria': 0, 'convertendo': 0, 'refletida': 0, 'apagada': 0} for n in nomes}
     cont = {n: {'propria': 0, 'convertendo': 0, 'refletida': 0, 'apagada': 0} for n in nomes}
     for r in con.execute(SQL_LUZ):
@@ -585,20 +620,34 @@ def luz(plan: dict, con: sqlite3.Connection | None = None, espera_ms: int | None
         b, c = base[n], cont[n]
         tot = sum(b.values())
         refl = b['refletida'] + b['convertendo']
-        p = {'nome': n, 'tot': tot, 'propria': b['propria'], 'refletida': refl, 'convertendo': b['convertendo'],
-             'apagada': b['apagada'], 'pct': round(100 * b['propria'] / tot) if tot else 0,
+        alvo = alvos.get(n)
+        if not alvo:
+            if lm_meta is None:
+                lm_meta = {r['prisma']: int(r['lm'] or 0) for r in con.execute(SQL_LM_META)}
+            alvo = lm_meta.get(n) or ALVO_PADRAO
+        contado = min(b['propria'], alvo)
+        coletada = b['propria'] + refl
+        p = {'nome': n, 'tot': tot, 'alvo_lm': alvo, 'contado': contado, 'propria': b['propria'], 'refletida': refl,
+             'convertendo': b['convertendo'], 'apagada': b['apagada'], 'pct': round(100 * contado / alvo),
+             'luz_pct': round(100 * b['propria'] / coletada) if coletada else 0, 'coletada': coletada,
              'pct_refletida': round(100 * refl / tot) if tot else 0,
              'n': sum(c.values()), 'n_propria': c['propria'], 'n_converter': c['refletida'] + c['convertendo'],
-             'n_apagada': c['apagada'], 'na_meta': bool(tot) and b['propria'] == tot and n in da_meta,
+             'n_apagada': c['apagada'], 'na_meta': b['propria'] >= alvo and (n in da_meta or b['propria'] > 0),
              'proxima': proximas[n][2] if n in proximas else None, 'meta_estado': meta_estado.get(n, 'definida')}
         prismas_.append(p)
         por[n] = p
     tot = sum(p['tot'] for p in prismas_)
+    alvo = sum(p['alvo_lm'] for p in prismas_)
+    contado = sum(p['contado'] for p in prismas_)
     propria = sum(p['propria'] for p in prismas_)
+    coletada = sum(p['coletada'] for p in prismas_)
     por_estado = {e: sum(base[n][e] for n in nomes) for e in ('propria', 'convertendo', 'refletida', 'apagada')}
-    return {'tot': tot, 'propria': propria, 'refletida': por_estado['refletida'] + por_estado['convertendo'],
-            'pct': round(100 * propria / tot) if tot else 0, 'por_estado': por_estado, 'prismas': prismas_,
-            'por_prisma': por, 'n_converter': sum(p['n_converter'] for p in prismas_)}
+    return {'tot': tot, 'alvo_lm': alvo, 'contado': contado, 'propria': propria,
+            'refletida': por_estado['refletida'] + por_estado['convertendo'],
+            'pct': round(100 * contado / alvo) if alvo else 0,
+            'luz_pct': round(100 * propria / coletada) if coletada else 0, 'coletada': coletada,
+            'por_estado': por_estado, 'prismas': prismas_, 'por_prisma': por,
+            'n_converter': sum(p['n_converter'] for p in prismas_)}
 
 
 def ritmo(plan: dict, horizonte: str = '') -> dict:
@@ -606,7 +655,7 @@ def ritmo(plan: dict, horizonte: str = '') -> dict:
     with trajetoria.abrir() as con:
         t = luz(plan, con)
         abertas = [f for f in avancos(con, historico=False) if f.get('estado') in ABERTOS]
-    faltam = t['tot'] - t['propria']
+    faltam = t['alvo_lm'] - t['contado']
     meses = next((int(x) for x in str(horizonte).split() if x.isdigit()), 12)
     medio = (sum(int(f.get('valor_lm') or 40) for f in abertas) / len(abertas)) if abertas else 40
     semanas = max(1.0, meses * 4.33)

@@ -13,8 +13,15 @@ Corrigido (sem commit ainda), cada um com teste:
 - Hooks: sintaxe (`def`, `class`, `commit`) não cria centelha; palavra solta do nome do prisma não acende; "value object" casa com "ValueObject"; pasta irmã não passa por autorizada; evento que não é objeto é ignorado.
 - Guias: foco em Ajustes › Foco, pypdf opcional separado, "senioridade", botões condicionais explicados.
 
+## Avanço com alvo fixo (24/11, decisão da Rayane; versão 0.4.1, esquema 5)
+- Problema: acender centelhas aumentava o total e baixava o % (23% → 11%). Decisão: o avanço da trajetória é uma medida separada da composição da luz, e centelhas são oportunidades, nunca baixam o avanço.
+- Avanço (`pct`) = min(própria, `alvo_lm`) ÷ `alvo_lm` por prisma; trajetória = soma do contado ÷ soma dos alvos. `prisma.alvo_lm` é fixado pela primeira sincronização ou pela triagem (`jogo.fixar_alvos`, `refazer=True` na triagem); prisma sem centelha usa `ALVO_PADRAO` (180).
+- Composição (`luz_pct`) = própria ÷ (própria + refletida + convertendo).
+- A triagem chama `cli.completar_meta`: prismas com menos de 3 centelhas da meta ganham 3 (chamadas em paralelo), depois os alvos são fixados. Triagem real: 6 prismas com 3 a 5 centelhas, alvos de 153 a 360 lm, 29 s.
+- Verificado: converter dá 0% → 28% em Python e 5% na trajetória; acender 3 centelhas novas mantém 28% e 5% (oportunidades 3 → 6). Painel em 1440 e 375 px; 468 testes passam.
+- Para decidir: a barra segmentada de cada prisma mostra as centelhas (um segmento por centelha, largura pelo lm), então o preenchimento não bate com o % de avanço (Python: ~16% da barra, 28% no número).
+
 Fica para decidir ou para depois:
-- Acender centelhas novas aumenta o total e baixa o % próprio (ex.: 23% → 11%). É consequência do modelo P/total; precisa de decisão de design (ex.: % só sobre a meta fixada).
 - Pedidos de mudança da Trajetória (`cli.py` pedido) ainda falam em nível/meta (Etapa 3).
 - SessionStart logo após a triagem fica em silêncio (nada refletido nem na fila).
 - Hooks levam ~300–500 ms (Python frio); abaixo do timeout, mas soma a cada Edit.

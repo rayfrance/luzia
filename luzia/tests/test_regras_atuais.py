@@ -279,7 +279,7 @@ def test_trecho_recusa_prisma_que_ja_e_todo_luz_propria(modelo_falso, plan):
         with banco.transacao(con):
             con.execute("UPDATE avanco SET estado = 'propria' WHERE id = ?", (k,))
         con.close()
-    assert 'todo luz própria' in cli.gerar_trecho(DDD)['erro']
+    assert 'chegou ao alvo' in cli.gerar_trecho(DDD)['erro']
 
 
 def test_trecho_fica_salvo_no_estado_privado(modelo_falso):

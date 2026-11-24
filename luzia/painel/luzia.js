@@ -139,19 +139,27 @@ function segs(lista, { foco = '', classe = '', rotulo = '' } = {}) {
   const partes = lista.filter((x) => x.lm > 0).map((x) => `<i class="${esc(x.estado)} ${x.id && x.id === foco ? 'foco' : ''}" style="flex:${x.lm} 1 0" title="${esc(x.titulo ? `${ROTULO[x.estado] || x.estado}: ${x.titulo} · ${x.lm} lm` : `${ROTULO[x.estado] || x.estado} · ${x.lm} lm`)}"></i>`).join('');
   return `<span class="segs ${classe}" ${rotulo ? `role="img" aria-label="${esc(rotulo)}"` : 'aria-hidden="true"'}>${partes}</span>`;
 }
-const segsTotal = (classe = '') => {
-  const pe = E.luz?.por_estado || {};
-  return segs(['propria', 'convertendo', 'refletida', 'apagada'].map((k) => ({ estado: k, lm: pe[k] || 0 })), { classe });
+// barra da trajetória rumo ao alvo: própria contada, convertendo, refletida e o que falta do alvo (como no chat)
+const rumoAoAlvo = (t) => {
+  const pe = t?.por_estado || {};
+  const feito = { propria: t?.contado ?? pe.propria ?? 0, convertendo: pe.convertendo || 0, refletida: pe.refletida || 0 };
+  const falta = Math.max(0, (t?.alvo_lm || 0) - feito.propria - feito.convertendo - feito.refletida);
+  return [...Object.entries(feito).map(([estado, lm]) => ({ estado, lm })), { estado: 'apagada', lm: falta }];
 };
-const ariaPrisma = (p) => `${p.nome}: ${p.propria} de ${p.tot} lúmens em luz própria, ${p.refletida} refletidos para converter`;
-const tri = (p, g = false) => `<span class="tri ${g ? 'g' : ''}" aria-hidden="true" style="--p:${p.pct || 0};--r:${Math.min(100, (p.pct || 0) + (p.pct_refletida || 0))};filter:${p.pct ? `drop-shadow(0 0 ${6 + Math.round(p.pct / 8)}px rgba(240,138,60,.5))` : 'none'}"><span></span></span>`;
+const segsTotal = (classe = '') => segs(rumoAoAlvo(E.luz), { classe });
+const ariaPrisma = (p) => `${p.nome}: ${p.contado ?? p.propria} de ${p.alvo_lm ?? p.tot} lúmens do alvo em luz própria, ${p.refletida} refletidos para converter`;
+// composição: do que já foi coletado (própria + refletida + convertendo), quanto é luz própria; apagadas ficam de fora
+const composicao = (p) => (p && p.coletada ? `${p.luz_pct}% da luz coletada é sua` : '');
+const refAlvo = (p) => (p && p.alvo_lm ? Math.round((100 * (p.refletida || 0)) / p.alvo_lm) : 0);
+const tri = (p, g = false) => `<span class="tri ${g ? 'g' : ''}" aria-hidden="true" style="--p:${p.pct || 0};--r:${Math.min(100, (p.pct || 0) + refAlvo(p))};filter:${p.pct ? `drop-shadow(0 0 ${6 + Math.round(p.pct / 8)}px rgba(240,138,60,.5))` : 'none'}"><span></span></span>`;
 function resumoPrisma(p) {
-  if (p.na_meta) return 'Na meta · tudo é luz própria';
+  if (p.na_meta) return `Alvo alcançado${p.coletada ? ` · ${composicao(p)}` : ''}`;
   if (!p.n) return 'Nenhuma centelha ainda';
-  return [p.n_converter ? `${p.n_converter} para converter · ${p.refletida} lm` : '', p.n_apagada ? `${p.n_apagada} por acender` : '']
+  return [p.n_converter ? `${p.n_converter} para converter · ${p.refletida} lm` : '', p.n_apagada ? plural(p.n_apagada, 'oportunidade') : '']
     .filter(Boolean).join(' · ') || `${suas(p)}`;
 }
-const pctDepois = (p, c) => (p && p.tot ? Math.round((100 * (p.propria + (c.estado === 'propria' ? 0 : c.lm))) / p.tot) : 0);
+// avanço depois de converter: luz própria até o alvo fixo (acender não muda o alvo, então nada aqui baixa)
+const pctDepois = (p, c) => (p && p.alvo_lm ? Math.round((100 * Math.min(p.alvo_lm, p.propria + (c.estado === 'propria' ? 0 : c.lm))) / p.alvo_lm) : 0);
 const origemTxt = (c) => (c.entrega_id ? 'da entrega' : ORIGEM[String(c.origem || '').toLowerCase()] || '');
 const rotuloEstado = (c) => (c.estado === 'convertendo' && c.confirmada ? 'Convertendo · confirmada' : ROTULO[c.estado] || c.estado);
 function rotuloAcao(c) {
@@ -203,7 +211,7 @@ function resumoBaseLeitura(leitura, fallbackFatos = '') {
     const b = leitura.base;
     if (leitura.alvo_tipo === 'prisma') {
       const l = b.luz || b.lumens || {};
-      if (l.tot != null || l.propria != null) return `${l.propria ?? 0} de ${l.tot ?? 0} lm em luz própria, ${plural(b.n ?? l.n ?? 0, 'centelha')}`;
+      if (l.tot != null || l.propria != null) return `${Math.min(l.propria ?? 0, l.alvo_lm ?? l.tot ?? 0)} de ${l.alvo_lm ?? l.tot ?? 0} lm do alvo, ${plural(b.n ?? l.n ?? 0, 'centelha')}`;
       return fallbackFatos || 'centelhas e lúmens do prisma';
     }
     if (leitura.alvo_tipo === 'entrega') {
@@ -256,8 +264,8 @@ function linhaTrajetoria() {
   const c = E.carreira || {};
   const t = E.luz || {};
   return `<div class="linha-traj">
-    <button data-ir="trajetoria" aria-label="${esc(`${c.de || 'Hoje'} para ${c.para || 'a meta'}: ${t.pct || 0}% em luz própria, ${t.refletida || 0} lúmens refletidos para converter. Ver trajetória.`)}">
-      <span class="rot">${esc(c.de || 'Hoje')} → ${esc(c.para || 'Meta')}</span>${segsTotal('fina')}<b>${t.pct || 0}% seu</b>
+    <button data-ir="trajetoria" aria-label="${esc(`${c.de || 'Hoje'} para ${c.para || 'a meta'}: ${t.pct || 0}% do caminho em luz própria, ${t.refletida || 0} lúmens refletidos para converter. Ver trajetória.`)}">
+      <span class="rot">${esc(c.de || 'Hoje')} → ${esc(c.para || 'Meta')}</span>${segsTotal('fina')}<b>${t.pct || 0}% do caminho</b>
     </button>${seloFoco()}</div>`;
 }
 function avisoConfirmada() {
@@ -308,7 +316,7 @@ function destaque(c, chamada) {
         <span class="cor-propria">${orbe('propria', 'g')}própria</span>
         <span class="ganho"><b>+${c.lm}</b><span>lm de luz própria</span></span>
       </span>
-      <span class="pr"><b>${curto(c.prisma)}</b><span>${p.pct}% → <b class="cor-propria">${depois}%</b> seu</span></span>
+      <span class="pr"><b>${curto(c.prisma)}</b><span>${p.pct}% → <b class="cor-propria">${depois}%</b> do alvo</span></span>
       ${segs(p.lista || [], { foco: c.id })}
       <span class="discreto conta-link">Por que ${c.lm} lm</span>
     </button>
@@ -407,15 +415,15 @@ function telaTrajetoria() {
         <button class="btn sec" data-abrir-pedido-form="1">Mudar trajetória</button></div></div>
     ${bannerLeituras()}
     <div class="bloco traj-total">
-      <div class="linha1"><b>${t.pct || 0}%</b><span class="lacuna">do caminho até ${esc(c.para || 'a meta')} já é luz própria</span><small>${t.propria || 0} de ${t.tot || 0} lm</small></div>
-      ${segs(['propria', 'convertendo', 'refletida', 'apagada'].map((k) => ({ estado: k, lm: pe[k] || 0 })), { classe: 'grossa', rotulo: `${t.pct || 0}% em luz própria, ${t.refletida || 0} lúmens refletidos para converter` })}
-      <div class="legenda">${['propria', 'convertendo', 'refletida', 'apagada'].map((k) => `<span>${orbe(k)}${ROTULO[k]} <b>${pe[k] || 0} lm</b></span>`).join('')}</div>
+      <div class="linha1"><b>${t.pct || 0}%</b><span class="lacuna">do caminho até ${esc(c.para || 'a meta')} já é luz própria</span><small>${t.contado || 0} de ${t.alvo_lm || 0} lm do alvo${t.coletada ? ` · ${composicao(t)}` : ''}</small></div>
+      ${segs(rumoAoAlvo(t), { classe: 'grossa', rotulo: `${t.pct || 0}% do caminho, ${t.refletida || 0} lúmens refletidos para converter` })}
+      <div class="legenda">${['propria', 'convertendo', 'refletida', 'apagada'].map((k) => `<span>${orbe(k)}${k === 'apagada' ? 'Oportunidades' : ROTULO[k]} <b>${pe[k] || 0} lm</b></span>`).join('')}</div>
     </div>
     <div style="margin-top:20px">${renderFormPedido()}${pedidos.filter((p) => ['aberto', 'proposto'].includes(p.estado)).map(renderCardPedido).join('')}</div>
     <div class="pilha">${prismasLuz().map((p) => {
       const base = (E.prismas || []).find((x) => x.nome === p.nome) || {};
       return `<section class="prisma-secao">
-        <div class="cab">${tri(p, true)}<span><h2 title="${esc(p.nome)}">${curto(p.nome)}</h2><small>${p.propria} de ${p.tot} lm · ${suas(p)}</small></span><b class="pct">${p.pct}%</b></div>
+        <div class="cab">${tri(p, true)}<span><h2 title="${esc(p.nome)}">${curto(p.nome)}</h2><small>${p.contado} de ${p.alvo_lm} lm do alvo · ${suas(p)}${p.coletada ? ` · ${composicao(p)}` : ''}</small></span><b class="pct">${p.pct}%</b></div>
         ${segs(p.lista || [], { classe: '', rotulo: ariaPrisma(p) })}
         <h4>Centelhas da meta</h4>
         ${(p.lista || []).length ? `<ul class="lista-c">${p.lista.map(itemLista).join('')}</ul>` : '<p class="vazio">Nenhuma centelha ainda.</p>'}
@@ -636,7 +644,7 @@ function abrirCentelha(id) {
     <h2>${esc(c.titulo)}</h2>
     <p>${esc(c.porque || a.por_que || '')}</p>
     <div class="caixa">
-      <div class="l1"><span>Prisma <b title="${esc(c.prisma)}">${curto(c.prisma)}</b></span><span>${c.estado === 'propria' ? `${p.pct}% seu` : `${p.pct}% → ${depois}% seu`}</span></div>
+      <div class="l1"><span>Prisma <b title="${esc(c.prisma)}">${curto(c.prisma)}</b></span><span>${c.estado === 'propria' ? `${p.pct}% do alvo` : `${p.pct}% → ${depois}% do alvo`}</span></div>
       ${segs(p.lista || [], { foco: c.id, rotulo: ariaPrisma({ ...p, nome: c.prisma }) })}
       ${c.onde ? `<p class="onde">Apareceu em <b>${esc(c.onde)}</b></p>` : ''}
     </div>
@@ -656,7 +664,7 @@ function abrirPrisma(nome) {
   const temSub = nomeCurto(nome) !== nome;
   abrirGaveta(`
     <div class="prisma-g">${tri(p, true)}<span><small>Prisma</small><h2>${curto(nome)}</h2>${temSub ? `<small>${esc(nome)}</small>` : ''}</span></div>
-    <div class="pct-g"><b>${p.pct}%</b><span>é luz própria · ${p.propria} de ${p.tot} lm</span></div>
+    <div class="pct-g"><b>${p.pct}%</b><span>do alvo · ${p.contado} de ${p.alvo_lm} lm${p.coletada ? ` · ${composicao(p)}` : ''}</span></div>
     ${segs(p.lista || [], { classe: 'grossa', rotulo: ariaPrisma(p) })}
     <p class="resumo ${p.n_converter ? 'converter' : ''}" style="margin-top:10px">${esc(resumoPrisma(p))}</p>
     ${px ? `<p style="margin-top:18px"><button class="btn acender" data-centelha="${esc(px.id)}">${px.estado === 'apagada' ? 'Acender a próxima' : 'Converter a próxima'} · +${px.lm} lm</button></p>` : ''}
@@ -664,7 +672,7 @@ function abrirPrisma(nome) {
     ${(p.lista || []).length ? `<ul class="lista-c">${p.lista.map(itemLista).join('')}</ul>` : '<p class="vazio">Nenhuma centelha ainda.</p>'}
     ${p.na_meta ? '' : `<p style="margin-top:14px"><button class="btn sec mini" data-acender="${esc(nome)}">${ic('raio', 'p')}Acender 3 centelhas</button></p>`}
     <h4>Análise</h4>
-    ${blocoLeitura(base.leitura, `${p.propria} de ${p.tot} lm em luz própria, ${plural(p.n, 'centelha')}`, true)}
+    ${blocoLeitura(base.leitura, `${p.contado} de ${p.alvo_lm} lm do alvo, ${plural(p.n, 'centelha')}`, true)}
     ${base.evidencia ? `<details class="recolhido"><summary>Evidência da triagem ${ic('baixo', 'p')}</summary>${blocoLeitura({ texto: base.evidencia, alvo_tipo: 'triagem', modelo: E.triagem_modelo?.modelo || 'modelo desconhecido', criado_em: E.triagem_modelo?.quando || '' }, `triagem: currículo, commits e histórico autorizados${E.triagem_modelo?.mascarado ? ' (mascarados antes do envio ao modelo)' : ''}`)}</details>` : ''}`);
 }
 function abrirLumen(i) {
@@ -730,7 +738,7 @@ function renderConquista() {
     <h2 id="cq-titulo">${virou ? 'Agora a luz é sua' : 'Pronta para virar sua'}</h2>
     <p>${virou ? `Você mostrou que entende. ${c.lm} lm de ${esc(nomeCurto(c.prisma))} viraram luz própria.${r.marco ? ` Marco ${r.marco.n} de 3: dossiê gerado.` : ''}`
       : `Na conversa você explicou o conceito, e a Luzia confirmou o entendimento${c.nota != null ? ` (nota ${c.nota} de 4)` : ''}.`}</p>
-    <div class="barra-c"><div class="l1"><b>${curto(c.prisma)}</b><span>${virou ? `${antes}% → ${depois}% seu` : `${antes}% seu`}</span></div>${segs(p.lista || [], { foco: virou ? '' : c.id })}</div>
+    <div class="barra-c"><div class="l1"><b>${curto(c.prisma)}</b><span>${virou ? `${antes}% → ${depois}% do alvo` : `${antes}% do alvo`}</span></div>${segs(p.lista || [], { foco: virou ? '' : c.id })}</div>
     <div class="acoes-bt" style="justify-content:center">
       ${virou
         ? `${proxima ? `<button class="btn acender" data-cq-proxima="${esc(proxima.id)}">Converter a próxima</button>` : ''}<button class="btn sec" data-cq-fechar="1">Fechar</button>`

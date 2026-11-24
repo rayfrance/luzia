@@ -2,7 +2,7 @@
 
 Você vai usar a Luzia no seu trabalho de sempre, a partir de **quarta-feira, 25/11**, até a data que a Rayane combinar com você. Depois, responde a [AVALIACAO.md](AVALIACAO.md). Instalação: [INSTALAR.md](INSTALAR.md).
 
-A ideia em uma frase: o que o agente aplica e você não domina é luz refletida. Quando você explica e defende, vira luz própria. Cada prisma (skill) da sua meta tem centelhas (conceitos), cada uma com um valor fixo em lúmens (lm). O progresso do prisma é a soma dos lm das centelhas de luz própria dividida pela soma de todas as centelhas da meta.
+A ideia em uma frase: o que o agente aplica e você não domina é luz refletida. Quando você explica e defende, vira luz própria. Cada prisma (skill) da sua meta tem centelhas (conceitos), cada uma com um valor fixo em lúmens (lm). O avanço do prisma é a luz própria até o alvo da meta: acender centelhas novas só cria oportunidades, então o avanço nunca cai. Ao lado, a composição mostra quanto da luz que você já coletou é sua.
 
 ## Registre enquanto usa
 

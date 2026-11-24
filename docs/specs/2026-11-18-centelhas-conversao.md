@@ -3,7 +3,10 @@
 Decidido com a Rayane em 18/11/2026. Referência visual e de lógica: `design/v2/Luzia Painel.dc.html` (script no fim do arquivo). Substitui os níveis 0–5 de cada prisma.
 
 ## O essencial
-- O progresso de um prisma é **lm das centelhas próprias ÷ lm de todas as centelhas da meta** (descartadas ficam de fora).
+- ~~O progresso de um prisma é lm das centelhas próprias ÷ lm de todas as centelhas da meta.~~ Revisto em 24/11/2026, depois do teste ponta a ponta (acender centelhas fazia o % cair): duas medidas separadas.
+  - **Avanço** (`pct`): min(lm próprio, alvo) ÷ alvo, por prisma; na trajetória, a soma do contado ÷ a soma dos alvos. O alvo (`prisma.alvo_lm`, esquema 5) é o lm das centelhas da meta (sem as do chat) quando a meta é definida; a triagem completa cada prisma com pelo menos 3 centelhas e fixa os alvos de novo; prisma sem centelha ganha `ALVO_PADRAO` (180 lm). Acender, capturar luz refletida e descartar não mudam o alvo, então o avanço só sobe. O teto por prisma faz chegar à meta exigir todos os prismas.
+  - **Composição** (`luz_pct`): própria ÷ (própria + refletida + convertendo). Pode cair quando o agente aplica um conceito por você (é o alerta da luz refletida). Apagadas são oportunidades e ficam de fora.
+  - Marcos do dossiê (1/3, 2/3, 100%) e o ritmo seguem o avanço.
 - A trajetória soma os prismas ativos. O rótulo de carreira ("Júnior 3 → Plena") continua vindo do plano.
 - O loop central é **converter luz refletida em própria**: a Luzia guia, a pessoa explica, a Luzia confirma, a pessoa dá o sim.
 - Sem teto nem limite de captação: o lm é da centelha e cada centelha muda de luz uma vez só, então repetição não infla o progresso.
