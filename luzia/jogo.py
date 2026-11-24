@@ -444,7 +444,8 @@ def avaliar(fid: str, nota: int, resumo: str, plan: dict) -> dict:
         return {'erro': 'esta centelha já é luz própria'}
     if f.get('estado') != 'convertendo':
         return {'erro': f'esta centelha ainda não está em conversão: comece por /luzia:fazer {fid}'}
-    nota = max(0, min(4, int(nota)))
+    if not isinstance(nota, int) or not 0 <= nota <= 4:
+        return {'erro': 'a nota vai de 0 a 4'}
     with trajetoria.abrir() as con:
         with banco.transacao(con):
             if nota >= NOTA_CONVERTE:

@@ -91,10 +91,16 @@ def make_redactor(cfg: dict) -> Redactor:
     return pipeline.redator_modelo()
 
 
-def base_triagem(mascarado: bool) -> str:
-    """Rótulo da base da triagem: diz se o envio ao modelo saiu mascarado (interruptor `mascarar_modelo`) ou real."""
-    return ('sua entrada, currículo, commits e histórico autorizados'
-            + (' (mascarados antes do envio ao modelo)' if mascarado else ''))
+def base_triagem(mascarado: bool, cfg: dict | None = None) -> str:
+    """Rótulo da base da triagem: só as fontes que a pessoa deu (`entrada.json`) e se o envio saiu mascarado."""
+    if cfg is None:
+        fontes = ['sua entrada', 'currículo', 'commits', 'histórico autorizado']
+    else:
+        fontes = ['sua entrada'] + [nome for nome, tem in (
+            ('currículo', cfg.get('cv_pdf')), ('GitHub', cfg.get('github')), ('commits', cfg.get('repo')),
+            ('histórico das IAs', cfg.get('incluir_historico_ia') is True)) if tem]
+    texto = ', '.join(fontes[:-1]) + ' e ' + fontes[-1] if len(fontes) > 1 else fontes[0]
+    return texto + (' (mascarados antes do envio ao modelo)' if mascarado else '')
 
 
 def skills_summary(plan: dict) -> list[dict]:
@@ -155,6 +161,22 @@ def daily_call(entrada_path: Path, rotulo: str) -> tuple[dict, dict, dict]:
     )
     pipeline.update_state({'oportunidades_tarefa_atual': result.plan.get('oportunidades_tarefa_atual', [])}, record)
     return result.plan, record, dict(redactor.hits)
+
+
+def sem_centelha(args) -> str:
+    """Mensagem para id vazio (como usar) ou inexistente."""
+    if not args.valor:
+        return f'Use: {args.comando} <id> (o id aparece em /luzia:centelhas).'
+    return f'Centelha {args.valor} não encontrada.'
+
+
+def nota_valida(bruta) -> int | None:
+    """Nota da rubrica: inteiro de 0 a 4; qualquer outra coisa é None."""
+    try:
+        n = int(str(bruta).strip())
+    except (TypeError, ValueError):
+        return None
+    return n if 0 <= n <= 4 else None
 
 
 def gerar_trecho(skill: str, rotulo: str = 'cmd-trecho') -> dict:
@@ -1293,7 +1315,7 @@ def main() -> None:
     ap.add_argument('--entrada', default=str(pipeline.PRIVATE / 'entrada.json'))
     ap.add_argument('--rotulo', default='')
     ap.add_argument('--salvar-json', default='', help='Salva a resposta e o custo num JSON separado (não altera o estado)')
-    ap.add_argument('--nota', type=int, default=None)
+    ap.add_argument('--nota', default=None)  # validada em `registrar` (0 a 4), com mensagem em português
     ap.add_argument('--resumo', default='')
     ap.add_argument('--skill', default='')
     ap.add_argument('--prisma', default='')
@@ -1450,7 +1472,11 @@ def main() -> None:
         state = pipeline.load_state()
         plan = state.get('plano', {})
         print('## Luzia · Triagem')
-        base_tri = base_triagem(rec.get('mascarar_modelo', False))
+        try:
+            cfg_tri = json.loads(entrada_path.read_text(encoding='utf-8'))
+        except Exception:
+            cfg_tri = None
+        base_tri = base_triagem(rec.get('mascarar_modelo', False), cfg_tri)
         for rotulo_tri, campo in (('Onde você está', 'onde_esta'), ('Aonde quer chegar', 'aonde_quer_chegar')):
             texto = (plan.get(campo) or {}).get('resumo', '')
             leit = {'texto': texto, 'modelo': rec.get('modelo'), 'criado_em': rec.get('quando')}
@@ -1614,6 +1640,12 @@ def main() -> None:
         return
 
     if args.comando in ('acender', 'trecho'):
+        if not (args.valor or args.prisma or args.skill):  # sem prisma, pergunta: nada é gerado por adivinhação
+            abertos = [p['nome'] for p in jogo.luz(plan)['prismas'] if not p['na_meta']]
+            print('Para qual prisma? Ex.: `acender Git`.')
+            botoes([{'rotulo': f'Acender: {nome_prisma(n)}', 'descricao': '3 centelhas novas', 'rodar': f'acender {n}'}
+                    for n in abertos[:4]], 'Qual prisma?')
+            return
         try:
             res = gerar_trecho(args.valor or args.prisma or args.skill, rotulo)
         except Exception as e:  # sem modelo, sem chave ou sem internet: mensagem clara e botões, nada gravado
@@ -1634,7 +1666,7 @@ def main() -> None:
 
     if args.comando == 'enviar':
         if not a:
-            print(f'Centelha {args.valor} não encontrada.')
+            print(sem_centelha(args))
             botoes(proximos_botoes(plan))
             return
         if not jogo.enfileirar(a['id']):
@@ -1648,7 +1680,7 @@ def main() -> None:
 
     if args.comando in ('prompt', 'fazer', 'converter'):
         if not a:
-            print(f'Centelha {args.valor} não encontrada.')
+            print(sem_centelha(args))
             botoes(proximos_botoes(plan))
             return
         if a.get('estado') == 'propria':
@@ -1675,11 +1707,17 @@ def main() -> None:
         return
 
     if args.comando == 'registrar':
-        if not a or args.nota is None:
-            print('Use: registrar <id> --nota 0-4 --resumo "..."')
+        nota_in = nota_valida(args.nota)
+        if not a or nota_in is None:
+            if args.valor and not a:
+                print(sem_centelha(args))
+            elif args.nota is not None:
+                print(f'A nota vai de 0 a 4 (recebi `{args.nota}`). Nada foi registrado.')
+            else:
+                print("Use: registrar <id> --nota 0-4 --resumo '...'")
             botoes(proximos_botoes(plan))
             return
-        res = jogo.avaliar(a['id'], args.nota, args.resumo[:200], plan)
+        res = jogo.avaliar(a['id'], nota_in, args.resumo[:200], plan)
         if res.get('erro'):
             print(f"◐ {res['erro']}.")
             botoes(proximos_botoes(plan))
@@ -1694,7 +1732,8 @@ def main() -> None:
             return
         print(f'◐ Nota {nota} de 4 · ainda convertendo')
         if args.resumo:
-            print(f"Dica: {args.resumo[:200]}")
+            print(f"O que você mostrou: {args.resumo[:200]}")
+        print(f"Para converter, falta: {propriedade.RUBRICA[3]} (nota 3) ou {propriedade.RUBRICA[4]} (nota 4).")
         print(f"A centelha vale os mesmos {f.get('valor_lm')} lm. Tente de novo quando quiser.")
         botoes([bt_feixe(f, 'Continuar: '), *proximos_botoes(plan, {a['id']})[:2]], 'Próximo passo?')
         return
@@ -1729,7 +1768,7 @@ def main() -> None:
 
     if args.comando == 'descartar':
         if not a:
-            print(f'Centelha {args.valor} não encontrada.')
+            print(sem_centelha(args))
             botoes(proximos_botoes(plan))
             return
         motivo_k = args.motivo if args.motivo in jogo.MOTIVOS else 'nao_faz_sentido'
@@ -1745,7 +1784,7 @@ def main() -> None:
 
     if args.comando == 'restaurar':
         if not a:
-            print(f'Centelha {args.valor} não encontrada.')
+            print(sem_centelha(args))
             botoes(proximos_botoes(plan))
             return
         volta = jogo.restaurar(a['id'])

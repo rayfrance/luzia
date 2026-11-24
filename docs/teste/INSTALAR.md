@@ -50,11 +50,13 @@ claude plugin marketplace add rayfrance/luzia
 claude plugin install luzia@luzia --scope user
 ```
 
-5. Instale o SDK do Gemini. Opcional: `pypdf`, para ler um currículo em PDF.
+5. Instale o SDK do Gemini:
 
 ```
 python -m pip install google-genai
 ```
+
+Opcional: o `pypdf`, só se for passar o currículo em PDF.
 
 ```
 python -m pip install pypdf
@@ -75,7 +77,7 @@ Ele confere Python, pasta de dados, SDK, chave e git.
 /luzia:career-map
 ```
 
-Ele abre em http://127.0.0.1:8501, já com a sua sessão aberta. Antes da triagem, aparece uma tela de boas-vindas para escolher o modelo: Provedor **Google Gemini**, modelo `gemini-3.5-flash-lite`, cole a chave, clique em **Salvar** e depois em **Testar**. A chave fica só nesta máquina (na pasta de dados) e nunca passa pelo chat.
+Ele abre em http://127.0.0.1:8501, já com a sua sessão aberta. Antes da triagem, aparece uma tela de boas-vindas para escolher o modelo: Provedor **Google Gemini**, modelo `gemini-3.5-flash-lite`, cole a chave e clique em **Testar** (ele salva e testa). Deve aparecer "Respondeu em N s". A chave fica só nesta máquina (na pasta de dados) e nunca passa pelo chat.
 
 9. Faça a triagem:
 
@@ -115,7 +117,7 @@ Se quiser apagar os dados, apague à mão a pasta `~/.luzia` (no Windows, `C:\Us
 
 ## Modos de foco
 
-Em painel › Ajustes (ou nos botões de `/luzia:hoje`):
+Em painel › Ajustes › Foco:
 
 - **Em foco**: mostra centelhas no chat, no fim da resposta do agente.
 - **Em silêncio**: coleta sem interromper.

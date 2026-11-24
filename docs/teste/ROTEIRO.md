@@ -34,7 +34,7 @@ Frases curtas bastam. Isso vira a sua avaliação no final. Não cole código da
 
 1. No painel, em Ajustes, deixe o modo **Em foco**.
 2. Trabalhe como sempre no repositório autorizado, com o agente, por pelo menos **1 hora**.
-3. Quando aparecer um cartão "✦ Centelha da sessão", escolha **Converter agora**. Faça isso pelo menos **2 vezes**.
+3. Quando a Luzia mostrar uma centelha da sessão (luz refletida que o agente usou), aceite convertê-la. Faça isso pelo menos **2 vezes**. Se nenhuma aparecer, rode `/luzia:centelhas` e converta uma de lá.
 4. Responda às perguntas da Luzia, uma por vez, com as suas palavras. Termine **uma** conversão até o botão **Acender luz própria**.
 
 Se quiser retomar uma centelha depois:
@@ -67,7 +67,7 @@ Se quiser retomar uma centelha depois:
 2. Escolha um prisma e veja as suas centelhas e os estados (Por acender, Luz refletida, Convertendo, Luz própria).
 3. Abra uma centelha e clique em **Por que N lm**. O valor fez sentido?
 4. Abra a aba **Entregas**. Ela mostra quanto de cada entrega do git é seu (P1 a P4).
-5. Em uma entrega, rode **Provar P3 e P4** ou **Converter a luz desta entrega**.
+5. Em uma entrega com lacuna, rode **Provar P3 e P4** ou **Converter a luz desta entrega**. Esses botões só aparecem quando falta prova de autoria naquela entrega.
 6. Gere o dossiê de evidências:
 
 ```

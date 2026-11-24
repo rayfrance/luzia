@@ -95,12 +95,24 @@ def lacunas(plan: dict) -> dict[str, dict]:
                    if not prismas.composto(k)}  # sem trajetória: só habilidades isoladas
 
 
+_PARTES = re.compile(r'[A-ZÀ-Ý]+(?![a-zà-ÿ])|[A-ZÀ-Ý]?[a-zà-ÿ0-9]+')
+
+
+def _padrao(palavra: str) -> str:
+    """Termos compostos casam com ou sem separador: 'ValueObject' ~ 'value object' ~ 'value-object'."""
+    if re.fullmatch(r'[\wÀ-ÿ ]+', palavra):
+        partes = _PARTES.findall(palavra.replace('_', ' '))
+        if len(partes) > 1:
+            return r'[\s_-]?'.join(re.escape(x) for x in partes)
+    return re.escape(palavra)
+
+
 def _casa(texto: str, palavra: str) -> bool:
     """Palavra inteira (não casa 'Test' em 'TestHelper'); um radical que não é palavra ('desacopl') casa como prefixo."""
     if not palavra or len(palavra) < 3:
         return False
     fim = '' if palavra in RADICAIS or not palavra[-1].isalnum() else r'(?![A-Za-zÀ-ÿ0-9_])'
-    return bool(re.search(r'(?<![A-Za-zÀ-ÿ0-9_])' + re.escape(palavra) + fim, texto, re.IGNORECASE))
+    return bool(re.search(r'(?<![A-Za-zÀ-ÿ0-9_])' + _padrao(palavra) + fim, texto, re.IGNORECASE))
 
 
 # Radicais das listas padrão: casam como prefixo de propósito.
@@ -109,6 +121,10 @@ RADICAIS = {'desacopl'}
 GENERICOS = {w.lower() for w in ('Domain', 'Interface', 'Application', 'Test', 'Assert', 'Fact', 'teste', 'SELECT', 'JOIN',
                                   'Controller', 'endpoint', 'componente', 'modal', 'camada', 'hook', 'skill', 'fetch(',
                                   '.cshtml', '.claude', 'Integration', 'integração', 'Entity', 'Repository', 'Mock')}
+# Sintaxe e rotina que todo código e toda sessão têm: nunca fazem nascer uma centelha do chat (teste com testadores, 24/11).
+GENERICOS |= {'def', 'class', 'import', 'from', 'return', 'function', 'const', 'let', 'var', 'self', 'this', 'async',
+              'await', 'print', 'pass', 'public', 'private', 'static', 'void', 'new', 'null', 'none', 'true', 'false',
+              'commit', 'push', 'pull', 'git', 'feat', 'fix', 'docs', 'chore', 'código', 'code', 'arquivo', 'file'}
 
 
 def detectar(texto: str, gaps: dict) -> list[str]:
@@ -121,10 +137,16 @@ def detectar(texto: str, gaps: dict) -> list[str]:
     return achadas
 
 
-def authorized(cwd: str, cfg: dict) -> bool:
-    roots = cfg.get('autorizados') or []
-    cwd_n = cwd.replace('\\', '/').lower()
-    return any(cwd_n.startswith(r.replace('\\', '/').lower()) for r in roots)
+def authorized(cwd, cfg: dict) -> bool:
+    """O cwd é um repositório autorizado ou uma subpasta dele (nunca uma pasta irmã com o mesmo prefixo)."""
+    if not isinstance(cwd, str) or not cwd:
+        return False
+    cwd_n = cwd.replace('\\', '/').rstrip('/').lower()
+    for r in cfg.get('autorizados') or []:
+        r_n = str(r).replace('\\', '/').rstrip('/').lower()
+        if r_n and (cwd_n == r_n or cwd_n.startswith(r_n + '/')):
+            return True
+    return False
 
 
 
@@ -251,6 +273,7 @@ def reconhecer_em(texto: str, origem: str, sid: str, modo: str, ext: str, ferram
     achados = []
     # o nome de um prisma (de qualquer prisma da trajetória) sozinho não é um conceito: "o que é DDD?" não acende nada
     nomes = {n for p in gaps for n in (p.lower(), prismas.nome_curto(p).lower())}
+    nomes |= {w for p in gaps for w in re.findall(r'[a-zà-ÿ0-9#+]+', p.lower()) if len(w) >= 4}  # "qualidade" sozinha
     for prisma, info in gaps.items():
         acertos = [c for c in info.get('centelhas', [])
                    if any(_casa(texto, w) for w in c['palavras'] if w.lower() not in nomes)]
@@ -391,6 +414,8 @@ def main() -> None:
     try:  # o Claude Code envia UTF-8; o pipe do Windows usaria a página de código local e estragaria os acentos
         event = json.loads(sys.stdin.buffer.read().decode('utf-8', errors='replace'))
     except Exception:
+        return
+    if not isinstance(event, dict):  # o Claude Code manda um objeto; qualquer outra coisa é ignorada em silêncio
         return
     cfg = read_json(CFG, {'modo': 'ativo', 'autorizados': []})
     if not authorized(event.get('cwd', ''), cfg):

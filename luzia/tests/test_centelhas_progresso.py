@@ -328,3 +328,44 @@ def test_banco_do_esquema_3_sobe_mapeando_os_estados_com_backup(privado, plan):
         velho.close()
     banco.conectar().close()  # abrir de novo não refaz nada
     assert len(list(privado.glob('backup-antes-centelhas-*'))) == 1
+
+
+# --- teste com testadores (24/11): ruído, nomes de prisma, grafias naturais e repositório autorizado ---
+
+def test_palavra_solta_do_nome_do_prisma_nao_acende(plan):
+    gaps = _gaps(plan)
+    gaps[TESTES]['palavras'] = ['qualidade']
+    gaps[TESTES]['centelhas'] = []
+    assert observer.reconhecer_em('Testes e Qualidade', 'prompt', 's1', 'ativo', 'prompt', 'prompt', gaps) == []
+
+
+def test_sintaxe_da_linguagem_nao_cria_centelha_do_chat(plan):
+    gaps = _gaps(plan)
+    for info in gaps.values():
+        info['palavras'] = ['def', 'class', 'import', 'commit']
+        info['centelhas'] = []
+    texto = 'import os\nclass Periodo:\n    def contem(self): pass\n# git commit -m "feat: x"'
+    assert observer.reconhecer_em(texto, 'agente', 's1', 'ativo', '.py', 'Write', gaps) == []
+
+
+def test_grafia_natural_casa_com_camel_case_e_vice_versa(plan):
+    f = _da_meta(plan, DDD)
+    _palavras(f['id'], 'ValueObject')
+    achados = observer.reconhecer_em('# periodo: value object imutável', 'agente', 's1', 'ativo', '.py', 'Edit', _gaps(plan))
+    assert [a['centelha'] for a in achados] == [f['id']]
+    assert observer._casa('class PeriodoValueObject', 'value object') is False  # dentro de outra palavra, não
+    assert observer._casa('um Value-Object aqui', 'ValueObject') and observer._casa('ValueObject', 'value object')
+
+
+def test_so_o_repositorio_autorizado_e_as_subpastas_dele():
+    cfg = {'autorizados': [r'C:\r\repo']}
+    assert observer.authorized('C:/r/repo', cfg) and observer.authorized(r'c:\R\Repo\src', cfg)
+    assert not observer.authorized('C:/r/repo-outro', cfg) and not observer.authorized('C:/r', cfg)
+    assert not observer.authorized(5, cfg) and not observer.authorized(None, cfg)
+
+
+@pytest.mark.parametrize('bruto', [b'[1, 2]', b'null', b'"texto"', b'{"cwd": 5, "hook_event_name": "Stop"}'])
+def test_evento_de_tipo_inesperado_nao_derruba_o_hook(privado, monkeypatch, bruto):
+    import io, sys
+    monkeypatch.setattr(sys, 'stdin', io.TextIOWrapper(io.BytesIO(bruto)))
+    observer.main()  # não levanta

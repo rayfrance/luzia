@@ -171,8 +171,9 @@ def _gemini(modelo: str, prompt: str, system: str, chave: str):
         try:
             resp = client.models.generate_content(
                 model=m, contents=prompt,
-                config=types.GenerateContentConfig(system_instruction=system, temperature=0.2,
-                                                   response_mime_type='application/json'),
+                config=types.GenerateContentConfig(
+                    system_instruction=system, temperature=0.2, response_mime_type='application/json',
+                    automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True)),  # sem aviso AFC no chat
             )
             u = resp.usage_metadata
             return resp.text or '', getattr(u, 'prompt_token_count', 0) or 0, getattr(u, 'candidates_token_count', 0) or 0, m

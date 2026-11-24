@@ -37,10 +37,10 @@ Estilo: visual e curto. Títulos com no máximo 8 palavras; demais textos livres
 Português do Brasil. Se aparecerem marcadores como [EMPRESA/PRODUTO] ou [COLEGA] (mascaramento local), mantenha-os assim.
 Use só as evidências fornecidas. Responda só com o JSON."""
 
-# Um prisma = uma habilidade (13/11/2026): os nomes antigos compostos viraram estas habilidades (prismas.MAPA_DIVISAO).
-NOMES_OBRIGATORIOS = ('Domain-Driven Design (DDD)', 'Programação Agêntica', 'Arquitetura .NET', 'Clean Architecture',
-                      'C# / .NET', 'Integrações', 'JavaScript', 'Razor', 'React', 'Testes e Qualidade', 'SQL')
-SKILLS_OBRIGATORIAS = ', '.join(f'"{n}"' for n in NOMES_OBRIGATORIOS[:-1]) + f' e "{NOMES_OBRIGATORIOS[-1]}"'
+# Os prismas saem da meta e das evidências de cada pessoa (24/11/2026). Só a Programação Agêntica entra sempre:
+# é o que a Luzia acompanha em quem trabalha com agentes. Antes havia uma lista fixa com a stack de quem criou a Luzia.
+NOMES_SEMPRE = ('Programação Agêntica',)
+QTD_SKILLS = '6 a 10'
 
 REGRA_PRISMA = ('Um prisma (skill) é UMA habilidade só: nunca junte assuntos num nome com "/", " e " ou parênteses com '
                 'lista (ex.: em vez de "Testes e Qualidade / SQL", use "Testes e Qualidade" e "SQL").')
@@ -102,7 +102,10 @@ TRIAGE_SCHEMA = f"""Devolva exatamente este JSON:
   ],
   "proximo_passo": str
 }}
-Quantidades: {len(NOMES_OBRIGATORIOS)} skills ({SKILLS_OBRIGATORIAS}); {REGRA_PRISMA} em cada skill, 8 a 12 palavras_chave em inglês E em português que
+Quantidades: {QTD_SKILLS} skills escolhidas para ESTA pessoa: as que a meta exige e as que aparecem nas evidências
+(linguagens e frameworks dos commits, currículo, GitHub, objetivo). Nunca inclua linguagem, framework ou plataforma que
+não apareça na meta nem nas evidências. Inclua sempre {', '.join(f'"{n}"' for n in NOMES_SEMPRE)}.
+{REGRA_PRISMA} Em cada skill, 8 a 12 palavras_chave em inglês E em português que
 aparecem em nomes de arquivos, código ou prompts quando a skill está em jogo (ex.: DDD -> "Domain", "Aggregate",
 "ValueObject", "agregado", "objeto de valor", "subdomínio");
 "autoavaliacao" copia a autoavaliação recebida (ou null). "nivel_curto": 1 a 3 palavras (ex.: "Júnior 3", "Plena").

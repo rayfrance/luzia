@@ -79,3 +79,12 @@ def test_mensagens_sem_ponto_duplicado_e_p1_sem_traco_solto(privado, monkeypatch
                                      'dimensoes': {'P1': {'nota': 60, 'tipo': 'medida', 'base': ''}}})
     p1 = next(l for l in linhas if 'P1' in l)
     assert not p1.rstrip().endswith('—') and '— ' not in p1.split('(medida)')[-1]
+
+
+def test_base_da_triagem_cita_so_as_fontes_que_a_pessoa_deu():
+    """Teste com usuária (24/11): sem currículo nem histórico, a base não pode dizer que leu os dois."""
+    from luzia import cli
+    base = cli.base_triagem(False, {'repo': 'x', 'incluir_historico_ia': False})
+    assert base == 'sua entrada e commits'
+    assert cli.base_triagem(False, {'repo': 'x', 'cv_pdf': 'cv.pdf', 'github': 'u', 'incluir_historico_ia': True}) == \
+        'sua entrada, currículo, GitHub, commits e histórico das IAs'

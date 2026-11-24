@@ -1,6 +1,24 @@
-# Handoff · Luzia v2 centelhas e conversão · atualizado em 23/11/2026
+# Handoff · Luzia v2 centelhas e conversão · atualizado em 24/11/2026
 
-- Repositório: `C:\Repositorio\luzia`, branch `feature/centelhas` (base `develop` = `main` = `fc877d8`). Sem remoto ainda.
+- Repositório: `C:\Repositorio\luzia`, branch `feature/centelhas`. Remoto privado `rayfrance/luzia` (padrão no GitHub: `feature/centelhas`, para o `marketplace add` instalar a versão nova). Commit publicado: `26fcb4f`.
+
+## Teste ponta a ponta antes dos convites (24/11)
+Instalação pelo GitHub numa configuração isolada do Claude Code (`CLAUDE_CONFIG_DIR` temporário), repositório sintético Python, triagem real com Gemini, loop pela CLI (agente Sonnet), hooks e linha de status (agente Sonnet), guias (agente Haiku) e painel no navegador.
+
+Corrigido (sem commit ainda), cada um com teste:
+- Triagem impunha 11 prismas fixos (.NET, Razor, React…); agora escolhe 6 a 10 pela meta e pelas evidências, com Programação Agêntica sempre (`planner.py`).
+- Painel: Testar salva antes; "Coletadas hoje" sem as apagadas; "1 centelha é sua".
+- Base da triagem cita só as fontes dadas; aviso AFC do SDK do Gemini não vaza no chat.
+- CLI: nota fora de 0–4 não confirma mais; id inexistente e comando sem id com mensagem certa; `acender` sem prisma pergunta; nota baixa diz o que falta pela rubrica.
+- Hooks: sintaxe (`def`, `class`, `commit`) não cria centelha; palavra solta do nome do prisma não acende; "value object" casa com "ValueObject"; pasta irmã não passa por autorizada; evento que não é objeto é ignorado.
+- Guias: foco em Ajustes › Foco, pypdf opcional separado, "senioridade", botões condicionais explicados.
+
+Fica para decidir ou para depois:
+- Acender centelhas novas aumenta o total e baixa o % próprio (ex.: 23% → 11%). É consequência do modelo P/total; precisa de decisão de design (ex.: % só sobre a meta fixada).
+- Pedidos de mudança da Trajetória (`cli.py` pedido) ainda falam em nível/meta (Etapa 3).
+- SessionStart logo após a triagem fica em silêncio (nada refletido nem na fila).
+- Hooks levam ~300–500 ms (Python frio); abaixo do timeout, mas soma a cada Edit.
+- Nome curto corta "Arquitetura de Sof…" (limite de 20 caracteres).
 - Plano: [docs/plans/2026-11-18-centelhas-conversao.md](../plans/2026-11-18-centelhas-conversao.md). Spec: [docs/specs/2026-11-18-centelhas-conversao.md](../specs/2026-11-18-centelhas-conversao.md).
 - A Luzia instalada no dia a dia da Rayane e o banco real continuam em `C:\Repositorio\ai4good-sem2\code\luzia` (intocados).
 
@@ -17,6 +35,5 @@ Pacote para testadores usarem a partir de quarta, 25/11: núcleo de centelhas, p
 - Varredura de privacidade limpa (termos, domínio, e-mails, caminhos pessoais).
 
 ## Pendências
-- Commit (`feat: centelha light model, v2 panel and tester package`) depois do ok da Rayane; criar o repositório privado `rayfrance/luzia`, push e convites, também com o ok dela.
-- Triagem real ponta a ponta com uma chave (não testada nesta rodada: exige chave do modelo).
+- Commit das correções do teste de 24/11 e push, com o ok da Rayane; depois, convites aos testadores.
 - Etapas 2, 3b, 5 e 6 do plano.

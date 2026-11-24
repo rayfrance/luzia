@@ -237,10 +237,16 @@ def test_entregas_recalculadas_com_os_prismas_novos(con, privado):
     assert entregas.atualizar(con) == {'novas': 0, 'atualizadas': 0}  # e depois volta a ser incremental
 
 
-def test_triagem_grava_so_prismas_de_uma_habilidade(privado):
+def test_triagem_escolhe_os_prismas_da_pessoa_sem_stack_fixa():
+    """Teste com usuária (24/11): uma pessoa de backend Python recebeu .NET, Razor e React, a stack de quem fez a Luzia."""
     from luzia import planner
-    nomes = [n.strip(' "') for n in planner.SKILLS_OBRIGATORIAS.replace(' e "', ', "').split('", ')]
-    assert len(nomes) >= 6 and not any(prismas.composto(n) for n in nomes), nomes
+    assert not any(prismas.composto(n) for n in planner.NOMES_SEMPRE)
+    for alheio in ('.NET', 'C#', 'Razor', 'React', 'JavaScript'):
+        assert alheio not in planner.TRIAGE_SCHEMA, alheio
+    assert 'evidências' in planner.TRIAGE_SCHEMA and 'meta' in planner.TRIAGE_SCHEMA
+
+
+def test_triagem_grava_so_prismas_de_uma_habilidade(privado):
     plano = trajetoria.plano()
     plano['skills'] = [{'nome': 'Kafka / RabbitMQ', 'luzia_sugere': 1, 'alvo': 3, 'palavras_chave': ['Kafka', 'RabbitMQ']}]
     pipeline.save_state({}, plano, {'quando': '2026-11-13T10:00:00'}, {})

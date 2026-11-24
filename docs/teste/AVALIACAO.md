@@ -4,7 +4,7 @@ A participação é voluntária e anônima: não precisa de nome. As respostas v
 
 ## A. Perfil
 
-1. Função e nível (ex.: estudante, dev júnior, pleno, sênior):
+1. Função e senioridade (ex.: estudante, dev júnior, pleno, sênior):
 2. Anos programando:
 3. Com que frequência você usa agentes de código? (todo dia / algumas vezes por semana / de vez em quando / raramente)
 4. Qual sistema operacional você usou?

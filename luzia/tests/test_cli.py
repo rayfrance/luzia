@@ -255,7 +255,8 @@ def test_registrar_nota_2_continua_convertendo_com_a_dica(privado, monkeypatch):
     s = _converter_ate_confirmar(monkeypatch, f1, nota=2, resumo='Falta comparar com uma alternativa')
     v = visivel(s).splitlines()
     assert v[0] == '◐ Nota 2 de 4 · ainda convertendo'
-    assert 'Dica: Falta comparar com uma alternativa' in v
+    assert 'O que você mostrou: Falta comparar com uma alternativa' in v
+    assert any(l.startswith('Para converter, falta: ') for l in v)
     bts = botoes_de(s)
     assert bts[0]['rodar'] == f'fazer {f1}' and bts[0]['rotulo'].startswith('Continuar: ')
     assert all(b['rodar'] != f'confirmar {f1}' for b in bts)
@@ -773,3 +774,37 @@ def test_entrega_no_chat_mostra_titulo_real_e_numero_do_ticket(privado, monkeypa
     assert 'Bug 14988: ProdutoZeta corrige mapa' in v and '#14988' in v
     v = visivel(rodar(monkeypatch, 'entregas'))
     assert 'Bug 14988: ProdutoZeta corrige mapa' in v
+
+
+# --- teste com testadores (24/11): validação da CLI ---
+
+@pytest.mark.parametrize('nota', ['7', '5', '-1', 'abc', '2.5'])
+def test_nota_fora_de_0_a_4_nao_registra_nada(privado, monkeypatch, nota):
+    plan = pipeline.load_state()['plano']
+    fid = _apagadas(plan)[0]
+    rodar(monkeypatch, 'fazer', fid)
+    s = rodar(monkeypatch, 'registrar', fid, f'--nota={nota}', '--resumo', 'x')
+    assert 'A nota vai de 0 a 4' in s and 'confirmou' not in s and tem_rodape_botoes(s)
+    assert jogo.sincronizar(plan)[fid].get('confirmada_em') in (None, '')
+    assert jogo.avaliar(fid, 7, 'x', plan) == {'erro': 'a nota vai de 0 a 4'}
+
+
+def test_registrar_id_inexistente_e_comandos_sem_id(privado, monkeypatch):
+    assert 'Centelha zzzz não encontrada.' in rodar(monkeypatch, 'registrar', 'zzzz', '--nota', '3', '--resumo', 'x')
+    for cmd in ('converter', 'descartar', 'restaurar', 'enviar'):
+        s = rodar(monkeypatch, cmd)
+        assert f'Use: {cmd} <id>' in s and 'Centelha  não' not in s, cmd
+
+
+def test_nota_baixa_diz_o_que_falta_pela_rubrica(privado, monkeypatch):
+    plan = pipeline.load_state()['plano']
+    fid = _apagadas(plan)[0]
+    s = _converter_ate_confirmar(monkeypatch, fid, nota=2, resumo='explicou parte')
+    assert 'O que você mostrou: explicou parte' in s and 'Para converter, falta: comparou com uma alternativa' in s
+
+
+def test_acender_sem_prisma_pergunta_e_nao_gera_nada(privado, monkeypatch):
+    chamado = []
+    monkeypatch.setattr(cli, 'gerar_trecho', lambda *a, **k: chamado.append(a) or {'erro': 'x'})
+    s = rodar(monkeypatch, 'acender', '')
+    assert chamado == [] and 'Para qual prisma?' in s and all(b['rodar'].startswith('acender ') for b in botoes_de(s))

@@ -324,3 +324,10 @@ def test_instrucoes_ao_agente_nao_proibem_os_nomes_da_dona_dos_dados():
         texto = arq.read_text(encoding='utf-8').lower()
         for proibido in ('sem nomes da empresa', 'nunca escreva nomes', 'nunca cite nomes', 'nem cite nomes'):
             assert proibido not in texto, (arq.name, proibido)
+
+
+def test_testar_o_modelo_salva_antes_o_que_esta_no_formulario():
+    """Quem cola a chave e clica direto em Testar não pode ver 'falta a chave' (teste com usuária, 24/11)."""
+    js = (Path(server.PAINEL) / 'luzia.js').read_text(encoding='utf-8')
+    bloco = js.split("if (t.id === 'm-testar')", 1)[1].split("if (t.id ===", 1)[0]
+    assert bloco.index('salvarModelo()') < bloco.index("'/api/modelo/testar'")

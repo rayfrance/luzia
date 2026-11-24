@@ -149,7 +149,7 @@ function resumoPrisma(p) {
   if (p.na_meta) return 'Na meta · tudo é luz própria';
   if (!p.n) return 'Nenhuma centelha ainda';
   return [p.n_converter ? `${p.n_converter} para converter · ${p.refletida} lm` : '', p.n_apagada ? `${p.n_apagada} por acender` : '']
-    .filter(Boolean).join(' · ') || `${p.n_propria} de ${p.n} centelhas são suas`;
+    .filter(Boolean).join(' · ') || `${suas(p)}`;
 }
 const pctDepois = (p, c) => (p && p.tot ? Math.round((100 * (p.propria + (c.estado === 'propria' ? 0 : c.lm))) / p.tot) : 0);
 const origemTxt = (c) => (c.entrega_id ? 'da entrega' : ORIGEM[String(c.origem || '').toLowerCase()] || '');
@@ -319,7 +319,7 @@ function telaHoje() {
     .sort((a, b) => ORDEM[a.estado] - ORDEM[b.estado] || b.lm - a.lm);
   const outras = conv.filter((c) => c.id !== E.hero).slice(0, 4);
   const lmConv = conv.reduce((s, c) => s + c.lm, 0);
-  const hoje = centelhas().filter((c) => c.hoje && !c.descartada).slice(0, 5);
+  const hoje = centelhas().filter((c) => c.hoje && !c.descartada && c.estado !== 'apagada').slice(0, 5);  // só luz coletada
   $('#hoje').innerHTML = `
     ${linhaTrajetoria()}
     ${avisoConfirmada()}
@@ -329,7 +329,7 @@ function telaHoje() {
       <div class="grade">${outras.map(cartaoConverter).join('')}</div>` : ''}
     <h3 class="secao">Seus prismas</h3>
     <div class="grade">${prismasLuz().map((p) => `<button class="prisma-cartao" data-prisma="${esc(p.nome)}">
-      <span class="cab">${tri(p)}<span><b title="${esc(p.nome)}">${curto(p.nome)}</b><small>${p.n_propria} de ${p.n} centelhas são suas</small></span><b class="pct">${p.pct}%</b></span>
+      <span class="cab">${tri(p)}<span><b title="${esc(p.nome)}">${curto(p.nome)}</b><small>${suas(p)}</small></span><b class="pct">${p.pct}%</b></span>
       ${segs(p.lista || [], { rotulo: ariaPrisma(p) })}
       <span class="resumo ${p.n_converter ? 'converter' : ''}">${esc(resumoPrisma(p))}</span>
     </button>`).join('') || '<p class="vazio">Nenhum prisma na trajetória.</p>'}</div>
@@ -415,7 +415,7 @@ function telaTrajetoria() {
     <div class="pilha">${prismasLuz().map((p) => {
       const base = (E.prismas || []).find((x) => x.nome === p.nome) || {};
       return `<section class="prisma-secao">
-        <div class="cab">${tri(p, true)}<span><h2 title="${esc(p.nome)}">${curto(p.nome)}</h2><small>${p.propria} de ${p.tot} lm · ${p.n_propria} de ${p.n} centelhas são suas</small></span><b class="pct">${p.pct}%</b></div>
+        <div class="cab">${tri(p, true)}<span><h2 title="${esc(p.nome)}">${curto(p.nome)}</h2><small>${p.propria} de ${p.tot} lm · ${suas(p)}</small></span><b class="pct">${p.pct}%</b></div>
         ${segs(p.lista || [], { classe: '', rotulo: ariaPrisma(p) })}
         <h4>Centelhas da meta</h4>
         ${(p.lista || []).length ? `<ul class="lista-c">${p.lista.map(itemLista).join('')}</ul>` : '<p class="vazio">Nenhuma centelha ainda.</p>'}
@@ -509,6 +509,10 @@ function cartaoEntrega(e) {
     </div>
   </details>`;
 }
+function suas(p) {
+  if (!p.n) return 'Nenhuma centelha ainda';
+  return p.n === 1 ? `${p.n_propria} de 1 centelha é sua` : `${p.n_propria} de ${p.n} centelhas são suas`;
+}
 function semEntregas() {
   const d = E.entregas_diagnostico || {};
   const ids = (d.identidades || []).map(esc).join(', ') || 'nenhum';
@@ -534,6 +538,17 @@ function telaEntregas() {
 
 // ------------------------------------------------------------------ Ajustes
 let provEscolhido = null;
+async function salvarModelo() {
+  const sel = $('#m-select').value;
+  const r = await api('/api/modelo', {
+    provedor: provEscolhido || E.modelo.provedor,
+    modelo: sel === '__outro' ? $('#m-outro').value : sel,
+    base_url: $('#m-base')?.value || '',
+    chave: $('#m-chave').value,
+  });
+  if (!r.erro) provEscolhido = null;
+  return r;
+}
 function secaoModelo() {
   const m = E.modelo;
   if (!m) return '';
@@ -911,25 +926,19 @@ async function aoClicar(t, ev) {
     return carregar();
   }
   if (t.id === 'm-salvar') {
-    const sel = $('#m-select').value;
-    const r = await api('/api/modelo', {
-      provedor: provEscolhido || E.modelo.provedor,
-      modelo: sel === '__outro' ? $('#m-outro').value : sel,
-      base_url: $('#m-base')?.value || '',
-      chave: $('#m-chave').value,
-    });
+    const r = await salvarModelo();
     toast(r.erro ? `Não salvou: ${r.erro}` : 'Modelo salvo', 'neutro');
-    if (!r.erro) {
-      provEscolhido = null;
-      carregar();
-    }
+    if (!r.erro) carregar();
     return;
   }
   if (t.id === 'm-testar') {
+    // testa o que está no formulário: salva antes (campo de chave vazio mantém a chave já gravada)
+    const s = await salvarModelo();
+    if (s.erro) return toast(`Não salvou: ${s.erro}`, 'neutro');
     toast('Testando…', 'neutro');
     const r = await api('/api/modelo/testar', {});
     toast(r.erro ? `Falhou: ${r.erro}` : (r.aviso ? `Atenção: ${r.aviso}` : `Respondeu em ${String(r.segundos).replace('.', ',')} s`), 'neutro');
-    return;
+    return carregar();
   }
   if (t.id === 'sair-celular') return sair();
   if (ds.acender) {
