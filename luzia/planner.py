@@ -34,7 +34,7 @@ ele a conduza (perguntando, esperando a resposta e só depois explicando), sem f
 Os prompts nunca citam nomes de empresa, clientes ou colegas.
 
 Estilo: visual e curto. Títulos com no máximo 8 palavras; demais textos livres com no máximo 18 palavras.
-Português do Brasil. Se aparecerem marcadores como [EMPRESA/PRODUTO] ou [COLEGA] (mascaramento local), mantenha-os assim.
+Português do Brasil, com acentos e cedilha. Se aparecerem marcadores como [EMPRESA/PRODUTO] ou [COLEGA] (mascaramento local), mantenha-os assim.
 Não existem níveis na Luzia: nunca escreva "nível" nos textos para a pessoa (use "senioridade", "Júnior", "Plena" etc.).
 Use só as evidências fornecidas. Responda só com o JSON."""
 
@@ -113,8 +113,8 @@ aparecem em nomes de arquivos, código ou prompts quando a skill está em jogo (
 "p1_direcao_prompt": nota 0-100 de quanto os prompts recentes da pessoa no projeto de trabalho dão direção,
 restrições e critérios ao agente (vs. só delegar); "base" cita o padrão observado; null se não houver prompts.
 Plano com exatamente 3 trechos, por PROGRESSO e não por datas: "trecho 1" (próximos degraus das maiores
-lacunas), "trecho 2" (consolidar), "trecho 3" (o que falta para a meta). No conjunto dos 3 trechos, CADA skill
-aparece em pelo menos 3 ações (são as centelhas da meta dela). "sinal_de_progresso"
+lacunas), "trecho 2" (consolidar), "trecho 3" (o que falta para a meta); 2 a 3 ações cada (resposta curta: as
+centelhas que faltarem em cada skill são pedidas depois, uma skill por vez). "sinal_de_progresso"
 descreve uma evidência observável, nunca um prazo. Não proponha de novo feixes parecidos com os descartados.
 {REGRAS_ACOES}"""
 

@@ -29,9 +29,8 @@ def _contexto(capsys) -> str:
     return json.loads(saida)['hookSpecificOutput']['additionalContext'] if saida.strip() else ''
 
 
-@pytest.mark.parametrize('modo', ['ativo', 'passivo'])
-def test_so_apagadas_pede_a_linha_para_acender(privado, plan, capsys, modo):
-    observer.ao_iniciar_sessao(*_inicio(privado, modo))
+def test_so_apagadas_pede_a_linha_para_acender(privado, plan, capsys):
+    observer.ao_iniciar_sessao(*_inicio(privado, 'ativo'))
     ctx = _contexto(capsys)
     m = LINHA.search(ctx)
     assert m and int(m.group(1)) == 3  # a trajetória sintética tem 3 centelhas apagadas
@@ -75,4 +74,24 @@ def test_porteiro_da_statusline(privado):
     assert porteiro.barrar_statusline(json.dumps({'cwd': cfg['autorizados'][0]}).encode()) is None
     cfg['modo'] = 'sob_demanda'
     (privado / 'observer.json').write_text(json.dumps(cfg), encoding='utf-8')
-    assert 'fora de foco' in porteiro.barrar_statusline(b'{}')
+    assert 'fora de foco' in porteiro.barrar_statusline(json.dumps({'cwd': cfg['autorizados'][0]}).encode())
+    assert porteiro.barrar_statusline(b'{}') == ''  # sem cwd: fechada
+
+
+def test_statusline_fora_de_foco_tambem_some_fora_do_repositorio_autorizado(privado):
+    """Rodada 1 do loop (24/11): em "fora de foco" a linha aparecia em qualquer pasta."""
+    import json as _json
+    from luzia import porteiro, statusline
+    cfg = _json.loads((privado / 'observer.json').read_text(encoding='utf-8'))
+    cfg['modo'] = 'sob_demanda'
+    (privado / 'observer.json').write_text(_json.dumps(cfg), encoding='utf-8')
+    fora = _json.dumps({'cwd': 'C:/outra/pasta'}).encode()
+    assert porteiro.barrar_statusline(fora) == '' and statusline.linha({'cwd': 'C:/outra/pasta'}) == ''
+    dentro = {'cwd': cfg['autorizados'][0]}
+    assert 'fora de foco' in statusline.linha(dentro)
+
+
+def test_em_silencio_o_inicio_de_sessao_fica_calado(privado, plan, capsys):
+    """Rodada 11: "em silêncio" (passivo) só muda a luz no banco, sem o aviso de início."""
+    observer.ao_iniciar_sessao(*_inicio(privado, 'passivo'))
+    assert _contexto(capsys) == ''

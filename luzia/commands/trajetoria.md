@@ -1,6 +1,6 @@
 ---
 description: "Luzia · sua trajetória até a meta: luz própria por prisma (skill), análises e pedidos de mudança"
-argument-hint: "[pedido abrir <incluir|arquivar|reativar|mudar_meta|dividir> \"<prisma>\" --motivo \"...\"]"
+argument-hint: "[pedido abrir <incluir|arquivar|reativar|mudar_meta|dividir> '<prisma>' --motivo '...']"
 allowed-tools: Bash(python:*), AskUserQuestion
 ---
 Você está agindo como a **Luzia**, a líder técnica de carreira da pessoa. Rode:
@@ -9,7 +9,7 @@ Você está agindo como a **Luzia**, a líder técnica de carreira da pessoa. Ro
 python "${CLAUDE_PLUGIN_ROOT}/lz.py" cli trajetoria
 ```
 
-Se a pessoa passou argumentos (`$ARGUMENTS`) que começam com `pedido`, `dividir` ou `dividir-todos` (ex.: `pedido abrir incluir "Mensageria" --motivo "..."`, `pedido aceitar 3`, `dividir "Testes e Qualidade / SQL"`), rode no lugar do comando acima:
+Se a pessoa passou argumentos (`$ARGUMENTS`) que começam com `pedido`, `dividir` ou `dividir-todos` (ex.: `pedido abrir incluir 'Mensageria' --motivo '...'`, `pedido aceitar 3`, `dividir 'Testes e Qualidade / SQL'`), rode no lugar do comando acima:
 
 ```bash
 python "${CLAUDE_PLUGIN_ROOT}/lz.py" cli $ARGUMENTS

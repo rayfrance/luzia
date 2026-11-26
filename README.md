@@ -12,9 +12,10 @@ python -m luzia.server                # painel em http://127.0.0.1:8501
 ```
 
 ## Instalar no Claude Code
+Testadores: siga [docs/teste/INSTALAR.md](docs/teste/INSTALAR.md). Para desenvolver, a partir de um clone local:
 ```
 claude plugin marketplace add <esta pasta>
-claude plugin install luzia@luzia
+claude plugin install luzia@luzia --scope user
 ```
 Sem o sistema de plugins: `python -m luzia.instalar` (com `--hooks` e `--statusline` opcionais). Outros agentes: `python -m luzia.instalar --regras`.
 
@@ -24,5 +25,5 @@ Regras do jogo: [docs/luzia-ux.md](docs/luzia-ux.md). Mapa do código: [luzia/CO
 Vai testar a Luzia? Comece por aqui:
 
 - [Instalar](docs/teste/INSTALAR.md): requisitos, instalação, atualização, privacidade e problemas comuns.
-- [Roteiro](docs/teste/ROTEIRO.md): três missões curtas e o que registrar enquanto usa.
+- [Roteiro](docs/teste/ROTEIRO.md): para quem é o teste, três missões curtas e o que registrar enquanto usa.
 - [Avaliação](docs/teste/AVALIACAO.md): o formulário para responder no fim do teste.

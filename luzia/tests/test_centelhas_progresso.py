@@ -280,8 +280,8 @@ def test_marcos_da_luz_nao_herdam_os_do_modelo_de_niveis(plan):
 
 def test_repetir_o_conceito_nao_infla_o_progresso(plan):
     for s in ('s1', 's2', 's3'):
-        observer.reconhecer_em('Aggregate', 'prompt', s, 'ativo', 'prompt', 'prompt', _gaps(plan))
-        observer.reconhecer_em('Aggregate', 'prompt', s, 'ativo', 'prompt', 'prompt', _gaps(plan))
+        observer.reconhecer_em('modele o Aggregate', 'prompt', s, 'ativo', 'prompt', 'prompt', _gaps(plan))
+        observer.reconhecer_em('modele o Aggregate', 'prompt', s, 'ativo', 'prompt', 'prompt', _gaps(plan))
     chat = [g for g in jogo.sincronizar(plan).values() if g['origem'] == 'chat']
     assert len(chat) == 1 and chat[0]['estado'] == 'propria'
     assert len(_consulta("SELECT 1 FROM lumen WHERE ref = ? AND luz = 'propria'", chat[0]['id'])) == 1
@@ -290,7 +290,7 @@ def test_repetir_o_conceito_nao_infla_o_progresso(plan):
 def test_sem_teto_diario(plan):
     """Muitos conceitos no mesmo dia e no mesmo prisma: todos contam (cada um uma vez)."""
     for i, termo in enumerate(('Aggregate', 'ValueObject')):
-        observer.reconhecer_em(termo, 'prompt', f's{i}', 'ativo', 'prompt', 'prompt', _gaps(plan))
+        observer.reconhecer_em(f'use o {termo} aqui', 'prompt', f's{i}', 'ativo', 'prompt', 'prompt', _gaps(plan))
     chat = [g for g in jogo.sincronizar(plan).values() if g['origem'] == 'chat']
     assert len(chat) == 2
     assert _prisma(plan, DDD)['propria'] == sum(g['valor_lm'] for g in chat)
@@ -382,3 +382,75 @@ def test_palavras_do_dia_a_dia_com_agente_nao_viram_conceito(plan):
     for texto, origem in (('Quero que o agente leia o arquivo com este prompt e contexto', 'prompt'),
                           ('# o agente roda a tarefa\n# critério: refactor: naming', 'agente')):
         assert observer.reconhecer_em(texto, origem, 's1', 'ativo', '.py', 'Write', gaps) == [], texto
+
+
+def test_centelha_do_chat_usa_o_termo_mais_completo(plan):
+    gaps = _gaps(plan)
+    for info in gaps.values():
+        info['palavras'] = ['Dependency', 'Dependency Injection']
+        info['centelhas'] = []
+    achados = observer.reconhecer_em('vamos usar Dependency Injection aqui', 'prompt', 's1', 'ativo', 'prompt', 'prompt', gaps)
+    assert achados and achados[0]['titulo'].endswith('Dependency Injection'), achados
+
+
+def test_termos_genericos_de_programacao_nao_viram_conceito(plan):
+    gaps = _gaps(plan)
+    for info in gaps.values():
+        info['palavras'] = ['Layer', 'Pattern', 'request', 'response', 'função']
+        info['centelhas'] = []
+    assert observer.reconhecer_em('ajuste a layer, o pattern, o request e a response desta função', 'prompt',
+                                  's1', 'ativo', 'prompt', 'prompt', gaps) == []
+
+
+def test_so_termo_com_cara_de_conceito_faz_nascer_centelha_do_chat(plan):
+    """Rodada 4 do loop: "revisão", "validação", "requisito" em minúscula viravam luz própria; e "Architecture"
+    nascia sozinho a partir de "Architecture Decision Records"."""
+    gaps = _gaps(plan)
+    prismas_ = list(gaps)
+    for info in gaps.values():
+        info['centelhas'] = []
+        info['palavras'] = ['revisão', 'validação', 'requisito']
+    gaps[prismas_[0]]['palavras'] = ['Architecture']
+    gaps[prismas_[1]]['palavras'] = ['Architecture Decision Records']
+    assert observer.reconhecer_em('faça a revisão do requisito e a validação', 'prompt', 's1', 'ativo', 'prompt', 'prompt', gaps) == []
+    achados = observer.reconhecer_em('vamos usar Architecture Decision Records', 'prompt', 's2', 'ativo', 'prompt', 'prompt', gaps)
+    assert [a['skill'] for a in achados] == [prismas_[1]] and achados[0]['titulo'].endswith('Architecture Decision Records')
+
+
+def test_maiuscula_de_inicio_de_frase_e_composto_de_centelha_nao_fazem_nascer(plan):
+    """Rodada 5 do loop: "Guide rápido por favor" e "Architecture" (de "Architecture Decision Records", composto que só
+    existia nas palavras de uma centelha) faziam nascer luz própria."""
+    gaps = _gaps(plan)
+    prismas_ = list(gaps)
+    for info in gaps.values():
+        info['centelhas'] = []
+        info['palavras'] = ['Guide']
+    gaps[prismas_[0]]['palavras'] = ['Architecture']
+    gaps[prismas_[1]]['centelhas'] = [{'id': 'x1', 'estado': 'apagada', 'titulo': 'ADR', 'lm': 50, 'origem': 'triagem',
+                                       'palavras': ['Architecture Decision Records']}]
+    assert observer.reconhecer_em('Guide rápido por favor', 'prompt', 's1', 'ativo', 'prompt', 'prompt', gaps) == []
+    achados = observer.reconhecer_em('vamos usar Architecture Decision Records', 'prompt', 's2', 'ativo', 'prompt', 'prompt', gaps)
+    assert all(a['skill'] != prismas_[0] for a in achados)
+    assert observer.reconhecer_em('modele o Guide do time', 'prompt', 's3', 'ativo', 'prompt', 'prompt', gaps)  # no meio da frase vale
+
+
+def test_nome_de_prisma_sem_espaco_e_composto_comum_em_portugues_nao_nascem(plan):
+    """Rodada 6 do loop: prisma "Value Object" deixava "ValueObject" nascer; "visão geral" em minúscula nascia."""
+    gaps = _gaps(plan)
+    info = gaps[DDD]
+    gaps['Value Object'] = {**info, 'palavras': ['ValueObject'], 'centelhas': []}
+    for i in gaps.values():
+        i['centelhas'] = []
+    gaps[TESTES]['palavras'] = ['visão geral']
+    assert observer.reconhecer_em('o que é um Value Object?', 'prompt', 's1', 'ativo', 'prompt', 'prompt', gaps) == []
+    assert observer.reconhecer_em('revise a visão geral do projeto', 'prompt', 's2', 'ativo', 'prompt', 'prompt', gaps) == []
+
+
+def test_composto_portugues_sem_acento_com_conectivo_nao_nasce_em_minuscula(plan):
+    """Rodada 7 do loop: "dia a dia" e "passo a passo" (ASCII) passavam como termo técnico em inglês."""
+    gaps = _gaps(plan)
+    for i in gaps.values():
+        i['centelhas'] = []
+        i['palavras'] = ['dia a dia', 'passo a passo', 'bounded context']
+    assert observer.reconhecer_em('no dia a dia eu faço passo a passo', 'prompt', 's1', 'ativo', 'prompt', 'prompt', gaps) == []
+    assert observer.reconhecer_em('use bounded context aqui', 'prompt', 's2', 'ativo', 'prompt', 'prompt', gaps)

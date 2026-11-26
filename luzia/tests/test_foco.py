@@ -55,7 +55,7 @@ def test_observer_script_le_prompt_com_acentos_em_utf8(privado):
     """O pipe do Windows não pode estragar acentos do prompt: 'subdomínio' é palavra do prisma DDD."""
     repo = json.loads((privado / 'observer.json').read_text(encoding='utf-8'))['autorizados'][0]
     evento = {'hook_event_name': 'UserPromptSubmit', 'session_id': 's-acento', 'cwd': repo,
-              'prompt': 'separe o subdomínio de cobrança'}
+              'prompt': 'separe o Subdomínio de cobrança'}  # conceito escrito como nome (prompt pede termo de conceito, 24/11)
     r = _script(privado, 'observer.py', json.dumps(evento, ensure_ascii=False))
     assert r.returncode == 0, r.stderr
     assert 'luz própria' in json.loads(r.stdout)['hookSpecificOutput']['additionalContext']

@@ -73,10 +73,21 @@ def test_sobrecarga_que_insiste_vai_para_as_reservas_atuais_e_avisa(monkeypatch)
 def test_tudo_falhando_mostra_o_erro_do_principal_e_pula_reserva_que_nao_existe(monkeypatch):
     sobrecarga = RuntimeError('503 UNAVAILABLE: high demand')
     sumiu = RuntimeError('404 NOT_FOUND: no longer available')
-    chamados = _sdk_falso(monkeypatch, [sobrecarga] * 2 + [sumiu, sobrecarga])
+    reservas = list(modelo.RESERVAS_GEMINI)
+    chamados = _sdk_falso(monkeypatch, [sobrecarga] * 2 + [sumiu] + [sobrecarga] * (len(reservas) - 1) + [sobrecarga])
     with pytest.raises(RuntimeError, match='sobrecarregado'):
         modelo._gemini('gemini-3.5-flash-lite', 'p', 's', 'k')
-    assert chamados == ['gemini-3.5-flash-lite'] * 2 + list(modelo.RESERVAS_GEMINI)
+    # 2 no escolhido, cada reserva uma vez, e uma última no escolhido depois de uma pausa
+    assert chamados == ['gemini-3.5-flash-lite'] * 2 + reservas + ['gemini-3.5-flash-lite']
+
+
+def test_ultima_tentativa_no_principal_depois_das_reservas(monkeypatch):
+    sobrecarga = RuntimeError('503 UNAVAILABLE: high demand')
+    reservas = list(modelo.RESERVAS_GEMINI)
+    chamados = _sdk_falso(monkeypatch, [sobrecarga] * (2 + len(reservas)) + [_Resp()])
+    *_, usado = modelo._gemini('gemini-3.5-flash-lite', 'p', 's', 'k')
+    assert usado == 'gemini-3.5-flash-lite' and chamados[-1] == 'gemini-3.5-flash-lite'
+    assert 'gemini-flash-lite-latest' in reservas  # alias: sobrevive à troca de nomes dos modelos
 
 
 def test_mensagem_clara_para_sobrecarga():
@@ -86,3 +97,13 @@ def test_mensagem_clara_para_sobrecarga():
 def test_nao_ha_mais_modelo_reserva_aposentado():
     import inspect
     assert not any(m.startswith('gemini-2.5') for m in modelo.RESERVAS_GEMINI)  # aposentados para contas novas
+
+
+def test_rodada12_testar_e_uma_tentativa_so_com_limite_curto(monkeypatch):
+    """Rodada 12: o Testar prometia "até 1 minuto" e levou 172 s pelas tentativas e reservas da triagem."""
+    sobrecarga = RuntimeError('503 UNAVAILABLE: high demand')
+    chamados = _sdk_falso(monkeypatch, [sobrecarga, _Resp(), _Resp()])
+    with pytest.raises(RuntimeError, match='sobrecarregado'):
+        modelo._gemini('gemini-3.5-flash-lite', 'p', 's', 'k', rapido=True)
+    assert chamados == ['gemini-3.5-flash-lite']  # sem nova tentativa nem reserva
+    assert 'demorou demais' in modelo.resumo_erro(RuntimeError('The read operation timed out'))

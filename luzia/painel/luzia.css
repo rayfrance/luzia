@@ -165,6 +165,14 @@ h4 { font-size: 13px; color: var(--texto-4); font-weight: 600; margin: 28px 0 10
 .linha-traj .rot { color: var(--texto-3); white-space: nowrap; }
 .linha-traj .segs { flex: 1; }
 .linha-traj b { color: var(--propria-clara); white-space: nowrap; }
+/* cargos longos ("Desenvolvedora Júnior → Desenvolvedora Plena") não podem alargar a página no celular (rodada 4, 24/11) */
+.linha-traj > button { min-width: 0; }
+.linha-traj .rot { min-width: 0; overflow: hidden; text-overflow: ellipsis; flex: 0 1 auto; }
+.linha-traj .segs { min-width: 48px; }
+@media (max-width: 960px) {
+  .linha-traj > button { flex-wrap: wrap; row-gap: 8px; }
+  .linha-traj .rot { white-space: normal; flex-basis: 100%; }
+}
 .selo { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--texto-3); padding: 6px 12px; border-radius: var(--r-pilula); background: var(--sup-2); }
 .selo .ponto { width: 8px; height: 8px; border-radius: 50%; }
 .selo .ponto.ativo { background: var(--propria); box-shadow: 0 0 8px var(--propria); }
@@ -296,8 +304,11 @@ details summary::-webkit-details-marker { display: none; }
 .entrega .er p { font-size: 14px; color: var(--texto-4); margin-top: 8px; }
 .entrega .prop { flex: 1 1 240px; max-width: 320px; }
 .entrega .prop .l1 { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
-.entrega .prop .l1 b { font-size: 24px; font-weight: 700; color: var(--propria-clara); }
-.entrega .prop .l1 > span { font-size: 13px; color: var(--texto-3); }
+.entrega .prop .l1 { gap: 12px; }
+.entrega .prop .l1 .destaque-prop { display: flex; flex-direction: column; min-width: 0; }
+.entrega .prop .l1 b { font-size: 24px; font-weight: 700; color: var(--propria-clara); white-space: nowrap; }
+.entrega .prop .l1 small { font-size: 13px; margin-top: 2px; }
+.entrega .prop .l1 > .ver { font-size: 13px; color: var(--texto-3); white-space: nowrap; flex: none; }
 .entrega .fecha, .entrega[open] .abre { display: none; }
 .entrega[open] .fecha { display: inline; }
 .luz-barra { display: flex; height: 14px; border-radius: var(--r-pilula); overflow: hidden; background: var(--sup-3); }
@@ -420,6 +431,6 @@ details summary::-webkit-details-marker { display: none; }
 .tt-acoes .btn.link { min-height: var(--alvo); }
 .tt-nav { display: flex; gap: 8px; margin-left: auto; }
 @media (max-width: 960px) {
-  .tutorial:not(.sem-alvo) .tt-cartao { left: 12px; right: 12px; bottom: 88px; width: auto; max-height: 56vh; padding: 18px 18px 14px; gap: 10px; }
+  .tutorial:not(.sem-alvo) .tt-cartao { left: 12px; right: 12px; bottom: 88px; width: auto; max-height: 64vh; padding: 18px 18px 14px; gap: 10px; }
   .tt-corpo { font-size: 14px; }
 }

@@ -319,10 +319,13 @@ def detectar(repo: Path, identidades: list[str], desde: str) -> list[dict]:
 
 # ------------------------------------------------------------------ prismas atravessados
 def termos_do_prisma(palavras: list[str], textos: list[str]) -> list[str]:
-    """Palavras do prisma achadas nos textos (sem diferenciar maiúsculas; mesma borda de `observer.detectar`)."""
+    """Palavras do prisma achadas nos textos, com a regra do foco (`observer._padrao`): termos compostos casam com ou
+    sem separador ("ValueObject" ~ "value object" ~ "value_object"), sem diferenciar maiúsculas."""
+    from .observer import _padrao  # import tardio: o observador é leve e não importa este módulo
+
     achadas = []
     for w in palavras:
-        if w and len(w) >= 3 and any(re.search(r'(?<![A-Za-z])' + re.escape(w), t, re.IGNORECASE) for t in textos):
+        if w and len(w) >= 3 and any(re.search(r'(?<![A-Za-z])' + _padrao(w), t, re.IGNORECASE) for t in textos):
             achadas.append(w)
     return achadas
 

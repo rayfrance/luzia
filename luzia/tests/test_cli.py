@@ -222,7 +222,7 @@ def test_hoje_mostra_a_centelha_que_mais_vale_converter(privado, monkeypatch):
     rodar(monkeypatch, 'fazer', c)  # c está convertendo: vem antes das refletidas, mesmo valendo menos
     s = rodar(monkeypatch, 'hoje')
     v = visivel(s)
-    linhas = v.splitlines()
+    linhas = [l for l in v.splitlines() if 'menos de 3 centelhas na meta' not in l]  # o lembrete de meta curta é opcional
     assert linhas[0] == '## Luzia · Hoje'
     assert re.fullmatch(r'Júnior 3 → Plena  [█▓▒░]{12}  \d+% do caminho', linhas[1]), linhas[1]
     assert re.fullmatch(r'3 centelhas para converter · \d+ lm', linhas[2]), linhas[2]
@@ -342,9 +342,9 @@ def test_subir_explica_que_o_progresso_vem_de_converter(privado, monkeypatch):
     for argv in (('subir', DDD), ('subir',)):
         s = rodar(monkeypatch, *argv)
         v = visivel(s)
-        assert 'O progresso agora vem de converter centelhas' in v and 'nível' in v
+        assert 'O progresso agora vem de converter centelhas' in v and 'nível' not in v.lower()  # sem a palavra desde 24/11
         assert 'Parabéns' not in v and len(v.splitlines()) <= 3
-        assert botoes_de(s)[0]['rodar'] == 'centelhas --estado converter' and tem_rodape_botoes(s)
+        assert botoes_de(s)[0]['rodar'] in ('centelhas --estado converter', 'trajetoria') and tem_rodape_botoes(s)  # converter só com o que converter
 
 
 def test_comandos_de_nivel_e_lampejo_sairam(privado, monkeypatch):
@@ -515,7 +515,7 @@ def test_entrega_detalhe_mostra_p1_a_p4_com_base(privado, monkeypatch):
     assert re.search(r'P1 Direção no prompt: \*\*65\*\* \(inferido · geral\)', v), v
     assert re.search(r'P2 Coesão: \*\*100\*\* \(calculado\) — 100 − 0 \(4 arquivos\)', v), v
     assert 'P3 Aplicação de conceito: — falta você explicar' in v and 'P4 Decisão de arquitetura: — falta você defender' in v
-    assert '**82% seu** (medido em P1 e P2)' in v, v
+    assert '**82% seu** em 2 de 4 medidas (P1 e P2)' in v, v  # diz em quantas medidas se apoia (24/11)
     assert '(s)' not in v and '2 commits' in v and '4 arquivos' in v  # plural de verdade
     assert tem_rodape_botoes(s)
 
@@ -752,7 +752,7 @@ def test_acender_sem_modelo_no_chat_nao_quebra_nem_grava(privado, monkeypatch):
     jogo.sincronizar(pipeline.load_state()['plano'])
     antes = len(jogo.catalogo(pipeline.load_state()['plano']))
     s = rodar(monkeypatch, 'acender', DDD)
-    assert 'não deu para acender' in visivel(s) and tem_rodape_botoes(s)
+    assert 'Não deu para acender' in visivel(s) and tem_rodape_botoes(s)
     assert len(jogo.catalogo(pipeline.load_state()['plano'])) == antes
 
 
@@ -784,7 +784,8 @@ def test_nota_fora_de_0_a_4_nao_registra_nada(privado, monkeypatch, nota):
 
 
 def test_registrar_id_inexistente_e_comandos_sem_id(privado, monkeypatch):
-    assert 'Centelha zzzz não encontrada.' in rodar(monkeypatch, 'registrar', 'zzzz', '--nota', '3', '--resumo', 'x')
+    assert 'Centelha zzzz não encontrada. Os ids aparecem em /luzia:centelhas e no painel (aba Centelhas).' in rodar(
+        monkeypatch, 'registrar', 'zzzz', '--nota', '3', '--resumo', 'x')
     for cmd in ('converter', 'descartar', 'restaurar', 'enviar'):
         s = rodar(monkeypatch, cmd)
         assert f'Use: {cmd} <id>' in s and 'Centelha  não' not in s, cmd
@@ -802,3 +803,51 @@ def test_acender_sem_prisma_pergunta_e_nao_gera_nada(privado, monkeypatch):
     monkeypatch.setattr(cli, 'gerar_trecho', lambda *a, **k: chamado.append(a) or {'erro': 'x'})
     s = rodar(monkeypatch, 'acender', '')
     assert chamado == [] and 'Para qual prisma?' in s and all(b['rodar'].startswith('acender ') for b in botoes_de(s))
+
+
+def test_rodada9_estado_e_tipo_invalidos_nao_levam_a_lista_vazia(privado, monkeypatch):
+    """Rodada 9: estado inválido oferecia "Ver centelhas para converter" mesmo sem nada a converter; tipo inválido
+    respondia "Nada com esses filtros" sem dizer os tipos."""
+    from luzia import acoes
+    monkeypatch.setattr(acoes, 'todas', lambda plan: [])
+    s = rodar(monkeypatch, 'centelhas', '--estado', 'foo')
+    assert 'Não conheço o estado `foo`' in visivel(s)
+    assert all(b['rodar'] != 'centelhas --estado converter' for b in botoes_de(s))
+    s = rodar(monkeypatch, 'centelhas', '--estado', 'todas', '--tipo', 'foo')
+    assert 'Não conheço o tipo `foo`. Tipos: estudar, praticar, explicar, explorar.' in visivel(s)
+
+
+def test_rodada10_hoje_e_trajetoria_lembram_meta_curta(privado, monkeypatch):
+    """Rodada 10: quando a triagem não completa as metas (o modelo falhou), hoje e trajetória lembram e oferecem acender."""
+    monkeypatch.setattr(cli, 'prismas_com_meta_curta', lambda plan=None: [DDD])
+    for cmd in ('hoje', 'trajetoria'):
+        s = rodar(monkeypatch, cmd)
+        assert 'com menos de 3 centelhas na meta' in visivel(s) and 'sem mudar o alvo nem o seu %' in visivel(s)
+        assert any(b['rodar'] == f"acender '{DDD}'" for b in botoes_de(s)), botoes_de(s)
+    monkeypatch.setattr(cli, 'prismas_com_meta_curta', lambda plan=None: [])
+    assert 'menos de 3 centelhas na meta' not in visivel(rodar(monkeypatch, 'hoje'))
+
+
+def test_rodada10_acender_diz_que_o_alvo_nao_muda(privado, monkeypatch):
+    """Rodada 10: a saída de acender diz que o alvo e o % ficam iguais."""
+    plan = cli.pipeline.load_state().get('plano', {})
+    f = dict(acoes.todas(plan)[0])
+    monkeypatch.setattr(cli, 'gerar_trecho', lambda *a, **k: {'skill': DDD, 'feixes': [f], 'record': {}})
+    monkeypatch.setattr(cli, 'footer', lambda rec: None)
+    v = visivel(rodar(monkeypatch, 'acender', DDD))
+    assert re.search(r'O alvo de .+ continua em \d+ lm e o seu % não muda \(\d+%\)', v), v
+
+
+def test_rodada12_pedido_sem_proposta_oferece_gerar_e_nao_aceitar(privado, monkeypatch):
+    """Rodada 12: o modelo não respondeu a tempo e o pedido ficou sem proposta; a Luzia oferecia "Aceitar", que falhava
+    com "gere uma proposta" sem dizer como."""
+    with trajetoria.abrir() as con:
+        pid = pedidos.abrir(con, 'incluir', 'Observabilidade', '')['id']
+    s = rodar(monkeypatch, 'pedido', 'aceitar', str(pid))
+    assert 'ainda não tem proposta' in visivel(s)
+    bts = botoes_de(s)
+    assert bts[0]['rodar'] == f'pedido ajustar {pid}' and not any(b['rodar'].startswith('pedido aceitar') for b in bts)
+    gerou = []
+    monkeypatch.setattr(pedidos, 'propor', lambda con, i, **k: gerou.append((i, k)) or pedidos.listar(con)[0])
+    rodar(monkeypatch, 'pedido', 'ajustar', str(pid))
+    assert gerou == [(pid, {'palavras': None, 'nota': None})]  # sem proposta, ajustar sem argumentos gera a proposta em vez de perguntar

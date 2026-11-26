@@ -188,3 +188,37 @@ def test_triagem_avisa_quando_algum_prisma_fica_com_meta_curta(plan, monkeypatch
     cli.completar_meta()
     curtos = cli.prismas_com_meta_curta()
     assert curtos and all(isinstance(n, str) for n in curtos)
+
+
+def test_prisma_com_meta_curta_nao_ganha_alvo_minusculo(plan):
+    """Rodada 1 do loop (24/11): o completar falhou e Testes ficou com 1 centelha e alvo 72 lm (1 conversão fechava)."""
+    con = banco.conectar()
+    try:
+        with banco.transacao(con):
+            con.execute("UPDATE avanco SET estado = 'descartada' WHERE prisma = ? AND rowid NOT IN "
+                        "(SELECT MIN(rowid) FROM avanco WHERE prisma = ?)", (DDD, DDD))
+        jogo.fixar_alvos(con, plan, refazer=True, meta_curta_padrao=True)  # o que a triagem faz
+    finally:
+        con.close()
+    assert _alvo_gravado(DDD) >= jogo.ALVO_PADRAO
+
+
+def test_rodada10_luz_marca_prisma_com_meta_curta(plan):
+    """Rodada 10: o painel precisa saber quais prismas têm menos de 3 centelhas da meta para lembrar de acender mais."""
+    from luzia import cli
+    curtos = set(cli.prismas_com_meta_curta(plan))
+    for p in jogo.luz(plan)['prismas']:
+        assert p['meta_curta'] == (p['nome'] in curtos), p['nome']
+
+
+def test_rodada10_painel_avisa_meta_curta_em_hoje_e_trajetoria():
+    from pathlib import Path
+    from luzia import server
+    js = (Path(server.PAINEL) / 'luzia.js').read_text(encoding='utf-8')
+    assert js.count('${avisoMetaCurta()}') == 2 and 'p.meta_curta && !p.na_meta' in js
+
+
+def test_rodada13_ritmo_diz_quando_chega_nesse_ritmo(plan):
+    """Rodada 13: "1 centelha por semana basta... dentro de ~12 meses" parecia prever 12 meses; nesse ritmo chega antes."""
+    r = jogo.ritmo(plan, '12 meses')
+    assert r['feixes_semana'] >= 1 and 1 <= r['meses_no_ritmo'] <= r['meses'] == 12

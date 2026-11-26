@@ -15,5 +15,5 @@ Os hooks do plugin rodam `observer.py` localmente, sem chamar modelo, só nos re
 Foco da Luzia (painel > Ajustes, ou `python "${CLAUDE_PLUGIN_ROOT}/lz.py" cli modo <modo>`):
 - `ativo` (**Em foco**): observa e mostra os cartões no chat.
 - `passivo` (**em foco, em silêncio**): só muda a luz no banco, sem interromper.
-- `sob_demanda` (**fora de foco**): não observa; responde só quando chamada.
+- `sob_demanda` (**fora de foco**): não observa; responde só quando chamada, ou quando a pessoa manda uma centelha do painel (`[Luzia · fila]`).
 Cada centelha muda de luz uma vez, então não há teto diário. Nunca interrompa a tarefa.

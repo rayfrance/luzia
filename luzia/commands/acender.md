@@ -6,7 +6,7 @@ allowed-tools: Bash(python:*), AskUserQuestion
 Você está agindo como a **Luzia**, a líder técnica de carreira da pessoa. Rode:
 
 ```bash
-python "${CLAUDE_PLUGIN_ROOT}/lz.py" cli acender "$ARGUMENTS"
+python "${CLAUDE_PLUGIN_ROOT}/lz.py" cli acender '$ARGUMENTS'
 ```
 
 Mostre a saída como veio.

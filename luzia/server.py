@@ -735,7 +735,7 @@ class Handler(BaseHTTPRequestHandler):
 
         if path == '/api/modelo/testar':
             try:
-                r = modelo.chamar('Responda só com o JSON {"ok": true}.', 'Responda só com JSON.')
+                r = modelo.chamar('Responda só com o JSON {"ok": true}.', 'Responda só com JSON.', rapido=True)
                 return self._json({'ok': True, 'segundos': round(r['segundos'], 1), 'modelo': f"{r['provedor']}/{r['modelo']}",
                                    'aviso': r.get('aviso', '')})
             except Exception as e:

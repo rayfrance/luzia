@@ -21,10 +21,10 @@ from luzia import arquivos, banco, jogo, observer, trajetoria  # noqa: E402
 def linha(dados: dict) -> str:
     cfg = observer.config()
     cwd = str((dados.get('workspace') or {}).get('current_dir') or dados.get('cwd') or '')
+    if not cwd or not observer.authorized(cwd, cfg):  # fora dos repositórios autorizados (ou sem cwd) nada aparece
+        return ''
     if cfg['modo'] == 'sob_demanda':
         return '✦ Luzia · fora de foco (/luzia:hoje)'
-    if cwd and not observer.authorized(cwd, cfg):
-        return ''
     try:
         plan = trajetoria.plano(banco.ESPERA_CURTA_MS)
     except Exception:  # banco ocupado ou plano ilegível: a linha de status nunca quebra

@@ -13,12 +13,13 @@ from pathlib import Path
 
 _PATTERNS: list[tuple[str, re.Pattern[str]]] = [
     ('[EMAIL]', re.compile(r'[\w.+-]+@[\w-]+(?:\.[\w-]+)+')),
-    ('[URL]', re.compile(r'(?:https?|file)://\S+|www\.\S+')),
+    ('[URL]', re.compile(r'(?:https?|file)://\S+|www\.\S+'
+                         r'|\b[\w-]+(?:\.[\w-]+)*\.(?:com|net|org|io|dev|app|br)(?:\.br)?(?:/\S*)?(?![\w.])')),  # acme.com.br/x
     ('[CPF]', re.compile(r'\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b')),
     ('[TELEFONE]', re.compile(r'(?:\+?55\s?)?\(?\d{2}\)?\s?9?\d{4}[-\s]?\d{4}\b')),
     ('[CEP]', re.compile(r'\b\d{5}-\d{3}\b')),
     ('[PR]', re.compile(r'\b(?:PR|Pull Request)\s*#?\d+\b', re.IGNORECASE)),
-    ('[TICKET]', re.compile(r'#\d{3,}\b')),
+    ('[TICKET]', re.compile(r'#\d{3,}\b|\b[A-Z][A-Z0-9]{1,9}-\d{2,}\b')),  # #1234 e PROJ-123 (Jira, Azure)
     ('[HASH]', re.compile(r'\b[0-9a-f]{7,40}\b')),
 ]
 

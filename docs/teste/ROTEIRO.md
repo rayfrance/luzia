@@ -1,8 +1,23 @@
 # Luzia · Roteiro do teste
 
-Você vai usar a Luzia no seu trabalho de sempre, a partir de **quarta-feira, 25/11**, até a data que a Rayane combinar com você. Depois, responde a [AVALIACAO.md](AVALIACAO.md). Instalação: [INSTALAR.md](INSTALAR.md).
+## Para quem é este teste
 
-A ideia em uma frase: o que o agente aplica e você não domina é luz refletida. Quando você explica e defende, vira luz própria. Cada prisma (skill) da sua meta tem centelhas (conceitos), cada uma com um valor fixo em lúmens (lm). O % de cada prisma, e o **% do caminho** da trajetória, é a luz própria até o alvo da meta: acender centelhas novas só cria oportunidades, então esse número nunca cai. Ao lado, o **% da luz coletada é sua** mostra quanto da luz que você já tocou é sua, e não do agente.
+A Luzia ajuda quem programa com agentes de IA a não perder o domínio do próprio trabalho: ela percebe o que o agente aplicou por você e transforma isso em conceitos que você explica e passa a dominar. O teste faz sentido se você:
+
+- programa de verdade num repositório git com commits seus (trabalho, estágio, projeto pessoal ou da faculdade);
+- já usa o **Claude Code** (é nele que a Luzia roda), todo dia ou algumas vezes por semana;
+- está no começo ou no meio da carreira (estágio, júnior, pleno) e quer crescer numa direção clara;
+- pode usar a Luzia por alguns dias no seu trabalho de sempre e responder a avaliação no fim (uns 10 minutos);
+- tem Python 3.11 ou mais novo e pode criar uma chave gratuita do Gemini;
+- pode enviar a um modelo de IA externo os assuntos dos seus commits e as respostas da entrevista (se o seu trabalho proíbe isso, use um projeto pessoal).
+
+Não precisa saber nada da Luzia antes. Se você não programa ou não usa agentes de código, a sua opinião ainda vale, mas este teste mede outra coisa.
+
+## Como vai ser
+
+Você vai usar a Luzia no seu trabalho de sempre, a partir do dia em que instalar, até a data que a Rayane combinar com você. Depois, responde a [AVALIACAO.md](AVALIACAO.md). Instalação: [INSTALAR.md](INSTALAR.md).
+
+A ideia em uma frase: o que o agente aplica e você não domina é luz refletida. Quando você explica e defende, vira luz própria. Cada prisma (skill) da sua meta tem centelhas (conceitos), cada uma com um valor fixo em lúmens (lm). O % de cada prisma, e o **% do caminho** da trajetória, é a luz própria até o alvo da meta: ele sobe quando uma centelha vira luz própria, e acender centelhas novas só cria oportunidades, então não o baixa. Fora isso, ele só muda quando você muda a trajetória: incluir ou arquivar um prisma muda o alvo (o número pode subir ou descer), e a Luzia mostra o antes e o depois. Ao lado, o **% da luz coletada é sua** mostra quanto da luz que você já tocou é sua, e não do agente.
 
 ## Registre enquanto usa
 
@@ -68,8 +83,8 @@ Se quiser retomar uma centelha depois:
 
 2. Escolha um prisma e veja as suas centelhas e os estados (Por acender, Luz refletida, Convertendo, Luz própria).
 3. Abra uma centelha e clique em **Por que N lm**. O valor fez sentido?
-4. Abra a aba **Entregas**. Ela mostra quanto de cada entrega do git é seu, em quatro medidas: **P1** a direção que você deu ao agente nos prompts, **P2** o foco da entrega, **P3** o conceito aplicado que você explicou e **P4** a decisão que você defendeu.
-5. Em uma entrega, use **Provar P3 e P4** (aparece quando falta prova de autoria) ou **Converter a luz desta entrega** (aparece quando há luz refletida ligada a ela).
+4. Abra a aba **Entregas**. Ela mostra quanto de cada entrega do git é seu, em quatro medidas: **P1 · Direção no prompt** (a direção que você deu ao agente), **P2 · Coesão** (poucos arquivos e áreas), **P3 · Aplicação de conceito** (o conceito que você explicou) e **P4 · Decisão de arquitetura** (a decisão que você defendeu).
+5. Em uma entrega, use **Provar P3 e P4** (ou só a que faltar; aparece quando falta prova de autoria) ou **Converter a luz desta entrega** (aparece quando há luz refletida ligada a ela).
 6. Gere o dossiê de evidências:
 
 ```

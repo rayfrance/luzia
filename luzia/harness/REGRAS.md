@@ -2,7 +2,7 @@
 
 Cole este bloco nas regras globais do seu agente (Codex: `~/.codex/AGENTS.md`; Antigravity/Gemini: `GEMINI.md` ou regras do workspace; Cursor: User Rules). No Claude Code, o plugin (comandos `/luzia:*` e hooks) já faz isso.
 
-Para receber o bloco com o caminho certo desta máquina: `python -m luzia.instalar --regras` (rodado dentro de `code/`).
+Para receber o bloco com o caminho certo desta máquina: `python lz.py instalar --regras`, rodado na pasta do plugin (a que tem o `lz.py`).
 
 ```markdown
 ## Luzia (líder técnica de carreira)
@@ -11,11 +11,11 @@ Para receber o bloco com o caminho certo desta máquina: `python -m luzia.instal
 - Consultas principais:
   - "Luzia, o que eu faço agora?": `LUZIA hoje`
   - "Trajetória / prismas / quanta luz própria": `LUZIA trajetoria`
-  - "Mudar a trajetória (incluir, mudar meta, arquivar ou reativar prisma)": `LUZIA pedido abrir <tipo> "<prisma>" --motivo "<motivo>"` (depois `ajustar`, `aceitar` ou `recusar`)
+  - "Mudar a trajetória (incluir, mudar meta, arquivar ou reativar prisma)": `LUZIA pedido abrir <tipo> '<prisma>' --motivo '<motivo>'` (depois `ajustar`, `aceitar` ou `recusar`)
   - "Centelhas" (com filtros opcionais): `LUZIA centelhas [--estado converter|propria|apagada|todas] [--prisma P] [--tipo T]` (`avancos` é apelido)
-  - "Acender centelhas novas de um prisma": `LUZIA acender "<prisma>"`
+  - "Acender centelhas novas de um prisma": `LUZIA acender '<prisma>'`
   - "Entregas e propriedade intelectual": `LUZIA entregas [--ampliar DIAS]` e `LUZIA entrega <id>`
-  - "Não achou minhas entregas / meu nome no git é outro": `LUZIA identidade` e `LUZIA identidade adicionar "<nome ou e-mail>"`
+  - "Não achou minhas entregas / meu nome no git é outro": `LUZIA identidade` e `LUZIA identidade adicionar '<nome ou e-mail>'`
   - "Acender centelhas para provar a propriedade de uma entrega": `LUZIA acender-entrega <id>` (2 centelhas: P3 e P4)
   - "Atualizar as análises desatualizadas (cada Análise da Luzia mostra base, modelo e data)": `LUZIA analises` (`leituras` é apelido)
   - "Trocar o modelo / o agente": `LUZIA modelo usar <provedor> <modelo>` (a chave nunca pelo chat: painel ou `.env`) e `LUZIA agente <nome>`
@@ -24,10 +24,10 @@ Para receber o bloco com o caminho certo desta máquina: `python -m luzia.instal
   - "Converter uma centelha": `LUZIA converter <id>` · "O sim da pessoa": `LUZIA confirmar <id>`
   - "Trajetória até a meta": `LUZIA next-level` (apelido de `trajetoria`) · Dossiê formal: `LUZIA dossie`
 - Toda saída pode terminar com `LUZIA_CLI`, `LUZIA_PERGUNTA` e `LUZIA_BOTOES` (JSON com `rotulo`, `descricao`, `rodar`). Não mostre essas linhas brutas: antes das opções, escreva 1 a 3 frases naturais com o contexto (onde a pessoa está e por que cada opção faz sentido agora); só então apresente as opções ao usuário (ou lista numerada) e, após a escolha, rode `LUZIA <rodar>`.
-- Centelha (`rodar` = `fazer <id>` ou `converter <id>`): se este harness abre agente/sessão nova com um prompt, ofereça isso com o texto de `LUZIA prompt <id>`; senão rode `LUZIA converter <id>` e siga o `ROTEIRO PARA O AGENTE`: uma pergunta por vez, não faça o trabalho no lugar da pessoa, avalie pela rubrica 0–4 e rode `LUZIA registrar <id> --nota N --resumo "..."` (o resumo fica só no banco privado e no dossiê local da pessoa). Nota 3 ou 4 confirma o entendimento; 0 a 2 segue convertendo, com a dica do que faltou.
+- Centelha (`rodar` = `fazer <id>` ou `converter <id>`): se este harness abre agente/sessão nova com um prompt, ofereça isso com o texto de `LUZIA prompt <id>`; senão rode `LUZIA converter <id>` e siga o `ROTEIRO PARA O AGENTE`: uma pergunta por vez, não faça o trabalho no lugar da pessoa, avalie pela rubrica 0–4 e rode `LUZIA registrar <id> --nota N --resumo '...'` (o resumo fica só no banco privado e no dossiê local da pessoa). Nota 3 ou 4 confirma o entendimento; 0 a 2 segue convertendo, com a dica do que faltou.
 - **Foco sem hooks (reconhecimento passivo).** Este harness não tem hooks, então você mesma chama o foco:
-  - Depois de **editar arquivos**: `LUZIA foco --arquivos <caminhos editados> --cwd "<pasta do projeto>"`. A Luzia lê só o `git diff` desses caminhos e não guarda código.
-  - No **começo de um pedido** da pessoa que cite um conceito: grave o texto do pedido num arquivo temporário e rode `LUZIA foco --prompt-arquivo <arquivo> --cwd "<pasta do projeto>"`; apague o arquivo em seguida. O texto não é guardado.
+  - Depois de **editar arquivos**: `LUZIA foco --arquivos <caminhos editados> --cwd '<pasta do projeto>'`. A Luzia lê só o `git diff` desses caminhos e não guarda código.
+  - No **começo de um pedido** da pessoa que cite um conceito: grave o texto do pedido num arquivo temporário e rode `LUZIA foco --prompt-arquivo <arquivo> --cwd '<pasta do projeto>'`; apague o arquivo em seguida. O texto não é guardado.
   - Opcional: `--sessao <id>` (sem ele, vale um id por pasta e por dia).
   - Regras (as mesmas do hook): se você aplicou o conceito, a centelha vira luz refletida; se a pessoa o citou no pedido, vira luz própria. Cada centelha muda de luz uma vez, sem teto diário. Cartão só no foco `ativo` ("Em foco"). Se a saída trouxer uma centelha em luz refletida, mostre no fim da resposta e ofereça "Converter agora" e "Depois". Se não trouxer nada novo, não comente.
 - Luz própria: só rode `LUZIA confirmar <id>` com o **sim explícito** da pessoa, depois de nota 3 ou 4.

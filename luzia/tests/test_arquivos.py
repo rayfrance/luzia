@@ -61,4 +61,4 @@ def test_diagnostico_sem_expor_a_chave(monkeypatch, privado):
         cli.main()
     s = buf.getvalue()
     assert 'segredo-xyz-123' not in s
-    assert 'Python:' in s and 'git:' in s and 'LUZIA_BOTOES=' in s and 'career-map' in s and 'triage' in s
+    assert 'Python:' in s and 'git:' in s and 'LUZIA_BOTOES=' in s and 'career-map' in s and '"rodar": "hoje"' in s  # triagem feita: oferece Hoje, não a triagem

@@ -82,6 +82,12 @@ def skill_de(nome: str, plan: dict, nomes: list[str] | None = None) -> str:
         chave = n.lower().split('(')[0].split('/')[0].strip()
         if chave and (chave in base or base in n.lower()):
             return n
+    from . import prismas  # sigla ou nome curto: "DDD" acha "Domain-Driven Design" (rodada 4, 24/11)
+    for n in nomes:
+        palavras = [w for w in n.replace('-', ' ').split('(')[0].split() if w[:1].isalpha()]
+        sigla = ''.join(w[0] for w in palavras if w[0].isupper()).lower()
+        if base and (base == prismas.nome_curto(n).lower() or (len(base) >= 2 and base == sigla)):
+            return n
     return nome
 
 
@@ -555,13 +561,12 @@ def para_casar(con: sqlite3.Connection) -> dict[str, list[dict]]:
 SQL_LUZ = """SELECT prisma, estado, COUNT(*) AS n, SUM(COALESCE(valor_lm, 0)) AS lm FROM avanco
              WHERE estado != 'descartada' AND prisma IS NOT NULL GROUP BY prisma, estado"""
 SQL_PROXIMAS = """SELECT id, prisma, estado, valor_lm FROM avanco WHERE estado IN ('convertendo', 'refletida', 'apagada')"""
-SQL_DA_META = """SELECT DISTINCT prisma FROM avanco WHERE estado != 'descartada' AND COALESCE(origem, '') != 'chat'"""
-SQL_LM_META = """SELECT prisma, SUM(COALESCE(valor_lm, 0)) AS lm FROM avanco
+SQL_LM_META = """SELECT prisma, SUM(COALESCE(valor_lm, 0)) AS lm, COUNT(*) AS n FROM avanco
                  WHERE estado != 'descartada' AND COALESCE(origem, '') != 'chat' AND prisma IS NOT NULL GROUP BY prisma"""
 ALVO_PADRAO = 180  # alvo de um prisma que ainda não tem centelhas da meta (cerca de 3 centelhas médias)
 
 
-def fixar_alvos(con: sqlite3.Connection, plan: dict, refazer: bool = False) -> None:
+def fixar_alvos(con: sqlite3.Connection, plan: dict, refazer: bool = False, meta_curta_padrao: bool = False) -> None:
     """Fixa o alvo (lm de luz própria que completa o prisma) dos prismas ativos: o lm das centelhas da meta agora.
 
     Sem `refazer`, só preenche quem ainda não tem alvo (primeira sincronização, banco vindo do esquema 4, prisma novo
@@ -569,11 +574,24 @@ def fixar_alvos(con: sqlite3.Connection, plan: dict, refazer: bool = False) -> N
     Depois de fixado, acender centelhas novas ou capturar luz refletida não mexe no alvo; por isso o avanço só sobe.
     """
     nomes = ativos(plan, con)
-    lm_meta = {r['prisma']: int(r['lm'] or 0) for r in con.execute(SQL_LM_META)}
+    lm_meta, n_meta = {}, {}
+    for r in con.execute(SQL_LM_META):
+        lm_meta[r['prisma']], n_meta[r['prisma']] = int(r['lm'] or 0), int(r['n'] or 0)
     cond = '' if refazer else ' AND alvo_lm IS NULL'
     with banco.transacao(con):
         for n in nomes:
-            con.execute(f'UPDATE prisma SET alvo_lm = ? WHERE nome = ?{cond}', (lm_meta.get(n) or ALVO_PADRAO, n))
+            con.execute(f'UPDATE prisma SET alvo_lm = ? WHERE nome = ?{cond}', (_alvo_de(lm_meta.get(n), n_meta.get(n, 0), meta_curta_padrao), n))
+
+
+META_CURTA = 3  # com menos centelhas da meta que isto, o alvo não pode ser só o lm delas (1 conversão fecharia o prisma)
+
+
+def _alvo_de(lm: int | None, n: int, meta_curta_padrao: bool = False) -> int:
+    """Alvo de um prisma: o lm das centelhas da meta. Na triagem (`meta_curta_padrao`), uma meta que ficou curta porque o
+    modelo não completou não pode valer menos que o padrão; fora dela (migração, sincronização) vale o lm que existe."""
+    if meta_curta_padrao and n < META_CURTA:
+        return max(lm or 0, ALVO_PADRAO)
+    return lm or ALVO_PADRAO
 
 
 def _sem_alvo(con: sqlite3.Connection, plan: dict) -> bool:
@@ -601,14 +619,14 @@ def luz(plan: dict, con: sqlite3.Connection | None = None, espera_ms: int | None
     meta_estado, alvos = {}, {}
     for r in con.execute('SELECT nome, meta_estado, alvo_lm FROM prisma'):
         meta_estado[r['nome']], alvos[r['nome']] = r['meta_estado'], r['alvo_lm']
-    lm_meta = None  # só consultado se algum prisma ainda não tiver alvo fixado (leitura sem gravar)
+    lm_meta = {r['prisma']: (int(r['lm'] or 0), int(r['n'] or 0)) for r in con.execute(SQL_LM_META)}
     base = {n: {'propria': 0, 'convertendo': 0, 'refletida': 0, 'apagada': 0} for n in nomes}
     cont = {n: {'propria': 0, 'convertendo': 0, 'refletida': 0, 'apagada': 0} for n in nomes}
     for r in con.execute(SQL_LUZ):
         if r['prisma'] in base and r['estado'] in base[r['prisma']]:
             base[r['prisma']][r['estado']] = int(r['lm'])
             cont[r['prisma']][r['estado']] = int(r['n'])
-    da_meta = {r['prisma'] for r in con.execute(SQL_DA_META)}
+    da_meta = {n for n, (_, qtd) in lm_meta.items() if qtd}  # a mesma consulta das centelhas da meta
     ordem = {'convertendo': 0, 'refletida': 1, 'apagada': 2}
     proximas: dict[str, tuple] = {}
     for r in con.execute(SQL_PROXIMAS):
@@ -622,9 +640,7 @@ def luz(plan: dict, con: sqlite3.Connection | None = None, espera_ms: int | None
         refl = b['refletida'] + b['convertendo']
         alvo = alvos.get(n)
         if not alvo:
-            if lm_meta is None:
-                lm_meta = {r['prisma']: int(r['lm'] or 0) for r in con.execute(SQL_LM_META)}
-            alvo = lm_meta.get(n) or ALVO_PADRAO
+            alvo = _alvo_de(lm_meta.get(n, (0, 0))[0], lm_meta.get(n, (0, 0))[1])
         contado = min(b['propria'], alvo)
         coletada = b['propria'] + refl
         p = {'nome': n, 'tot': tot, 'alvo_lm': alvo, 'contado': contado, 'propria': b['propria'], 'refletida': refl,
@@ -633,7 +649,8 @@ def luz(plan: dict, con: sqlite3.Connection | None = None, espera_ms: int | None
              'pct_refletida': round(100 * refl / tot) if tot else 0,
              'n': sum(c.values()), 'n_propria': c['propria'], 'n_converter': c['refletida'] + c['convertendo'],
              'n_apagada': c['apagada'], 'na_meta': b['propria'] >= alvo and (n in da_meta or b['propria'] > 0),
-             'proxima': proximas[n][2] if n in proximas else None, 'meta_estado': meta_estado.get(n, 'definida')}
+             'proxima': proximas[n][2] if n in proximas else None, 'meta_estado': meta_estado.get(n, 'definida'),
+             'meta_curta': lm_meta.get(n, (0, 0))[1] < META_CURTA}  # menos de 3 centelhas da meta: vale acender mais
         prismas_.append(p)
         por[n] = p
     tot = sum(p['tot'] for p in prismas_)
@@ -659,8 +676,10 @@ def ritmo(plan: dict, horizonte: str = '') -> dict:
     meses = next((int(x) for x in str(horizonte).split() if x.isdigit()), 12)
     medio = (sum(int(f.get('valor_lm') or 40) for f in abertas) / len(abertas)) if abertas else 40
     semanas = max(1.0, meses * 4.33)
-    return {'lm_faltam': max(0, faltam), 'meses': meses,
-            'feixes_semana': max(1, math.ceil(faltam / (medio * semanas))) if faltam else 0}
+    por_semana = max(1, math.ceil(faltam / (medio * semanas))) if faltam else 0
+    # nesse ritmo, quando chega: arredondar para cima (1 por semana) costuma chegar antes do prazo dado (rodada 13)
+    chega = max(1, math.ceil(faltam / (medio * por_semana) / 4.33)) if faltam else 0
+    return {'lm_faltam': max(0, faltam), 'meses': meses, 'feixes_semana': por_semana, 'meses_no_ritmo': min(chega, meses)}
 
 
 # ------------------------------------------------------------------ dossiê

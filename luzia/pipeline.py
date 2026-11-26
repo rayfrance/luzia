@@ -153,8 +153,12 @@ def version() -> str:
             capture_output=True, text=True,
         ).stdout.strip()
         return sha + ('+dirty' if dirty else '')
-    except Exception:
-        return 'desconhecida'
+    except Exception:  # cópia instalada pelo marketplace não tem git: vale a versão do plugin
+        try:
+            dados = json.loads((Path(__file__).resolve().parent / '.claude-plugin' / 'plugin.json').read_text(encoding='utf-8'))
+            return str(dados.get('version') or 'desconhecida')
+        except Exception:
+            return 'desconhecida'
 
 
 def machine() -> str:

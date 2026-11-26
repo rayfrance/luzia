@@ -119,8 +119,11 @@ def extrair_json(texto: str) -> dict:
     return json.loads(texto[ini:fim + 1] if ini >= 0 and fim > ini else texto)
 
 
-def chamar(prompt: str, system: str) -> dict:
-    """Uma chamada ao modelo configurado. Devolve texto, tokens, segundos e o modelo que respondeu."""
+def chamar(prompt: str, system: str, rapido: bool = False) -> dict:
+    """Uma chamada ao modelo configurado. Devolve texto, tokens, segundos e o modelo que respondeu.
+
+    `rapido` (o Testar de Ajustes e do chat): uma tentativa só, com no máximo TEMPO_RAPIDO s, sem reservas; serve
+    para saber se a chave e o modelo respondem, não para insistir num pico do Google."""
     carregar_env()
     cfg = config()
     prov = PROVEDORES[cfg['provedor']]
@@ -128,11 +131,11 @@ def chamar(prompt: str, system: str) -> dict:
     if not chave and cfg['provedor'] != 'openai':
         raise RuntimeError(f"Falta a chave {prov['chave']}: configure em Ajustes > Modelo da Luzia")
     if importlib.util.find_spec(prov['sdk'].split('.')[0]) is None:
-        raise RuntimeError(f"O SDK de {prov['nome']} não está instalado: pip install {prov['pip']}")
+        raise RuntimeError(f"O SDK de {prov['nome']} não está instalado: python -m pip install {prov['pip']}")
     t0 = time.perf_counter()
     ULTIMO_ERRO_PRINCIPAL.clear()
     if cfg['provedor'] == 'gemini':
-        texto, tin, tout, usado = _gemini(cfg['modelo'], prompt, system, chave)
+        texto, tin, tout, usado = _gemini(cfg['modelo'], prompt, system, chave, rapido)
     elif cfg['provedor'] == 'anthropic':
         texto, tin, tout, usado = _claude(cfg['modelo'], prompt, system, chave)
     else:
@@ -156,6 +159,8 @@ def resumo_erro(e: Exception) -> str:
         return 'cota esgotada no momento (limite de uso da chave)'
     if 'NOT_FOUND' in s or '404' in s:
         return 'modelo não encontrado para esta chave'
+    if 'timed out' in s.lower() or 'timeout' in s.lower() or 'DEADLINE' in s:
+        return 'o Gemini demorou demais para responder (do lado do Google); tente de novo em alguns minutos'
     if 'UNAVAILABLE' in s or '503' in s or 'high demand' in s.lower() or 'overloaded' in s.lower():
         return 'o Gemini está sobrecarregado agora (erro 503, do lado do Google); tente de novo em alguns minutos'
     if 'PERMISSION' in s or '403' in s or 'API_KEY' in s.upper() and 'INVALID' in s.upper():
@@ -163,11 +168,11 @@ def resumo_erro(e: Exception) -> str:
     return s[:160].rstrip(' .')  # quem monta a frase põe o ponto final
 
 
-def _gemini(modelo: str, prompt: str, system: str, chave: str):
+def _gemini(modelo: str, prompt: str, system: str, chave: str, rapido: bool = False):
     from google import genai
     from google.genai import types
 
-    client = genai.Client(api_key=chave, http_options=types.HttpOptions(timeout=60_000))
+    client = genai.Client(api_key=chave, http_options=types.HttpOptions(timeout=(TEMPO_RAPIDO if rapido else 60) * 1000))
 
     def gerar(m: str):
         resp = client.models.generate_content(
@@ -182,6 +187,12 @@ def _gemini(modelo: str, prompt: str, system: str, chave: str):
     # 1) o modelo escolhido, de novo se o erro for passageiro (sobrecarga, tempo, 5xx, cota momentânea);
     # 2) só em sobrecarga ou falha passageira persistente, uma vez cada reserva atual (nunca um modelo aposentado:
     #    o antigo gemini-2.5-flash dava 404 para contas novas e escondia a causa real). O erro mostrado é o do principal.
+    if rapido:
+        try:
+            return gerar(modelo)
+        except Exception as e:
+            ULTIMO_ERRO_PRINCIPAL['erro'] = resumo_erro(e)
+            raise RuntimeError(f'Gemini falhou: {resumo_erro(e)}') from None
     erro = None
     for tentativa in range(TENTATIVAS):
         try:
@@ -202,13 +213,22 @@ def _gemini(modelo: str, prompt: str, system: str, chave: str):
             return gerar(reserva)
         except Exception:  # reserva fora do ar ou que não existe mais: segue, o erro que conta é o do principal
             continue
+    time.sleep(PAUSA_FINAL)  # picos do Google costumam passar em segundos: uma última vez no escolhido
+    try:
+        return gerar(modelo)
+    except Exception as e:
+        erro = e
+        ULTIMO_ERRO_PRINCIPAL['erro'] = resumo_erro(e)
     raise RuntimeError(f'Gemini falhou: {resumo_erro(erro)}')
 
 
 TENTATIVAS = 3
+TEMPO_RAPIDO = 30  # segundos: limite do Testar (uma tentativa só)
 PAUSAS = (3, 8)  # segundos entre a 1ª e a 2ª, e entre a 2ª e a 3ª tentativa
 PAUSAS_COTA = (15, 30)  # limite por minuto da chave (comum no plano gratuito): espera a janela virar
-RESERVAS_GEMINI = ('gemini-3.1-flash-lite', 'gemini-3.5-flash')  # conferidas em 24/11/2026 com uma chave nova
+# Conferidas em 24/11/2026 com uma chave nova. O alias "-latest" vem primeiro: sobrevive quando o Google troca os nomes.
+RESERVAS_GEMINI = ('gemini-flash-lite-latest', 'gemini-3.1-flash-lite', 'gemini-3.5-flash')
+PAUSA_FINAL = 5
 
 
 def _passageiro(e: Exception) -> bool:

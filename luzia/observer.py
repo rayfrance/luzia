@@ -106,6 +106,30 @@ def _padrao(palavra: str) -> str:
     return re.escape(palavra)
 
 
+CONECTIVOS_PT = {'a', 'o', 'as', 'os', 'de', 'do', 'da', 'dos', 'das', 'e', 'em', 'no', 'na', 'nos', 'nas', 'para', 'com',
+                 'por', 'pelo', 'pela', 'um', 'uma', 'ao', 'aos'}
+
+
+def _especifico(texto: str, palavra: str) -> bool:
+    """Uma centelha do chat só nasce de um termo com cara de conceito: composto ("Bounded Context", "ValueObject") ou
+    escrito no texto como nome técnico (maiúscula, camelCase, dígito: "Aggregate", "OAuth2"). Palavras comuns em
+    minúscula ("a revisão do requisito") não fazem nascer nada (rodada 4 do loop, 24/11)."""
+    if len(_PARTES.findall(palavra)) > 1:
+        conectivo = bool(CONECTIVOS_PT & {x.lower() for x in palavra.split()})  # "dia a dia", "passo a passo"
+        if (palavra.isascii() and not conectivo) or '-' in palavra or '_' in palavra:  # a maiúscula conta no texto, não no banco
+            return True
+        # composto em português comum ("visão geral"): só vale escrito com maiúscula no texto, fora do começo da frase
+    for m in re.finditer(r'(?<![A-Za-zÀ-ÿ0-9_])' + re.escape(palavra) + r'(?![A-Za-zÀ-ÿ0-9_])', texto, re.IGNORECASE):
+        visto = m.group(0)
+        if any(c.isdigit() for c in visto) or any(c.isupper() for c in visto[1:]):
+            return True
+        # "Guide rápido…": a maiúscula é da frase, não do termo; vale também o começo de linha e de item de lista
+        inicio_de_frase = bool(re.search(r'(?:^|[.!?:\n])\s*(?:[-*•+]\s+)?$', texto[:m.start()]))
+        if visto[0].isupper() and not inicio_de_frase:
+            return True
+    return False
+
+
 def _casa(texto: str, palavra: str) -> bool:
     """Palavra inteira (não casa 'Test' em 'TestHelper'); um radical que não é palavra ('desacopl') casa como prefixo."""
     if not palavra or len(palavra) < 3:
@@ -129,7 +153,20 @@ GENERICOS |= {'def', 'class', 'import', 'from', 'return', 'function', 'const', '
 COMUNS = {'agente', 'agentes', 'agent', 'agents', 'agêntico', 'agêntica', 'prompt', 'prompts', 'ia', 'ai', 'llm', 'claude',
           'codex', 'gemini', 'modelo', 'model', 'contexto', 'context', 'critério', 'critérios', 'princípio', 'princípios',
           'pacote', 'package', 'tarefa', 'task', 'pedido', 'resposta', 'pergunta', 'refactor', 'test', 'tests', 'style',
-          'perf', 'build', 'ci', 'revert', 'wip'}
+          'perf', 'build', 'ci', 'revert', 'wip',
+          # termos genéricos de programação que o modelo às vezes põe nas palavras de um prisma (rodada 3, 24/11)
+          'layer', 'layers', 'pattern', 'patterns', 'padrão', 'padrões', 'request', 'requests', 'response', 'responses',
+          'função', 'funções', 'method', 'methods', 'método', 'métodos', 'módulo', 'modulo', 'module', 'objeto', 'object',
+          'classe', 'variável', 'variable', 'valor', 'value', 'dados', 'data', 'api', 'apis', 'erro', 'error', 'bug',
+          # nomes de builtins e identificadores de todo código: no código do agente não provam conceito (rodada 10, 25/11)
+          'type', 'types', 'filter', 'filters', 'setup', 'query', 'queries', 'service', 'services', 'iterate', 'map',
+          'list', 'dict', 'get', 'set', 'run', 'init', 'config', 'item', 'items', 'string', 'file', 'files',
+          'typing', 'import', 'imports',
+          # os mesmos em português, comuns em comentários e commits (rodada 13)
+          'serviço', 'serviços', 'consulta', 'consultas', 'tipo', 'tipos', 'filtro', 'filtros', 'lista', 'listas',
+          'arquivo', 'arquivos', 'configuração', 'itens', 'versão', 'versões', 'histórico'}
+_SEM_ACENTO = str.maketrans('áàâãéêíóôõúüç', 'aaaaeeiooouuc')
+COMUNS |= {w.translate(_SEM_ACENTO) for w in COMUNS}  # "funcao", "modulo": a mesma palavra escrita sem acento (rodada 11)
 GENERICOS |= COMUNS
 
 
@@ -278,9 +315,17 @@ def reconhecer_em(texto: str, origem: str, sid: str, modo: str, ext: str, ferram
     nomes = {n for p in gaps for n in (p.lower(), prismas.nome_curto(p).lower())}
     nomes |= {w for p in gaps for w in re.findall(r'[a-zà-ÿ0-9#+]+', p.lower()) if len(w) >= 4}  # "qualidade" sozinha
     nomes |= COMUNS  # "agente", "prompt", "contexto"...: de toda conversa, não provam conceito nenhum
+    nomes |= {re.sub(r'[\s_-]+', '', n) for n in nomes}  # "Value Object" também barra "ValueObject"
+    # termos compostos que casaram em qualquer prisma: uma parte deles sozinha ("Architecture" em "Architecture
+    # Decision Records") não faz nascer outra centelha
+    todas = [w for info in gaps.values() for w in [*info.get('palavras', []),
+                                                    *(x for c in info.get('centelhas', []) for x in c.get('palavras', []))]]
+    compostos = {w.lower() for w in todas if len(_PARTES.findall(w)) > 1 and _casa(texto, w)}
     for prisma, info in gaps.items():
+        # a parte de um composto que casou ("Arquitetura" em "Arquitetura Limpa") também não acende a centelha de outro prisma
         acertos = [c for c in info.get('centelhas', [])
-                   if any(_casa(texto, w) for w in c['palavras'] if w.lower() not in nomes)]
+                   if any(_casa(texto, w) for w in c['palavras'] if w.lower() not in nomes
+                          and not any(w.lower() in k and w.lower() != k for k in compostos))]
         if acertos and all(c['estado'] == 'descartada' for c in acertos):
             continue  # a pessoa descartou este conceito: a Luzia respeita
         vivos = [c for c in acertos if c['estado'] != 'descartada']
@@ -292,8 +337,14 @@ def reconhecer_em(texto: str, origem: str, sid: str, modo: str, ext: str, ferram
                 continue
         alvo = (vivos[0]['id'], vivos[0].get('titulo'), None, vivos[0].get('lm')) if vivos else None
         if alvo is None:
-            termo = next((w for w in info.get('palavras', []) if w.lower() not in GENERICOS and w.lower() not in nomes
-                          and _casa(texto, w)), None)
+            # na ordem das palavras do prisma, pulando um termo contido em outro que também casou
+            # ("Dependency Injection", não só "Dependency"; mas "Aggregate" continua antes de "subdomínio")
+            casados = [w for w in info.get('palavras', []) if w.lower() not in GENERICOS and w.lower() not in nomes
+                       and re.sub(r'[\s_-]+', '', w.lower()) not in nomes
+                       and _casa(texto, w) and (chave != 'prompt' or _especifico(texto, w))  # luz própria pede termo de conceito
+                       and not any(w.lower() in c and w.lower() != c for c in compostos)]
+            termo = next((w for w in casados if not any(w.lower() in o.lower() and w.lower() != o.lower()
+                                                        for o in casados)), None)
             if termo is None:
                 continue
             nova = _nova(prisma, termo, chave, prog)
@@ -354,7 +405,7 @@ def ao_enviar_prompt(event: dict, cfg: dict) -> None:
             f'[Luzia · fila] A pessoa enviou do painel a centelha #{item["id"]} ("{item.get("titulo", "")}"). Responda primeiro ao '
             'que ela pediu. No FIM, em uma linha começando com "✦ Luzia:", lembre a centelha e use AskUserQuestion com '
             '"Abrir em sessão nova", "Fazer aqui" e "Depois". Sessão nova: rode '
-            f'`{CLI} prompt {item["id"]} --onde "sessão nova"` e abra uma sessão/agente novo com esse texto pela ferramenta do seu '
+            f"`{CLI} prompt {item['id']} --onde 'sessão nova'` e abra uma sessão/agente novo com esse texto pela ferramenta do seu "
             f'harness (se não houver, faça aqui). Fazer aqui: rode `{CLI} fazer {item["id"]} --onde aqui` e siga o roteiro.'
         )
     if partes:
@@ -388,8 +439,8 @@ def ao_usar_ferramenta(event: dict, cfg: dict) -> None:
 
 @sem_quebrar
 def ao_iniciar_sessao(event: dict, cfg: dict) -> None:
-    """SessionStart: lembra o que dá para retomar, sem interromper."""
-    if cfg.get('modo', 'ativo') == 'sob_demanda':
+    """SessionStart: lembra o que dá para retomar, sem interromper. Em silêncio (passivo) e fora de foco, nada."""
+    if cfg.get('modo', 'ativo') in ('sob_demanda', 'passivo'):  # "em silêncio" só muda a luz no banco
         return
     plan = plano()
     if not plan:

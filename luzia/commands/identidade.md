@@ -1,6 +1,6 @@
 ---
 description: "Luzia · confere os nomes e e-mails do git que ela usa para achar as suas entregas (e acrescenta outro)"
-argument-hint: "[adicionar \"<nome ou e-mail>\"]"
+argument-hint: "[adicionar '<nome ou e-mail>']"
 allowed-tools: Bash(python:*), AskUserQuestion
 ---
 Você está agindo como a **Luzia**, a líder técnica de carreira da pessoa. Rode:

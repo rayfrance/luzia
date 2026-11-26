@@ -32,13 +32,17 @@ def ler_config() -> dict | None:
     return dados if isinstance(dados, dict) else None
 
 
+def _normal(caminho: str) -> str:
+    return os.path.normpath(caminho.replace('\\', '/')).replace('\\', '/').rstrip('/').lower()
+
+
 def autorizado(cwd, cfg: dict) -> bool:
     """O cwd é um repositório autorizado ou uma subpasta dele (nunca uma pasta irmã com o mesmo prefixo)."""
     if not isinstance(cwd, str) or not cwd:
         return False
-    cwd_n = cwd.replace('\\', '/').rstrip('/').lower()
+    cwd_n = _normal(cwd)  # resolve "..": "repo/../repo-outro" é a pasta irmã, não o repositório
     for r in cfg.get('autorizados') or []:
-        r_n = str(r).replace('\\', '/').rstrip('/').lower()
+        r_n = _normal(str(r))
         if r_n and (cwd_n == r_n or cwd_n.startswith(r_n + '/')):
             return True
     return False
@@ -84,8 +88,8 @@ def barrar_statusline(bruto: bytes) -> str | None:
     cfg = ler_config()
     if cfg is None or 'modo' not in cfg:
         return None
+    if not cwd or not autorizado(cwd, cfg):  # fora dos repositórios autorizados (ou sem cwd) nada aparece
+        return ''
     if cfg['modo'] == 'sob_demanda':
         return '✦ Luzia · fora de foco (/luzia:hoje)'
-    if cwd and not autorizado(cwd, cfg):
-        return ''
     return None

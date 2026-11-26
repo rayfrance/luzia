@@ -124,14 +124,14 @@ async function api(caminho, dados, auto = false) {
 }
 
 // Toast = resultado, não instrução. `acao` opcional: um botão (ex.: Desfazer) com os mesmos data-* dos botões da tela.
-function toast(texto, classe = '', acao = null) {
+function toast(texto, classe = '', acao = null, duracao = null) {  // duracao 0: fica até o próximo toast
   const el = $('#toast');
   el.className = 'toast ' + classe;
   const bt = acao ? `<button class="btn link mini" ${Object.entries(acao.dados || {}).map(([k, v]) => `data-${k}="${esc(v)}"`).join(' ')}>${esc(acao.rotulo)}</button>` : '';
   el.innerHTML = `<span>${esc(texto)}</span>${bt}`;
   el.hidden = false;
   clearTimeout(toast.t);
-  toast.t = setTimeout(() => (el.hidden = true), acao ? 6000 : 3200);
+  if (duracao !== 0) toast.t = setTimeout(() => (el.hidden = true), duracao || (acao ? 6000 : 3200));
 }
 
 // ------------------------------------------------------------------ peças de luz
@@ -152,6 +152,15 @@ const rumoAoAlvo = (t) => {
   return [...Object.entries(feito).map(([estado, lm]) => ({ estado, lm })), { estado: 'apagada', lm: falta }];
 };
 const segsTotal = (classe = '') => segs(rumoAoAlvo(E.luz), { classe });
+// Linha das oportunidades da trajetória: as mesmas contas da barra (só prismas ativos) e sem prometer folga que não há.
+function oportunidadesTxt(t) {
+  const n = (t?.prismas || []).reduce((s, p) => s + (p.n_apagada || 0), 0);
+  const lm = t?.por_estado?.apagada || 0;
+  if (!n) return '';
+  const falta = rumoAoAlvo(t).find((x) => x.estado === 'apagada')?.lm || 0;
+  const fim = lm > falta ? ': mais do que falta para o alvo, para você escolher.' : '.';
+  return `<p class="discreto" style="margin-top:8px">${plural(n, 'centelha', 'centelhas')} por acender ${n === 1 ? 'soma' : 'somam'} ${lm} lm de oportunidades${fim}</p>`;
+}
 const ariaPrisma = (p) => `${p.nome}: ${p.contado ?? p.propria} de ${p.alvo_lm ?? p.tot} lúmens do alvo em luz própria, ${p.refletida} refletidos para converter`;
 // composição: do que já foi coletado (própria + refletida + convertendo), quanto é luz própria; apagadas ficam de fora
 const composicao = (p) => (p && p.coletada ? `${p.luz_pct}% da luz coletada é sua` : '');
@@ -273,6 +282,14 @@ function linhaTrajetoria() {
       <span class="rot">${esc(c.de || 'Hoje')} → ${esc(c.para || 'Meta')}</span>${segsTotal('fina')}<b>${t.pct || 0}% do caminho</b>
     </button>${seloFoco()}</div>`;
 }
+// Metas com menos de 3 centelhas (a triagem pode não completá-las quando o modelo falha): lembra e oferece acender.
+function avisoMetaCurta() {
+  const curtos = prismasLuz().filter((p) => p.meta_curta && !p.na_meta);
+  if (!curtos.length) return '';
+  const nomes = curtos.map((p) => curto(p.nome)).join(', ');
+  return `<div class="aviso fino" role="status">${ic('info', 'p')}<span>${curtos.length === 1 ? `${nomes} está` : `${nomes} estão`} com menos de 3 centelhas na meta. Acender mais dá outros caminhos até o alvo, sem mudar o alvo nem o seu %.</span>
+    <button class="btn link mini" data-acender="${esc(curtos[0].nome)}">Acender 3 de ${curto(curtos[0].nome)}</button></div>`;
+}
 function avisoConfirmada() {
   const c = centelhas().find((x) => x.estado === 'convertendo' && x.confirmada && x.id !== E.hero);
   if (!c) return '';
@@ -336,6 +353,7 @@ function telaHoje() {
   $('#hoje').innerHTML = `
     ${linhaTrajetoria()}
     ${avisoConfirmada()}
+    ${avisoMetaCurta()}
     ${destaqueHoje()}
     ${outras.length ? `<h3 class="secao"><span>Luz refletida para converter <small>· ${plural(conv.length, 'centelha')} · ${lmConv} lm</small></span>
       <button class="btn link mini" data-filtro-ir="converter">Ver todas</button></h3>
@@ -394,13 +412,17 @@ function renderCardPedido(p) {
   const aberto = ['aberto', 'proposto'].includes(p.estado);
   if (p.tipo === 'dividir') return renderCardDividir(p, prop, aberto);
   const acoes = prop.acoes || prop.centelhas || [];
+  const semProposta = ['incluir', 'mudar_meta'].includes(p.tipo) && !p.proposta;  // aceitar falharia: o passo é gerar
   return `<div class="pedido-card ${esc(p.estado)}">
     <div class="pedido-cab"><span><b title="${esc(p.prisma)}">${esc(TIPO_PEDIDO_NOME[p.tipo] || p.tipo)} ${curto(p.prisma)}</b> <small class="discreto">#${p.id} · ${esc(dataCurta(p.criado_em))}</small></span>${pilulaPedido(p, aberto)}</div>
     ${p.motivo ? `<p class="lacuna">${esc(p.motivo)}</p>` : ''}
     ${acoes.length ? `<div class="tags">${acoes.map((a) => `<span class="tag">${esc(a.titulo || a)}</span>`).join('')}</div>
       <p class="discreto">${plural(acoes.length, 'centelha nova', 'centelhas novas')} para a meta, por acender</p>` : ''}
     ${['incluir', 'mudar_meta', 'propor_meta'].includes(p.tipo) ? blocoLeitura(p.leitura, `pedido #${p.id} · ${nomeCurto(p.prisma)}`, false, prop.leitura_indisponivel) : ''}
-    ${aberto ? `<div class="pedido-ajuste"><button class="btn neutro mini" data-pedido-aceitar="${p.id}">Aceitar</button>
+    ${aberto && semProposta ? `<div class="pedido-ajuste"><span class="discreto">Ainda sem proposta (o modelo não respondeu a tempo).</span>
+      <button class="btn neutro mini" data-pedido-propor="${p.id}">Gerar a proposta</button>
+      <button class="btn link mini" data-pedido-recusar="${p.id}">Recusar</button></div>` : ''}
+    ${aberto && !semProposta ? `<div class="pedido-ajuste"><button class="btn neutro mini" data-pedido-aceitar="${p.id}">Aceitar</button>
       <button class="btn link mini" data-pedido-recusar="${p.id}">Recusar</button>
       <span class="discreto">Para ajustar, diga no chat: /luzia:trajetoria</span></div>` : ''}
   </div>`;
@@ -415,14 +437,16 @@ function telaTrajetoria() {
   const r = E.ritmo || {};
   $('#trajetoria').innerHTML = `
     <div class="cab-tela"><div><h2>Trajetória</h2><p>v${E.trajetoria?.versao_atual || 1} · ${esc(c.de || 'Hoje')} → ${esc(c.para || 'Meta')}</p>
-      ${r.lm_faltam ? `<p class="discreto">${plural(r.feixes_semana || 1, 'centelha')} por semana leva até ${esc(c.para || 'a meta')} em ~${r.meses || 12} meses</p>` : ''}</div>
+      ${r.lm_faltam ? `<p class="discreto">${plural(r.feixes_semana || 1, 'centelha')} por semana chega a ${esc(c.para || 'a meta')} em ~${plural(r.meses_no_ritmo || r.meses || 12, 'mês', 'meses')} (o prazo que você deu: ${r.meses || 12} meses)</p>` : ''}</div>
       <div class="acoes-bt">${(E.prismas || []).some((p) => p.estado !== 'arquivado' && (p.divisao || []).length) ? '<button class="btn sec mini" data-dividir-todos="1">Separar prismas compostos</button>' : ''}
         <button class="btn sec" data-abrir-pedido-form="1">Mudar trajetória</button></div></div>
     ${bannerLeituras()}
+    ${avisoMetaCurta()}
     <div class="bloco traj-total">
       <div class="linha1"><b>${t.pct || 0}%</b><span class="lacuna">do caminho até ${esc(c.para || 'a meta')} já é luz própria</span><small>${t.contado || 0} de ${t.alvo_lm || 0} lm do alvo${t.coletada ? ` · ${composicao(t)}` : ''}</small></div>
       ${segs(rumoAoAlvo(t), { classe: 'grossa', rotulo: `${t.pct || 0}% do caminho, ${t.refletida || 0} lúmens refletidos para converter` })}
-      <div class="legenda">${['propria', 'convertendo', 'refletida', 'apagada'].map((k) => `<span>${orbe(k)}${k === 'apagada' ? 'Oportunidades' : ROTULO[k]} <b>${pe[k] || 0} lm</b></span>`).join('')}</div>
+      <div class="legenda">${rumoAoAlvo(t).map((x) => `<span>${orbe(x.estado)}${x.estado === 'apagada' ? 'Falta do alvo' : ROTULO[x.estado]} <b>${x.lm} lm</b></span>`).join('')}</div>
+      ${oportunidadesTxt(t)}
     </div>
     <div style="margin-top:20px">${renderFormPedido()}${pedidos.filter((p) => ['aberto', 'proposto'].includes(p.estado)).map(renderCardPedido).join('')}</div>
     <div class="pilha">${prismasLuz().map((p) => {
@@ -480,6 +504,8 @@ function vazioCentelhas(todas) {
 
 // ------------------------------------------------------------------ Entregas
 function baseHumana(k, d) {
+  // P1 vem da triagem (como você dirige os prompts em geral): é a mesma em toda entrega, e o texto diz isso
+  if (k === 'P1' && String(d.tipo || '').includes('geral')) return `Estimativa geral da triagem, igual em toda entrega${d.base ? `: ${d.base}` : '.'}`;
   if (k !== 'P2' || !d.base) return d.base || '';
   const pen = [...String(d.base).matchAll(/−\s*(\d+)\s*\(([^)]+)\)/g)].filter((m) => Number(m[1]) > 0).map((m) => m[2]);
   return pen.length ? `${pen.join(' e ')} reduzem a nota.` : 'Entrega focada.';
@@ -499,7 +525,7 @@ function botaoAcenderEntrega(e) {
       <p class="dica">${plural(conv.length, 'centelha refletida apareceu aqui', 'centelhas refletidas apareceram aqui')} · ${conv.reduce((s, c) => s + c.lm, 0)} lm</p>`;
   }
   const lacunas = ['P3', 'P4'].filter((d) => !(e.dimensoes || {})[d]);
-  if (!e.id || !lacunas.length) return '';
+  if (!e.id || !lacunas.length || !(e.prismas || []).length) return '';  // sem prisma atravessado, não há o que provar
   return `<button class="btn sec" data-acender-entrega="${esc(e.id)}" title="Acende 2 centelhas curtas ligadas a esta entrega">${ic('raio', 'p')}Provar ${lacunas.join(' e ')}</button>`;
 }
 function cartaoEntrega(e) {
@@ -508,6 +534,7 @@ function cartaoEntrega(e) {
   const prismas = (e.prismas || []).map((p) => (typeof p === 'string' ? p : p.prisma)).map(nomeCurto);
   const ind = e.indice;
   const fatos = [plural(f.duracao_dias || 1, 'dia'), plural(f.commits ?? 1, 'commit'), plural(f.arquivos ?? 0, 'arquivo'), `+${numero(f.linhas ?? 0)} linhas`, prismas.join(', ')].filter(Boolean).join(' · ');
+  const nMed = ['P1', 'P2', 'P3', 'P4'].filter((k) => (e.dimensoes || {})[k]).length;  // o % só vale para o que já foi medido
   const dims = ['P1', 'P2', 'P3', 'P4'].map((k) => {
     const d = (e.dimensoes || {})[k];
     if (!d) return `<div class="dim sem"><span class="n">${k} ${NOME_DIM[k]}</span><span class="v">—</span><span class="b">${FALTA_DIM[k]}</span></div>`;
@@ -517,8 +544,8 @@ function cartaoEntrega(e) {
     <summary>
       <span class="er"><h3>${esc(e.titulo || e.tarefa)}</h3><p>${esc(fatos)}</p></span>
       <span class="prop">
-        <span class="l1"><b>${ind == null ? '—' : `${ind}% seu`}</b><span><span class="abre">Ver detalhe ▾</span><span class="fecha">Fechar ▴</span></span></span>
-        <span class="luz-barra" role="img" aria-label="${ind == null ? 'propriedade sem medida' : `${ind}% seu, ${100 - ind}% do agente`}">${ind == null ? '' : `<span class="p" style="width:${ind}%"></span><span class="r"></span>`}</span>
+        <span class="l1"><span class="destaque-prop"><b>${ind == null ? '—' : nMed < 4 ? `${nMed} de 4 medidas` : `${ind}% seu`}</b>${ind != null && nMed < 4 ? `<small class="discreto">${ind}% seu no que já foi medido</small>` : ''}</span><span class="ver"><span class="abre">Ver detalhe ▾</span><span class="fecha">Fechar ▴</span></span></span>
+        <span class="luz-barra" role="img" aria-label="${ind == null ? 'propriedade sem medida' : `${ind}% seu, ${100 - ind}% do agente, em ${nMed} de 4 medidas`}">${ind == null ? '' : `<span class="p" style="width:${ind}%"></span><span class="r"></span>`}</span>
         <span class="medido">${esc(dimsMedidas(e))}</span>
       </span>
     </summary>
@@ -589,7 +616,7 @@ function secaoModelo() {
       <label>API key<input id="m-chave" type="password" autocomplete="off" placeholder="${info.chave_configurada ? 'Já salva. Deixe vazio para manter.' : 'Cole a chave'}"></label>
     </div>
     <div class="acoes-bt" style="margin-top:16px"><button class="btn neutro" id="m-salvar">Salvar</button><button class="btn sec" id="m-testar">Testar</button>
-      <span class="discreto">Fica só nesta máquina, fora do git.${atual && !m.sdk_instalado ? ` Falta o SDK: pip install ${esc(m.pip)}` : ''}</span></div></div></section>`;
+      <span class="discreto">Fica só nesta máquina, fora do git.${atual && !m.sdk_instalado ? ` Falta o SDK: python -m pip install ${esc(m.pip)}` : ''}</span></div></div></section>`;
 }
 function telaAjustes() {
   const opcao = (grupo, chave, [icone, titulo, desc], ativo) =>
@@ -629,9 +656,11 @@ const PASSOS_TUTORIAL = [
         <li>${orbe('propria')}<span><b>Luz própria</b> é o que você explica, decide e defende.</span></li></ul>
       <p>Seu caminho até a meta é transformar uma na outra, sem deixar de usar IA. A luz se mede em lúmens (lm): cada conceito vale um número fixo de lm.</p>` },
   { titulo: 'Seu caminho até a meta', tela: 'hoje', alvo: () => primeiroVisivel('#hoje .linha-traj'),
-    corpo: () => `<p>Este número mostra quanto do alvo da sua meta já é luz própria. Ele só sobe.</p>
-      <p>Acender centelhas novas cria oportunidades e nunca tira nada do que você já conquistou.</p>` },
+    corpo: () => `<p>Este número mostra quanto do alvo da sua meta já é luz própria. Ele sobe quando você converte uma centelha.</p>
+      <p>Acender centelhas novas cria oportunidades e nunca tira nada do que você já conquistou. Ele só muda o alvo quando você muda a trajetória (incluir ou arquivar um prisma), e aí a Luzia mostra o antes e o depois.</p>` },
   { titulo: 'O próximo passo', tela: 'hoje', alvo: () => primeiroVisivel('#hoje .destaque .texto, #hoje .vazio-destaque'),
+    // no celular o cartão inteiro não cabe acima do tutorial: o destaque vai para os botões, que é o que o texto explica
+    alvoCelular: () => primeiroVisivel('#hoje .destaque .acoes-bt, #hoje .vazio-destaque'),
     corpo: () => `<ol class="tt-passos">
         <li>Leve a centelha para o seu agente: <b>Acender no Claude Code</b> ou <b>Copiar prompt</b>.</li>
         <li>Explique com as suas palavras. A Luzia pergunta uma coisa por vez e dá uma nota de 0 a 4.</li>
@@ -650,9 +679,9 @@ const PASSOS_TUTORIAL = [
         <li>${orbe('refletida')}<span><b>Luz refletida</b>: o agente usou no seu código.</span></li>
         <li>${orbe('convertendo')}<span><b>Convertendo</b>: você está explicando para a Luzia; falta a nota e o seu sim.</span></li>
         <li>${orbe('propria')}<span><b>Luz própria</b>: é sua.</span></li></ul>
-      <p>Na tela Centelhas, a aba <b>Para converter</b> junta luz refletida e convertendo. Abra uma centelha e toque em <b>Por que N lm</b> para ver a conta.</p>` },
+      <p>A aba <b>Para converter</b> junta refletida e convertendo. Em cada centelha, <b>Por que N lm</b> mostra a conta.</p>` },
   { titulo: 'Entregas: o que você entregou é seu?', alvo: () => primeiroVisivel('[data-tela="entregas"]'),
-    corpo: () => `<p>A Luzia lê os seus commits e mede quatro coisas em cada entrega:</p>
+    corpo: () => `<p>Em cada entrega dos seus commits, a Luzia mede:</p>
       <ul class="tt-modos"><li><b>P1</b>: a direção que você deu ao agente.</li><li><b>P2</b>: a coesão (poucos arquivos e áreas).</li>
         <li><b>P3</b>: o conceito que você explicou.</li><li><b>P4</b>: a decisão que você defendeu.</li></ul>
       <p>P3 e P4 sobem com centelhas convertidas daquela entrega.</p>` },
@@ -667,9 +696,10 @@ const PASSOS_TUTORIAL = [
 let tutorial = null;  // índice do passo aberto
 let tutorialAutoAberto = false;
 let focoAntesTutorial = null;
+let telaAntesTutorial = null;
 
 function abrirTutorial(i = 0) {
-  if (tutorial === null) focoAntesTutorial = document.activeElement;
+  if (tutorial === null && !focoAntesTutorial) focoAntesTutorial = document.activeElement;
   tutorial = Math.max(0, Math.min(PASSOS_TUTORIAL.length - 1, i));
   const passo = PASSOS_TUTORIAL[tutorial];
   if (passo.tela) irPara(passo.tela);
@@ -703,15 +733,24 @@ function posicionarTutorial(rolar = false) {
   const passo = PASSOS_TUTORIAL[tutorial];
   const foco = $('#tutorial .tt-foco');
   const cartao = $('#tutorial .tt-cartao');
-  const alvo = passo.alvo ? passo.alvo() : null;
   const celular = matchMedia('(max-width: 960px)').matches;
+  const alvo = (celular && passo.alvoCelular && passo.alvoCelular()) || (passo.alvo ? passo.alvo() : null);
   $('#tutorial').classList.toggle('sem-alvo', !alvo);
   cartao.style.cssText = '';
   if (!alvo) { foco.style.cssText = 'display:none'; return; }
-  if (rolar && !alvo.closest('.rail, .nav-baixo')) alvo.scrollIntoView({ block: celular ? 'start' : 'center', behavior: 'instant' });
-  const r = alvo.getBoundingClientRect();
   const m = 8;
-  foco.style.cssText = `display:block;top:${r.top - m}px;left:${r.left - m}px;width:${r.width + 2 * m}px;height:${r.height + 2 * m}px`;
+  const naNav = alvo.closest('.rail, .nav-baixo');
+  if (rolar && !naNav) {
+    if (celular) scrollBy({ top: alvo.getBoundingClientRect().top - (m + 8), behavior: 'instant' });  // o começo a 16 px do topo
+    else alvo.scrollIntoView({ block: 'center', behavior: 'instant' });
+  }
+  const r = alvo.getBoundingClientRect();
+  // o contorno nunca sai da tela nem fica atrás do cartão (no celular o cartão fica preso embaixo)
+  const desliza = new DOMMatrix(getComputedStyle(cartao).transform).m42;  // a entrada do cartão ainda pode estar no meio
+  const fundo = celular && !naNav ? cartao.getBoundingClientRect().top - desliza - 4 : innerHeight - 4;
+  const fx0 = Math.max(4, r.left - m), fx1 = Math.min(document.documentElement.clientWidth - 4, r.right + m);
+  const fy0 = Math.max(4, r.top - m), fy1 = Math.max(fy0, Math.min(fundo, r.bottom + m));
+  foco.style.cssText = `display:block;top:${fy0}px;left:${fx0}px;width:${fx1 - fx0}px;height:${fy1 - fy0}px`;
   if (celular) return;  // o CSS prende o cartão embaixo
   const c = cartao.getBoundingClientRect();
   const lado = r.right + m + 16;  // alvo estreito (trilho): cartão ao lado
@@ -735,8 +774,14 @@ async function fecharTutorial() {
   renderTutorial();
   scrollTo({ top: 0 });
   if (E) E.tutorial_visto = true;
+  if (telaAntesTutorial) irPara(telaAntesTutorial);
+  // a tela pode ter sido refeita durante o tutorial: o botão guardado some, então procura o "Rever o tutorial" de novo
   const volta = focoAntesTutorial && document.contains(focoAntesTutorial) && focoAntesTutorial !== document.body
-    ? focoAntesTutorial : primeiroVisivel('[data-tela="hoje"]');
+    && visivel(focoAntesTutorial) ? focoAntesTutorial
+    : (focoAntesTutorial && focoAntesTutorial.matches && focoAntesTutorial.matches('[data-tutorial]') && primeiroVisivel('[data-tutorial]'))
+      || primeiroVisivel('[data-tela="hoje"]');
+  focoAntesTutorial = null;
+  telaAntesTutorial = null;
   if (volta) volta.focus();
   await api('/api/tutorial', { visto: true });
 }
@@ -831,6 +876,7 @@ function abrirPrisma(nome) {
     ${px ? `<p style="margin-top:18px"><button class="btn acender" data-centelha="${esc(px.id)}">${px.estado === 'apagada' ? 'Acender a próxima' : 'Converter a próxima'} · +${px.lm} lm</button></p>` : ''}
     <h4>Centelhas da meta</h4>
     ${(p.lista || []).length ? `<ul class="lista-c">${p.lista.map(itemLista).join('')}</ul>` : '<p class="vazio">Nenhuma centelha ainda.</p>'}
+    ${p.meta_curta && !p.na_meta ? '<p class="discreto" style="margin-top:14px">A meta deste prisma tem menos de 3 centelhas: acender mais dá outros caminhos até o alvo, sem mudar o alvo nem o seu %.</p>' : ''}
     ${p.na_meta ? '' : `<p style="margin-top:14px"><button class="btn sec mini" data-acender="${esc(nome)}">${ic('raio', 'p')}Acender 3 centelhas</button></p>`}
     <h4>Análise</h4>
     ${blocoLeitura(base.leitura, `${p.contado} de ${p.alvo_lm} lm do alvo, ${plural(p.n, 'centelha')}`, true)}
@@ -1109,14 +1155,19 @@ async function aoClicar(t, ev) {
     // testa o que está no formulário: salva antes (campo de chave vazio mantém a chave já gravada)
     const s = await salvarModelo();
     if (s.erro) return toast(`Não salvou: ${s.erro}`, 'neutro');
-    toast('Testando…', 'neutro');
+    t.disabled = true;
+    toast('Testando… leva no máximo 30 s', 'neutro', null, 0);
     const r = await api('/api/modelo/testar', {});
-    toast(r.erro ? `Falhou: ${r.erro}` : (r.aviso ? `Atenção: ${r.aviso}` : `Respondeu em ${String(r.segundos).replace('.', ',')} s`), 'neutro');
+    t.disabled = false;
+    toast(r.erro ? `Falhou: ${r.erro}`
+      : `Funcionou: ${r.modelo || 'o modelo'} respondeu em ${String(r.segundos).replace('.', ',')} s${r.aviso ? `. ${r.aviso}` : ''}`, 'neutro', null, 8000);
     return carregar();
   }
   if (t.id === 'sair-celular') return sair();
   if (ds.tt) return acaoTutorial(ds.tt);
   if (ds.tutorial) {
+    focoAntesTutorial = t;  // ao fechar, volta para Ajustes e para este botão
+    telaAntesTutorial = document.querySelector('.tela.ativa')?.id || 'hoje';
     irPara('hoje');
     return abrirTutorial(0);
   }
@@ -1180,6 +1231,13 @@ async function aoClicar(t, ev) {
     const r = await api('/api/pedido', { acao: 'abrir', tipo, prisma, motivo });
     if (!r.erro) mostrarFormPedido = false;
     toast(r.erro ? `Não abriu: ${r.erro}` : 'Proposta pronta: confira abaixo', 'neutro');
+    return carregar();
+  }
+  if (ds.pedidoPropor) {
+    t.disabled = true;
+    toast('Gerando a proposta… pode levar alguns minutos se o Gemini estiver ocupado', 'neutro', null, 0);
+    const r = await api('/api/pedido', { acao: 'propor', id: Number(ds.pedidoPropor) });
+    toast(r.erro ? `Erro: ${r.erro}` : 'Proposta pronta: confira e aceite ou recuse', 'neutro');
     return carregar();
   }
   if (ds.pedidoAceitar) {
