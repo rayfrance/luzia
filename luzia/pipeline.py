@@ -266,6 +266,9 @@ def save_state(payload: dict, plan: dict, record: dict, hits: dict) -> None:
             'notas_vault': len((payload.get('historico_compartilhado_ia') or {}).get('notas_autorais_vault', [])),
             'sessoes_claude': len((payload.get('historico_compartilhado_ia') or {}).get('sessoes_claude_code', [])),
             'sessoes_codex': len((payload.get('historico_compartilhado_ia') or {}).get('sessoes_codex', [])),
+            'sessoes_detalhadas_claude': len((payload.get('historico_compartilhado_ia') or {}).get('sessoes_detalhadas_claude_code', [])),
+            'memorias_claude': len((payload.get('historico_compartilhado_ia') or {}).get('memorias_claude_code', [])),
+            'instrucoes_agente': len((payload.get('historico_compartilhado_ia') or {}).get('instrucoes_do_agente', [])),
         },
         'plano': plan,
         # Nome mantido por compatibilidade: com `mascarar_modelo` desligado (padrão), guarda dados reais (só no banco privado).

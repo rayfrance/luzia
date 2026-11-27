@@ -54,6 +54,12 @@ Instalação pelo GitHub numa configuração isolada (`CLAUDE_CONFIG_DIR` tempor
 - Plataformas: por enquanto só Claude Code; Codex, Antigravity e Cursor marcados como experimentais (regras e `foco`), com o suporte completo nos planos.
 - INSTALAR sem convite nem `gh` (repositório público), SDK conforme o provedor, 8 passos.
 
+## Histórico do Claude Code na triagem (0.4.6, 27/11)
+- Com o sim da pessoa (`--com-historico`), `triage.shared_ai_history` lê também: até 25 sessões dos últimos 120 dias (`sessoes_claude_code`: título, pasta, data, até 4 trechos de 240 caracteres dos prompts, ferramentas, comandos de terminal e áreas editadas; nunca o código do agente nem corpos de heredoc), as memórias (`memorias_claude_code`, até 40) e os CLAUDE.md global e do repositório, mais o AGENTS.md (`instrucoes_do_agente`, sem linhas `@`); e 40 prompts recentes em vez de 12. Cerca de 33 mil caracteres numa máquina real.
+- `privacy.sem_segredos` troca chaves, tokens, chaves privadas e senhas por [SEGREDO] sempre, com ou sem o mascaramento. O mascaramento opcional continua valendo para todo o histórico (`pipeline.build_payload`).
+- O modelo foi instruído a usar essas fontes para escolher prismas e centelhas aderentes ao trabalho real, sem citar prompts literais nem nomes de projeto. Triagem real com histórico sintético de dados (29 s) gerou prismas e centelhas de ML, dbt/Spark, SQL e containers.
+- `EXT_AREA` cobre também dados, infraestrutura e segurança (R, Go, Terraform, shell, KQL, YARA...).
+
 ## Pendências
 - Mandar os convites (mensagem com data final a definir).
 - Nome completo da autora nos manifestos: decisão em aberto.

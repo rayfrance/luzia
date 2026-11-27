@@ -9,7 +9,7 @@ A Luzia é para quem tem um trabalho técnico feito, na maior parte, com um agen
 - tem uma meta de carreira, em qualquer senioridade (estágio, júnior, pleno, sênior ou outra);
 - pode usar a Luzia por alguns dias no seu trabalho de sempre e responder a avaliação no fim (uns 10 minutos);
 - tem Python 3.11 ou mais novo e uma chave de API de modelo, do provedor que preferir (Anthropic, OpenAI, Gemini...); se não tiver, dá para criar uma gratuita no Gemini, na NVIDIA, no Groq ou no OpenRouter;
-- pode enviar a um modelo de IA externo os assuntos dos seus commits e as respostas da entrevista (se o seu trabalho proíbe isso, use um projeto pessoal).
+- pode enviar a um modelo de IA externo os assuntos dos seus commits e as respostas da entrevista e, se autorizar (recomendado, deixa o plano mais preciso), trechos do seu histórico do Claude Code: prompts e sessões recentes, memórias e CLAUDE.md, nunca o código que o agente escreveu (se o seu trabalho proíbe isso, use um projeto pessoal).
 
 Não precisa saber nada da Luzia antes. Se o seu trabalho não é técnico ou você quase não usa agentes de IA, a sua opinião ainda vale, mas este teste mede outra coisa.
 

@@ -133,7 +133,8 @@ def execute_triage(entrada_path: Path, rotulo: str = 'plugin-triage', save_state
         except Exception:
             inputs['github_data'] = {}
     if cfg.get('incluir_historico_ia') is True:  # só com o sim explícito da pessoa (`configurar --com-historico`)
-        inputs['ai_history'] = triage.shared_ai_history(vault_dir=Path(cfg['vault']) if cfg.get('vault') else None)
+        inputs['ai_history'] = triage.shared_ai_history(vault_dir=Path(cfg['vault']) if cfg.get('vault') else None,
+                                                        repo_dir=Path(cfg['repo']) if cfg.get('repo') else None)
     else:
         inputs['ai_history'] = {}
 

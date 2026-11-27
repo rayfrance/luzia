@@ -25,6 +25,12 @@ Regra de ouro da calibração:
 - Currículo (muitas vezes adaptado para uma vaga) e notas paradas no vault (não atualizadas com frequência)
   só servem para MAPEAR TÓPICOS. Nunca use essas fontes estáticas para definir ou rebaixar um nível.
 - Commits e sessões recentes no agente são a memória viva: use-os para sugerir um ajuste, explicando a evidência.
+- Quando houver `historico_compartilhado_ia` (só com o sim da pessoa), ele é o retrato mais fiel do trabalho real:
+  `sessoes_detalhadas_claude_code` mostra as tarefas (títulos e trechos dos prompts), as ferramentas, os comandos de
+  terminal e as áreas editadas; `memorias_claude_code` e `instrucoes_do_agente` (CLAUDE.md, AGENTS.md) dizem a área,
+  a stack, as práticas e o que a pessoa pediu para o agente lembrar. Use-os para escolher prismas e centelhas aderentes
+  ao que ela faz de fato e à meta, e para separar o que ela dirige (pede com conceito e critério) do que delega sem
+  entender. Nunca cite nos textos trechos literais desses prompts nem nomes de projeto, empresa ou colega.
 - Metadados de commit mostram O QUE subiu com apoio do agente, não se a pessoa domina a decisão.
 
 O progresso é medido pela luz própria das centelhas (lúmens), nunca por datas ou cronograma; o prazo declarado

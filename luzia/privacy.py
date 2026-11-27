@@ -107,3 +107,20 @@ class SemMascara(Redactor):
 
     def redact(self, text: str) -> str:
         return text
+
+
+
+# Segredos nunca saem da máquina, com ou sem o interruptor de mascaramento: chaves de API, tokens, chaves privadas
+# e valores depois de "senha:", "token=" etc. O histórico do agente às vezes tem um desses colado num prompt.
+_SEGREDOS = re.compile(
+    r'AIza[0-9A-Za-z_-]{20,}|sk-[A-Za-z0-9_-]{16,}|gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}'
+    r'|gsk_[A-Za-z0-9]{20,}|nvapi-[A-Za-z0-9_-]{20,}|xox[abprs]-[A-Za-z0-9-]{10,}|AKIA[0-9A-Z]{16}'
+    r'|eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}'
+    r'|-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?(?:-----END [A-Z ]*PRIVATE KEY-----|$)')
+_ROTULO_SEGREDO = re.compile(r'(?i)\b(senha|password|passwd|pwd|token|secret|api[_-]?key|chave)(\s*[:=]\s*)["\']?[^\s"\',;]+')
+
+
+def sem_segredos(texto: str) -> str:
+    """Troca por [SEGREDO] o que parece chave, token, chave privada ou senha. Vale sempre (não depende do interruptor)."""
+    texto = _SEGREDOS.sub('[SEGREDO]', texto or '')
+    return _ROTULO_SEGREDO.sub(lambda m: f'{m.group(1)}{m.group(2)}[SEGREDO]', texto)

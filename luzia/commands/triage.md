@@ -20,7 +20,7 @@ Se o SDK estiver faltando, pare aqui e mostre o comando `python -m pip install .
 4. Em qual repositório você trabalha no dia a dia? Sugira a raiz do repositório atual (`git rev-parse --show-toplevel`) e confirme. A Luzia só observa esse repositório.
 5. Qual nome ou e-mail aparece nos seus commits? Sugira o de `git config user.email` e confirme.
 6. (opcional) Caminho do seu currículo em PDF, .txt ou .md. (opcional) Usuário do GitHub.
-7. Posso ler o histórico do Claude Code e do Codex desta máquina para entender como você usa IA? (Sim / Não). Sempre pergunte; sem resposta, é Não.
+7. Posso ler o seu histórico do Claude Code e do Codex desta máquina (prompts e sessões recentes, memórias e CLAUDE.md, nunca o código que o agente escreveu; chaves e senhas são removidas antes) para o plano refletir o seu trabalho real? É o que deixa o plano mais preciso. (Sim / Não). Sempre pergunte; sem resposta, é Não.
 
 Grave com o comando abaixo. Omita as opções opcionais que a pessoa não respondeu. Passe **sempre** `--com-historico` (Sim) ou `--sem-historico` (Não). Use **aspas simples** em volta de cada resposta (crases e `$` dentro de aspas duplas viram comando); se a resposta tiver aspas simples, troque-as por aspas tipográficas.
 
@@ -28,7 +28,7 @@ Grave com o comando abaixo. Omita as opções opcionais que a pessoa não respon
 python "${CLAUDE_PLUGIN_ROOT}/lz.py" cli configurar --cargo '<1>' --objetivo '<2>' --horizonte '<3>' --uso-ia '<3b>' --repo '<4>' --autor '<5>' --cv '<6a>' --github '<6b>' --com-historico
 ```
 
-**3. Triagem.** Avise que costuma levar de 1 a 4 minutos e que vão ao modelo as respostas da entrevista, o currículo e o GitHub (se ela deu), os assuntos e números dos commits (nunca o código) a autoavaliação (se houver) e o histórico das IAs só se ela autorizou. O detalhe está em INSTALAR.md, seção de privacidade. Rode:
+**3. Triagem.** Avise que costuma levar de 1 a 4 minutos e que vão ao modelo as respostas da entrevista, o currículo e o GitHub (se ela deu), os assuntos e números dos commits (nunca o código) a autoavaliação (se houver) e o histórico das IAs (prompts e sessões recentes do Claude Code, memórias e CLAUDE.md) só se ela autorizou. O detalhe está em INSTALAR.md, seção de privacidade. Rode:
 
 ```bash
 python "${CLAUDE_PLUGIN_ROOT}/lz.py" cli triage --rotulo triage
