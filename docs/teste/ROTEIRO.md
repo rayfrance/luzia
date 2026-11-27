@@ -15,9 +15,16 @@ Não precisa saber nada da Luzia antes. Se você não programa ou não usa agent
 
 ## Como vai ser
 
-Você vai usar a Luzia no seu trabalho de sempre, a partir do dia em que instalar, até a data que a Rayane combinar com você. Depois, responde a [AVALIACAO.md](AVALIACAO.md). Instalação: [INSTALAR.md](INSTALAR.md).
+Você vai usar a Luzia no seu trabalho de sempre, a partir do dia em que instalar, até a data que a Rayane combinar com você. Depois, responde à [avaliação](https://docs.google.com/forms/d/e/1FAIpQLSfyMd9apFVT9AGktAQHIlGqPV8N8zAD-bFU0FkcCGKL5wKqPw/viewform) (formulário anônimo, cerca de 10 minutos). Instalação: [INSTALAR.md](INSTALAR.md).
 
 A ideia em uma frase: o que o agente aplica e você não domina é luz refletida. Quando você explica e defende, vira luz própria. Cada prisma (skill) da sua meta tem centelhas (conceitos), cada uma com um valor fixo em lúmens (lm). O % de cada prisma, e o **% do caminho** da trajetória, é a luz própria até o alvo da meta: ele sobe quando uma centelha vira luz própria, e acender centelhas novas só cria oportunidades, então não o baixa. Fora isso, ele só muda quando você muda a trajetória: incluir ou arquivar um prisma muda o alvo (o número pode subir ou descer), e a Luzia mostra o antes e o depois. Ao lado, o **% da luz coletada é sua** mostra quanto da luz que você já tocou é sua, e não do agente.
+
+## Quando converter: na espera do agente
+
+A Luzia não pede um tempo a mais no seu dia. A ideia é aproveitar a espera: quando você dispara uma tarefa longa no agente (implementar uma funcionalidade, rodar a suíte de testes, refatorar), em vez de ficar olhando o agente trabalhar, converta uma centelha. Pode ser uma que essa própria tarefa acendeu ou qualquer outra do painel.
+
+- Numa **segunda sessão** do Claude Code, no mesmo repositório, rode `/luzia:fazer <id>`. Ou, no painel, abra a centelha e use **Copiar prompt** numa outra conversa com o agente.
+- Quando o agente terminar, volte para a tarefa. A conversão fica guardada e continua depois de onde parou, com `/luzia:fazer <id>`.
 
 ## Registre enquanto usa
 
@@ -50,7 +57,7 @@ Frases curtas bastam. Isso vira a sua avaliação no final. Não cole código da
 
 1. No painel, em Ajustes, deixe o modo **Em foco**.
 2. Trabalhe como sempre no repositório autorizado, com o agente, por pelo menos **1 hora**.
-3. Quando a Luzia mostrar uma centelha da sessão (luz refletida que o agente usou), aceite convertê-la. Faça isso pelo menos **2 vezes**. Se nenhuma aparecer, rode `/luzia:centelhas` e converta uma de lá com `/luzia:converter <id>`.
+3. Quando a Luzia mostrar uma centelha da sessão (luz refletida que o agente usou), aceite convertê-la. Faça isso pelo menos **2 vezes**, de preferência enquanto o agente trabalha numa tarefa longa (veja "Quando converter", acima). Se nenhuma aparecer, rode `/luzia:centelhas` e converta uma de lá com `/luzia:converter <id>`.
 4. Responda às perguntas da Luzia, uma por vez, com as suas palavras. Termine **uma** conversão até o botão **Acender luz própria**.
 
 Se quiser retomar uma centelha depois:
@@ -66,6 +73,7 @@ Se quiser retomar uma centelha depois:
 **Repare em:**
 
 - O cartão apareceu em hora boa ou interrompeu você?
+- Converter na espera do agente aproveitou um tempo em que você só ficaria esperando, ou pareceu tempo a mais?
 - As perguntas ajudaram a entender o código, ou pareceram uma prova?
 - Ao final, você conseguiria explicar aquele trecho sem a IA?
 - Quando o conceito veio de você, no seu prompt, a centelha do chat virou luz própria direto. Isso pareceu justo?
@@ -99,4 +107,4 @@ Se quiser retomar uma centelha depois:
 
 ## No fim
 
-Responda [AVALIACAO.md](AVALIACAO.md) usando as suas notas.
+Responda à [avaliação](https://docs.google.com/forms/d/e/1FAIpQLSfyMd9apFVT9AGktAQHIlGqPV8N8zAD-bFU0FkcCGKL5wKqPw/viewform) usando as suas notas.

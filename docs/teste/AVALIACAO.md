@@ -1,6 +1,8 @@
 # Luzia · Avaliação do teste
 
-A participação é voluntária e anônima: não precisa de nome. As respostas vão só para a Rayane, para o trabalho da disciplina. Não cole código da empresa nem segredos (chaves, tokens, e-mails). Copie este arquivo para um formulário ou responda aqui mesmo. Leva cerca de 10 minutos.
+**Responda pelo formulário: [https://docs.google.com/forms/d/e/1FAIpQLSfyMd9apFVT9AGktAQHIlGqPV8N8zAD-bFU0FkcCGKL5wKqPw/viewform](https://docs.google.com/forms/d/e/1FAIpQLSfyMd9apFVT9AGktAQHIlGqPV8N8zAD-bFU0FkcCGKL5wKqPw/viewform)**
+
+Esta página é só a versão em texto das mesmas perguntas, para consulta. A participação é voluntária e anônima: o formulário não pede nome nem e-mail. As respostas vão só para a Rayane, para o trabalho da disciplina. Não cole código da empresa nem segredos (chaves, tokens, e-mails). Leva cerca de 10 minutos.
 
 Nas tabelas, marque um número por linha. Responda pelo que aconteceu no seu uso, não pelo que a Luzia promete.
 
@@ -13,6 +15,7 @@ Nas tabelas, marque um número por linha. Responda pelo que aconteceu no seu uso
 3. Com que frequência você usa agentes de código? (todo dia / algumas vezes por semana / de vez em quando / raramente)
 4. Por quantos dias você usou a Luzia?
 5. Quantas centelhas você converteu, mais ou menos? (nenhuma / 1 a 2 / 3 a 5 / mais de 5)
+6. Quanto tempo você costuma esperar o agente terminar uma tarefa longa? (menos de 1 min / 1 a 5 min / 5 a 15 min / mais de 15 min)
 
 ## B. O problema, no seu trabalho (pense em como era antes da Luzia)
 
@@ -63,7 +66,10 @@ E5. Como você se sentiria se não pudesse mais usar a Luzia? (seria uma grande 
 
 E6. De 0 a 10, quanto você recomendaria a Luzia a um colega que usa agentes de código?
 
-E7. Quanto tempo por semana você dedicaria a converter centelhas? (nada · menos de 30 min · 30 a 60 min · 1 a 2 h · mais de 2 h):
+| # | Afirmação | 1 | 2 | 3 | 4 | 5 |
+|---|---|---|---|---|---|---|
+| E7 | Converter centelhas enquanto o agente trabalhava aproveitou um tempo em que eu só ficaria esperando. | | | | | |
+| E8 | A Luzia tomou um tempo que eu preferiria usar em outra coisa. | | | | | |
 
 ## F. Privacidade e confiança
 
@@ -80,21 +86,18 @@ F3. Você deixaria a Luzia ler o histórico do Claude Code e do Codex? Por quê?
 2. O que você tiraria?
 3. O que faltou?
 4. Se pudesse mudar uma única coisa, qual seria?
-
-## H. Problemas técnicos
-
-1. Sistema operacional e versão do Python:
-2. Algo quebrou ou não funcionou? O que você estava fazendo?
-3. Linhas de erro (cole só o trecho, sem dados pessoais, chaves ou caminhos com o seu nome):
-4. A instalação levou quanto tempo? Em que passo você travou?
+5. Algo não funcionou ou atrapalhou, na instalação ou no uso? Conte em poucas palavras (opcional).
 
 ---
 
 ### Para quem analisa (não precisa responder)
 
+- O formulário é criado por [formulario.gs](formulario.gs) (Google Apps Script), com as mesmas perguntas e códigos; cada item de escala vira uma coluna numérica na planilha de respostas.
+
 - **Validação do problema:** média de B1 a B6. Mede se o problema existe e incomoda quem testou, independente da Luzia.
 - **Eficácia da solução:** média de C1 a C7. C2 é o item central: entender a ponto de explicar sem a IA.
-- **Usabilidade:** D1 e D2 seguem o formato do UMUX-Lite (Lewis, Utesch e Maher, 2013), adaptado para 5 pontos. D5 é invertido (some 6 − nota).
-- **Viabilidade:** E1 a E4, mais E5 (pergunta de "product-market fit" de Sean Ellis: a proporção de "seria uma grande perda", que equivale ao "muito decepcionado" do original), E6 (no estilo NPS) e E7 (disposição de tempo).
+- **Usabilidade:** D1 e D2 seguem o formato do UMUX-Lite (Lewis, Utesch e Maher, 2013), adaptado para 5 pontos. D5 é invertido (use 6 − nota).
+- **Viabilidade:** E1 a E4, mais E5 (pergunta de "product-market fit" de Sean Ellis: a proporção de "seria uma grande perda", que equivale ao "muito decepcionado" do original) e E6 (no estilo NPS).
+- **Custo de tempo:** E7 (a conversão aproveitou a espera do agente) e E8, invertido (use 6 − nota): medem se a Luzia usa um tempo que já existia ou toma tempo a mais. Leia junto com A6 (quanto a pessoa costuma esperar).
 - **Confiança:** F1 e F2, que condicionam E2.
 - Cruzar B com C: quem mais sente o problema (B alto) é quem mais deveria perceber o efeito (C alto). Com poucas pessoas, leia as respostas uma a uma, junto com C8 e G; as médias só indicam tendência.

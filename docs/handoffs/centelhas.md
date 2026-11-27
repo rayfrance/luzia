@@ -37,6 +37,18 @@ Instalação pelo GitHub numa configuração isolada (`CLAUDE_CONFIG_DIR` tempor
 - Avanço (`pct`) = min(própria, `alvo_lm`) ÷ `alvo_lm` por prisma; trajetória = soma ÷ soma. `prisma.alvo_lm` fixado na primeira sincronização ou pela triagem (`jogo.fixar_alvos`); sem centelha, `ALVO_PADRAO` (180). Composição (`luz_pct`) = própria ÷ luz coletada.
 - A triagem completa cada prisma com pelo menos 3 centelhas (`cli.completar_meta`) e fixa os alvos.
 
+## Loop de testes orquestrados e liberação (0.4.4, 25–26/11, publicado em `b9c92a0`)
+- 14 rodadas com 4 testadores (Sonnet: chat, painel, hooks; Haiku: guias contra o código), cada uma do zero. Critério: só defeitos reproduzidos ou conferidos no código contam. A Rayane encerrou o loop na rodada 14 para liberar a versão; a jornada no chat dessa rodada passou sem defeito bloqueante (painel, hooks e guias foram interrompidos).
+- Principais mudanças: aviso de meta curta no chat e no painel, Testar rápido (uma tentativa, 30 s), pedido sem proposta oferece "Gerar a proposta", ritmo com tempo previsto e prazo dado, menos ruído nos hooks, modo "em silêncio" calado, linha de status fechada sem cwd, mascaramento de tickets PROJ-123 e domínios sem http, guias precisos sobre privacidade.
+- `docs/teste/AVALIACAO.md` virou questionário em escala (problema, eficácia, uso, viabilidade, confiança), com nota para a análise; `ROTEIRO.md` abre com o perfil de quem deve testar.
+- Repositório tornado público em 26/11 (decisão da Rayane, ciente de que o e-mail pessoal fica visível nos commits). Instalação conferida sem login: marketplace, plugin 0.4.4 e diagnóstico.
+
+## Formulário e conversão na espera (27/11)
+- A avaliação é um Google Forms na conta da Rayane, criado por `docs/teste/formulario.gs` (Apps Script) e ligado a uma planilha de respostas; abre sem login. `AVALIACAO.md` ficou como versão em texto. Sem a seção de problemas técnicos (virou a pergunta aberta G5); entraram A6 (quanto a pessoa espera o agente), E7 (a conversão aproveitou a espera) e E8 (invertido: a Luzia tomou tempo).
+- Ideia central registrada: converter centelhas enquanto o agente executa tarefas longas, numa segunda sessão, para a Luzia não parecer tempo a mais. Está no roteiro (seção "Quando converter"), no README, no passo "O próximo passo" do tutorial e nas instruções da mentora.
+
 ## Pendências
-- Commit e push da rodada 2, com o ok da Rayane; depois, convites aos testadores.
+- Mandar os convites (mensagem com data final a definir).
+- Nome completo da autora nos manifestos: decisão em aberto.
+- Sugestões não bloqueantes dos testadores: o dossiê chama lm de "pontos de evidência"; o texto da P1 (geral) soa estranho em entregas de documentação; a contagem de "Atualizar N análises" varia entre telas.
 - Dados de teste em `~/.luzia` (com a chave dela) e pastas `cfg-teste-luzia`, `repo-teste-luzia` e `luzia-dados-hooks` em `%TEMP%\claude`: apagar quando terminar.

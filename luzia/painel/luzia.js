@@ -664,7 +664,8 @@ const PASSOS_TUTORIAL = [
     corpo: () => `<ol class="tt-passos">
         <li>Leve a centelha para o seu agente: <b>Acender no Claude Code</b> ou <b>Copiar prompt</b>.</li>
         <li>Explique com as suas palavras. A Luzia pergunta uma coisa por vez e dá uma nota de 0 a 4.</li>
-        <li>Com nota 3 ou 4, aparece o botão <b>Acender luz própria</b>. Só o seu sim acende a luz.</li></ol>` },
+        <li>Com nota 3 ou 4, aparece o botão <b>Acender luz própria</b>. Só o seu sim acende a luz.</li></ol>
+      <p>A melhor hora é a espera: enquanto o agente faz uma tarefa longa, converta uma centelha numa outra sessão.</p>` },
   { titulo: 'Prismas são as habilidades da sua meta', tela: 'hoje',
     alvo: () => primeiroVisivel('#hoje .prisma-cartao'),
     corpo: () => {

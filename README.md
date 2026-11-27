@@ -2,7 +2,7 @@
 
 Líder técnica de carreira dentro do agente de código (Claude Code, Codex, Cursor, Antigravity).
 
-A tese: o código que o agente produz e você não domina é **luz refletida**. Quando você explica, decide e defende, a luz passa a ser **própria**. A Luzia captura **centelhas** (conceitos que aparecem no seu trabalho), mostra quanto de cada prisma (skill) da sua meta já é luz própria e guia a conversão do que ainda é refletido.
+A tese: o código que o agente produz e você não domina é **luz refletida**. Quando você explica, decide e defende, a luz passa a ser **própria**. A Luzia captura **centelhas** (conceitos que aparecem no seu trabalho), mostra quanto de cada prisma (skill) da sua meta já é luz própria e guia a conversão do que ainda é refletido. A conversão foi pensada para a espera: enquanto o agente executa uma tarefa longa, você converte uma centelha dessa tarefa ou do painel, em vez de só aguardar.
 
 ## Rodar
 ```
@@ -26,4 +26,4 @@ Vai testar a Luzia? Comece por aqui:
 
 - [Instalar](docs/teste/INSTALAR.md): requisitos, instalação, atualização, privacidade e problemas comuns.
 - [Roteiro](docs/teste/ROTEIRO.md): para quem é o teste, três missões curtas e o que registrar enquanto usa.
-- [Avaliação](docs/teste/AVALIACAO.md): o formulário para responder no fim do teste.
+- [Avaliação](https://docs.google.com/forms/d/e/1FAIpQLSfyMd9apFVT9AGktAQHIlGqPV8N8zAD-bFU0FkcCGKL5wKqPw/viewform): o formulário para responder no fim do teste (as perguntas em texto ficam em [AVALIACAO.md](docs/teste/AVALIACAO.md)).
