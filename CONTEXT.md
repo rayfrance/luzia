@@ -8,6 +8,7 @@
 | `docs/luzia-ux.md` | regras da experiência e do jogo (vocabulário, luz, centelhas) |
 | `docs/specs/`, `docs/plans/` | especificações e planos de implementação |
 | `docs/handoffs/` | continuidade entre sessões e agentes |
+| `docs/teste/` | guias do teste com usuários (instalar, roteiro com o perfil de quem testa), a avaliação em texto e `formulario.gs`, que cria o formulário Google |
 | `design/v2/` | referência visual e de lógica (protótipo do painel, tokens, guia de voz) |
 | `.claude-plugin/marketplace.json` | marketplace local: `claude plugin marketplace add <esta pasta>` e `claude plugin install luzia@luzia` |
 

@@ -1,6 +1,6 @@
 """Triagem: coleta local das fontes de carreira e do histórico compartilhado entre IAs.
 
-Fontes autorizadas pela pessoa desenvolvedora:
+Fontes autorizadas pela pessoa:
 1. Declaração de nível atual, objetivo, horizonte e uso de IA;
 2. Currículo (PDF ou texto) e LinkedIn exportado (PDF);
 3. Perfil público do GitHub (campo `github` de private/entrada.json);

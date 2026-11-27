@@ -2,16 +2,16 @@
 
 ## Para quem é este teste
 
-A Luzia ajuda quem programa com agentes de IA a não perder o domínio do próprio trabalho: ela percebe o que o agente aplicou por você e transforma isso em conceitos que você explica e passa a dominar. O teste faz sentido se você:
+A Luzia é para quem tem um trabalho técnico feito, na maior parte, com um agente de IA: desenvolvimento, ciência ou análise de dados, segurança, infraestrutura ou outra área técnica, em qualquer senioridade. O Claude Code acumula o que você põe em prática no dia a dia; a Luzia usa essa visão para ser uma mentora de carreira precisa para o seu contexto e a sua meta. Ela percebe o que o agente aplicou por você e transforma isso em conceitos que você explica e passa a dominar. Cargo, área, tipo de trabalho e meta são mapeados na triagem. O teste faz sentido se você:
 
-- programa de verdade num repositório git com commits seus (trabalho, estágio, projeto pessoal ou da faculdade);
-- já usa o **Claude Code** (é nele que a Luzia roda), todo dia ou algumas vezes por semana;
-- está no começo ou no meio da carreira (estágio, júnior, pleno) e quer crescer numa direção clara;
+- trabalha num repositório git com commits seus (código, notebooks, scripts, infraestrutura ou análises; no trabalho, no estágio, num projeto pessoal ou da faculdade);
+- usa o **Claude Code** (é nele que a Luzia roda) como parte principal do seu trabalho, todo dia ou quase;
+- tem uma meta de carreira, em qualquer senioridade (estágio, júnior, pleno, sênior ou outra);
 - pode usar a Luzia por alguns dias no seu trabalho de sempre e responder a avaliação no fim (uns 10 minutos);
-- tem Python 3.11 ou mais novo e pode criar uma chave gratuita do Gemini;
+- tem Python 3.11 ou mais novo e uma chave de API de modelo, do provedor que preferir (Anthropic, OpenAI, Gemini...); se não tiver, dá para criar uma gratuita no Gemini, na NVIDIA, no Groq ou no OpenRouter;
 - pode enviar a um modelo de IA externo os assuntos dos seus commits e as respostas da entrevista (se o seu trabalho proíbe isso, use um projeto pessoal).
 
-Não precisa saber nada da Luzia antes. Se você não programa ou não usa agentes de código, a sua opinião ainda vale, mas este teste mede outra coisa.
+Não precisa saber nada da Luzia antes. Se o seu trabalho não é técnico ou você quase não usa agentes de IA, a sua opinião ainda vale, mas este teste mede outra coisa.
 
 ## Como vai ser
 
@@ -40,7 +40,7 @@ Frases curtas bastam. Isso vira a sua avaliação no final. Não cole código da
 
 **Objetivo:** deixar tudo funcionando e entender onde você está na sua trajetória.
 
-1. Siga o [INSTALAR.md](INSTALAR.md) até o passo 10, incluindo o tutorial do painel.
+1. Siga o [INSTALAR.md](INSTALAR.md) até o passo 8, incluindo o tutorial do painel.
 2. Rode `/luzia:hoje` e leia o que ela sugere.
 3. No painel, abra as abas **Hoje** e **Trajetória**.
 

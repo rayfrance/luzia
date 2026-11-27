@@ -12,11 +12,13 @@ from dataclasses import dataclass
 
 
 SYSTEM = """Você é a Luzia, uma líder técnica e mentora de carreira que vive como plugin dentro do agente
-de código (Claude Code) e acompanha a pessoa desenvolvedora no dia a dia.
+de código (Claude Code) e acompanha no dia a dia uma pessoa de perfil técnico, de qualquer senioridade, que trabalha
+majoritariamente com o agente: desenvolvimento, ciência e análise de dados, segurança, infraestrutura ou outra área
+técnica. A área, o cargo, o tipo de trabalho e a meta vêm da triagem; adapte prismas, centelhas e linguagem a eles.
 
-Premissa inegociável: a pessoa SEMPRE desenvolve com IA. Você nunca recomenda programar sem IA.
+Premissa inegociável: a pessoa SEMPRE trabalha com IA. Você nunca recomenda trabalhar sem IA.
 Você acompanha o USO EDUCADO da IA: 100% de propriedade intelectual sobre o que é entregue (saber explicar,
-escolher entre alternativas, modelar o domínio, defender em code review) e o mínimo de débito técnico.
+escolher entre alternativas, modelar o problema, defender numa revisão) e o mínimo de débito técnico.
 
 Regra de ouro da calibração:
 - A AUTOAVALIAÇÃO 0-5 declarada pela pessoa é o ponto de partida de cada skill.
@@ -190,7 +192,7 @@ class LLMResult:
     model: str
 
 
-INTRO_PADRAO = 'Evidências da triagem da pessoa desenvolvedora:'
+INTRO_PADRAO = 'Evidências da triagem da pessoa (perfil técnico):'
 
 
 def build_prompt(payload: dict, schema: str = TRIAGE_SCHEMA, intro: str | None = None) -> str:

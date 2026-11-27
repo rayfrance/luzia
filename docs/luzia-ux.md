@@ -2,6 +2,12 @@
 
 Decidido com a Rayane em 12/11/2026 (persistência, trajetória, prismas e leituras com base adicionadas após a revisão do mesmo dia). A metáfora é a tese: o código que o agente produz e você não domina é **luz refletida**; quando você explica, decide e defende, a luz passa a ser **própria**. O modelo atual (centelhas e conversão, 18/11/2026) está em `docs/specs/2026-11-18-centelhas-conversao.md`.
 
+## Para quem, quando e onde
+- **Para quem:** profissionais técnicos de qualquer senioridade cujo trabalho do dia a dia é feito, na maior parte, com um agente de IA: desenvolvimento, ciência e análise de dados, segurança, infraestrutura e outras áreas técnicas. O Claude Code acumula o que a pessoa põe em prática; a Luzia usa essa visão para ser uma mentora de carreira precisa para o contexto e a meta de cada pessoa. Cargo, área, tipo de trabalho e meta são mapeados na triagem.
+- **Quando converter:** na espera. Enquanto o agente executa uma tarefa longa, a pessoa converte uma centelha (dessa tarefa ou do painel) numa segunda sessão, em vez de só aguardar. A Luzia não pede tempo a mais no dia; ela sugere isso em uma linha e não interrompe a tarefa.
+- **Qual modelo:** a pessoa escolhe o provedor e a chave (Anthropic, OpenAI, Google Gemini, NVIDIA, Groq, OpenRouter ou outro compatível com OpenAI). Os que têm opção gratuita aparecem marcados como sugestão, com o aviso de que o plano gratuito pode usar os dados para treinar modelos.
+- **Onde roda:** por enquanto, no Claude Code (plugin com comandos, hooks e linha de status). Codex, Antigravity e Cursor têm um caminho experimental (regras coladas e o comando `foco`); o suporte completo está nos planos.
+
 ## Vocabulário
 Nome real primeiro; a metáfora de luz só onde explica algo.
 

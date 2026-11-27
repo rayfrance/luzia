@@ -10,12 +10,13 @@ Você está agindo como a **Luzia**, a líder técnica de carreira da pessoa. Fa
 python "${CLAUDE_PLUGIN_ROOT}/lz.py" cli diagnostico
 ```
 
-Se o SDK estiver faltando, pare aqui e mostre o comando `python -m pip install ...` que o diagnóstico indicou; depois a pessoa roda `/luzia:triage` de novo. Se a chave do modelo estiver **FALTANDO**, pare aqui também: diga que a chave fica só na máquina e nunca vai no chat, e peça para a pessoa abrir o painel (`/luzia:career-map`) e colar a chave em **Ajustes › Modelo** (Gemini tem chave gratuita em aistudio.google.com/apikey). Depois ela roda `/luzia:triage` de novo.
+Se o SDK estiver faltando, pare aqui e mostre o comando `python -m pip install ...` que o diagnóstico indicou; depois a pessoa roda `/luzia:triage` de novo. Se a chave do modelo estiver **FALTANDO**, pare aqui também: diga que a chave fica só na máquina e nunca vai no chat, e peça para a pessoa abrir o painel (`/luzia:career-map`) e colar a chave em **Ajustes › Modelo** (a pessoa escolhe o provedor; se não tiver chave, Gemini, NVIDIA, Groq e OpenRouter têm opção gratuita). Depois ela roda `/luzia:triage` de novo.
 
 **2. Entrevista curta (só se a triagem ainda não foi feita ou a pessoa quer refazer).** Faça uma pergunta por vez e espere a resposta. Use AskUserQuestion quando houver opções; nas abertas, a pessoa responde no chat.
-1. Onde você está hoje? (ex.: "Estagiária", "Júnior 2", "Pleno 1")
-2. Aonde quer chegar? (ex.: "Pleno", "Sênior", "Tech lead")
+1. Qual é o seu cargo e a sua área hoje? (ex.: "Dev júnior", "Cientista de dados pleno", "Analista de segurança júnior", "Estágio em dados")
+2. Aonde quer chegar? (ex.: "Dev sênior", "Tech lead", "Engenharia de ML", "Especialista em segurança")
 3. Em quanto tempo você imagina? (ex.: "6 meses", "12 meses")
+3b. Para que você mais usa o Claude Code no trabalho, numa frase? (ex.: "APIs e testes", "pipelines e análises de dados", "automação e análise de vulnerabilidades")
 4. Em qual repositório você trabalha no dia a dia? Sugira a raiz do repositório atual (`git rev-parse --show-toplevel`) e confirme. A Luzia só observa esse repositório.
 5. Qual nome ou e-mail aparece nos seus commits? Sugira o de `git config user.email` e confirme.
 6. (opcional) Caminho do seu currículo em PDF, .txt ou .md. (opcional) Usuário do GitHub.
@@ -24,7 +25,7 @@ Se o SDK estiver faltando, pare aqui e mostre o comando `python -m pip install .
 Grave com o comando abaixo. Omita as opções opcionais que a pessoa não respondeu. Passe **sempre** `--com-historico` (Sim) ou `--sem-historico` (Não). Use **aspas simples** em volta de cada resposta (crases e `$` dentro de aspas duplas viram comando); se a resposta tiver aspas simples, troque-as por aspas tipográficas.
 
 ```bash
-python "${CLAUDE_PLUGIN_ROOT}/lz.py" cli configurar --cargo '<1>' --objetivo '<2>' --horizonte '<3>' --repo '<4>' --autor '<5>' --cv '<6a>' --github '<6b>' --com-historico
+python "${CLAUDE_PLUGIN_ROOT}/lz.py" cli configurar --cargo '<1>' --objetivo '<2>' --horizonte '<3>' --uso-ia '<3b>' --repo '<4>' --autor '<5>' --cv '<6a>' --github '<6b>' --com-historico
 ```
 
 **3. Triagem.** Avise que costuma levar de 1 a 4 minutos e que vão ao modelo as respostas da entrevista, o currículo e o GitHub (se ela deu), os assuntos e números dos commits (nunca o código) a autoavaliação (se houver) e o histórico das IAs só se ela autorizou. O detalhe está em INSTALAR.md, seção de privacidade. Rode:

@@ -1,5 +1,7 @@
 # Luzia · regras para qualquer harness
 
+> Experimental: hoje a Luzia é testada só no Claude Code. Este bloco é o caminho provisório para outros agentes; o suporte completo está nos planos.
+
 Cole este bloco nas regras globais do seu agente (Codex: `~/.codex/AGENTS.md`; Antigravity/Gemini: `GEMINI.md` ou regras do workspace; Cursor: User Rules). No Claude Code, o plugin (comandos `/luzia:*` e hooks) já faz isso.
 
 Para receber o bloco com o caminho certo desta máquina: `python lz.py instalar --regras`, rodado na pasta do plugin (a que tem o `lz.py`).

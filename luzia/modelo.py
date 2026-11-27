@@ -2,9 +2,10 @@
 
 - A escolha fica em `private/modelo.json` (fora do git).
 - A chave fica no `.env` da raiz do repositório (fora do git) e nunca volta para a tela nem para logs.
-- Cada provedor usa o SDK oficial, carregado só quando é o escolhido:
-  Google Gemini (`google-genai`), Anthropic Claude (`anthropic`) e qualquer API compatível com OpenAI
-  (`openai`: OpenAI, OpenRouter, Groq, Ollama local etc., com `base_url`).
+- Cada provedor usa o SDK oficial, carregado só quando é o escolhido: Google Gemini (`google-genai`),
+  Anthropic Claude (`anthropic`) e as APIs compatíveis com OpenAI (`openai`). NVIDIA, Groq e OpenRouter vêm com o
+  endereço pronto e chave própria; "OpenAI ou outro compatível" aceita qualquer `base_url` (OpenAI, Ollama local etc.).
+- A pessoa escolhe o provedor. `gratuito` só marca os que têm plano ou créditos gratuitos (sugestão, não exigência).
 """
 
 from __future__ import annotations
@@ -25,10 +26,20 @@ ENVS = [arquivos.PRIVATE / '.env', ROOT / '.env']  # a chave mora na pasta de da
 
 PROVEDORES = {
     'gemini': {'nome': 'Google Gemini', 'chave': 'GEMINI_API_KEY', 'sdk': 'google.genai', 'pip': 'google-genai',
-               'sugestoes': ['gemini-3.5-flash-lite', 'gemini-3.5-flash', 'gemini-4-argon', 'gemini-4-carbon'], 'base_url': False},
+               'sugestoes': ['gemini-3.5-flash-lite', 'gemini-3.5-flash', 'gemini-4-argon', 'gemini-4-carbon'], 'base_url': False,
+               'gratuito': True, 'site': 'https://aistudio.google.com/apikey'},
+    'nvidia': {'nome': 'NVIDIA (build.nvidia.com)', 'chave': 'NVIDIA_API_KEY', 'sdk': 'openai', 'pip': 'openai',
+               'sugestoes': ['deepseek-ai/deepseek-v4.1-flash', 'z-ai/glm-5.3-flash'], 'base_url': False,
+               'url': 'https://integrate.api.nvidia.com/v1', 'gratuito': True, 'site': 'https://build.nvidia.com'},
+    'groq': {'nome': 'Groq', 'chave': 'GROQ_API_KEY', 'sdk': 'openai', 'pip': 'openai',
+             'sugestoes': ['openai/gpt-oss-120b'], 'base_url': False,
+             'url': 'https://api.groq.com/openai/v1', 'gratuito': True, 'site': 'https://console.groq.com/keys'},
+    'openrouter': {'nome': 'OpenRouter', 'chave': 'OPENROUTER_API_KEY', 'sdk': 'openai', 'pip': 'openai',
+                   'sugestoes': [], 'base_url': False,
+                   'url': 'https://openrouter.ai/api/v1', 'gratuito': True, 'site': 'https://openrouter.ai/keys'},
     'anthropic': {'nome': 'Anthropic Claude', 'chave': 'ANTHROPIC_API_KEY', 'sdk': 'anthropic', 'pip': 'anthropic',
                   'sugestoes': ['claude-opus-5-5', 'claude-sonnet-5-5', 'claude-haiku-5-5'], 'base_url': False},
-    'openai': {'nome': 'Compatível com OpenAI', 'chave': 'OPENAI_API_KEY', 'sdk': 'openai', 'pip': 'openai',
+    'openai': {'nome': 'OpenAI ou outro compatível', 'chave': 'OPENAI_API_KEY', 'sdk': 'openai', 'pip': 'openai',
                'sugestoes': [], 'base_url': True},
 }
 PADRAO = {'provedor': 'gemini', 'modelo': 'gemini-3.5-flash-lite', 'base_url': ''}
@@ -100,6 +111,7 @@ def status() -> dict:
                          (prov['sdk'] != 'google.genai' or importlib.util.find_spec('google.genai') is not None),
         'pip': prov['pip'],
         'provedores': {k: {'nome': v['nome'], 'sugestoes': v['sugestoes'], 'base_url': v['base_url'],
+                           'gratuito': bool(v.get('gratuito')), 'site': v.get('site', ''),
                            'chave_configurada': bool(os.environ.get(v['chave']))} for k, v in PROVEDORES.items()},
     }
 
@@ -134,12 +146,13 @@ def chamar(prompt: str, system: str, rapido: bool = False) -> dict:
         raise RuntimeError(f"O SDK de {prov['nome']} não está instalado: python -m pip install {prov['pip']}")
     t0 = time.perf_counter()
     ULTIMO_ERRO_PRINCIPAL.clear()
-    if cfg['provedor'] == 'gemini':
+    if prov['sdk'] == 'google.genai':
         texto, tin, tout, usado = _gemini(cfg['modelo'], prompt, system, chave, rapido)
-    elif cfg['provedor'] == 'anthropic':
-        texto, tin, tout, usado = _claude(cfg['modelo'], prompt, system, chave)
-    else:
-        texto, tin, tout, usado = _openai(cfg['modelo'], prompt, system, chave, cfg.get('base_url', ''))
+    elif prov['sdk'] == 'anthropic':
+        texto, tin, tout, usado = _claude(cfg['modelo'], prompt, system, chave, rapido)
+    else:  # NVIDIA, Groq e OpenRouter têm o endereço fixo; "OpenAI ou outro compatível" usa o que a pessoa deu
+        texto, tin, tout, usado = _openai(cfg['modelo'], prompt, system, chave, prov.get('url') or cfg.get('base_url', ''),
+                                          rapido)
     aviso = ''
     if usado != cfg['modelo'] and cfg['provedor'] == 'gemini':
         aviso = f"{cfg['modelo']} não respondeu ({ULTIMO_ERRO_PRINCIPAL.get('erro', 'erro')}); quem respondeu foi o reserva {usado}."
@@ -152,18 +165,26 @@ ULTIMO_ERRO_PRINCIPAL: dict = {}
 
 def resumo_erro(e: Exception) -> str:
     """Mensagem curta do erro, sem nada que pareça chave."""
-    s = re.sub(r'AIza[0-9A-Za-z_-]+|sk-[0-9A-Za-z_-]+', '[chave]', str(e))
+    s = re.sub(r'AIza[0-9A-Za-z_-]+|sk-[0-9A-Za-z_-]+|nvapi-[0-9A-Za-z_-]+|gsk_[0-9A-Za-z_-]+', '[chave]', str(e))
+    baixo = s.lower()
+    try:
+        prov = PROVEDORES[config()['provedor']]
+    except Exception:
+        prov = PROVEDORES[PADRAO['provedor']]
+    gemini = prov['sdk'] == 'google.genai'
+    quem, lado = ('o Gemini', 'do lado do Google') if gemini else (f"o provedor ({prov['nome']})", 'do lado do provedor')
     if 'RESOURCE_EXHAUSTED' in s and 'limit: 0' in s:
         return 'cota zero para este modelo no plano da sua chave (ex.: plano gratuito); ative o faturamento ou escolha outro modelo'
-    if 'RESOURCE_EXHAUSTED' in s:
-        return 'cota esgotada no momento (limite de uso da chave)'
-    if 'NOT_FOUND' in s or '404' in s:
-        return 'modelo não encontrado para esta chave'
-    if 'timed out' in s.lower() or 'timeout' in s.lower() or 'DEADLINE' in s:
-        return 'o Gemini demorou demais para responder (do lado do Google); tente de novo em alguns minutos'
-    if 'UNAVAILABLE' in s or '503' in s or 'high demand' in s.lower() or 'overloaded' in s.lower():
-        return 'o Gemini está sobrecarregado agora (erro 503, do lado do Google); tente de novo em alguns minutos'
-    if 'PERMISSION' in s or '403' in s or 'API_KEY' in s.upper() and 'INVALID' in s.upper():
+    if 'RESOURCE_EXHAUSTED' in s or '429' in s or 'rate limit' in baixo or 'rate_limit' in baixo:
+        return 'cota esgotada no momento (limite de uso da chave); espere um pouco ou escolha outro modelo'
+    if 'NOT_FOUND' in s or '404' in s or 'model_not_found' in baixo:
+        return 'modelo não encontrado para esta chave (confira o nome exato do modelo na página do provedor)'
+    if 'timed out' in baixo or 'timeout' in baixo or 'DEADLINE' in s:
+        return f'{quem} demorou demais para responder ({lado}); tente de novo em alguns minutos'
+    if 'UNAVAILABLE' in s or '503' in s or 'high demand' in baixo or 'overloaded' in baixo or '529' in s:
+        return f'{quem} está sobrecarregado agora (erro 503, {lado}); tente de novo em alguns minutos'
+    if ('PERMISSION' in s or '403' in s or '401' in s or 'unauthorized' in baixo or 'authentication' in baixo
+            or 'invalid_api_key' in baixo or ('API_KEY' in s.upper() and 'INVALID' in s.upper())):
         return 'chave sem permissão ou inválida'
     return s[:160].rstrip(' .')  # quem monta a frase põe o ponto final
 
@@ -240,32 +261,47 @@ def _passageiro(e: Exception) -> bool:
                                 '429', '500', '502', '503', '504', 'INTERNAL', 'CONNECTION', 'RESET'))
 
 
-def _claude(modelo: str, prompt: str, system: str, chave: str):
+def _limites(rapido: bool) -> dict:
+    """O Testar faz uma tentativa só, de no máximo TEMPO_RAPIDO s; as chamadas de verdade esperam mais e repetem."""
+    return {'timeout': float(TEMPO_RAPIDO), 'max_retries': 0} if rapido else {'timeout': 180.0, 'max_retries': 2}
+
+
+def _claude(modelo: str, prompt: str, system: str, chave: str, rapido: bool = False):
     import anthropic
 
-    client = anthropic.Anthropic(api_key=chave, timeout=180.0)
+    client = anthropic.Anthropic(api_key=chave, **_limites(rapido))
     kwargs = dict(model=modelo, max_tokens=16000, system=system,
                   messages=[{'role': 'user', 'content': prompt}],
                   output_config={'effort': 'medium'})
-    if modelo in CLAUDE_COM_FALLBACK:
-        resp = client.beta.messages.create(betas=['server-side-fallback-2026-07-01'], fallbacks='default', **kwargs)
-    else:
-        resp = client.messages.create(**kwargs)
+    try:
+        if modelo in CLAUDE_COM_FALLBACK:
+            resp = client.beta.messages.create(betas=['server-side-fallback-2026-07-01'], fallbacks='default', **kwargs)
+        else:
+            resp = client.messages.create(**kwargs)
+    except Exception as e:
+        raise RuntimeError(f'Anthropic falhou: {resumo_erro(e)}') from None
     if resp.stop_reason == 'refusal':
         raise RuntimeError('o modelo recusou a solicitação')
     texto = ''.join(b.text for b in resp.content if b.type == 'text')
     return texto, resp.usage.input_tokens, resp.usage.output_tokens, resp.model
 
 
-def _openai(modelo: str, prompt: str, system: str, chave: str, base_url: str):
+def _openai(modelo: str, prompt: str, system: str, chave: str, base_url: str, rapido: bool = False):
     from openai import OpenAI
 
-    client = OpenAI(api_key=chave or 'sem-chave', base_url=base_url or None, timeout=180.0)
-    resp = client.chat.completions.create(
-        model=modelo,
-        messages=[{'role': 'system', 'content': system}, {'role': 'user', 'content': prompt}],
-        response_format={'type': 'json_object'},
-    )
+    client = OpenAI(api_key=chave or 'sem-chave', base_url=base_url or None, **_limites(rapido))
+    mensagens = [{'role': 'system', 'content': system}, {'role': 'user', 'content': prompt}]
+    try:
+        try:
+            resp = client.chat.completions.create(model=modelo, messages=mensagens, response_format={'type': 'json_object'})
+        except Exception as e:
+            # nem todo modelo dos compatíveis (NVIDIA, Groq, OpenRouter) aceita o modo JSON: pede de novo sem ele;
+            # a resposta continua sendo lida como JSON pelo texto (`extrair_json`)
+            if 'response_format' not in str(e) and 'json' not in str(e).lower():
+                raise
+            resp = client.chat.completions.create(model=modelo, messages=mensagens)
+    except Exception as e:
+        raise RuntimeError(f'O modelo falhou: {resumo_erro(e)}') from None
     u = resp.usage
     return (resp.choices[0].message.content or '', getattr(u, 'prompt_tokens', 0) or 0,
             getattr(u, 'completion_tokens', 0) or 0, resp.model or modelo)

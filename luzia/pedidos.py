@@ -333,7 +333,7 @@ def propor(con: sqlite3.Connection, pedido_id: int, nivel: int | None = None, me
             label='pedido-propor',
             save_current_state=False,
             schema=planner.PEDIDO_SCHEMA,
-            intro='Fatos da trajetória atual e pedido de mudança feito pela pessoa desenvolvedora:',
+            intro='Fatos da trajetória atual e pedido de mudança feito pela pessoa:',
         )
         dados_llm = res.plan if isinstance(res.plan, dict) else {}
     except Exception as e:  # sem modelo, sem chave ou sem internet: a proposta sai dos valores da própria pessoa

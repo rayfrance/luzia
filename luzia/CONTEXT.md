@@ -1,11 +1,11 @@
 # luzia/ — pacote e plugin Luzia
 
-> Líder técnica de carreira dentro do agente. Regras do jogo e da trajetória: [docs/luzia-ux.md](../docs/luzia-ux.md); modelo de centelhas: [docs/specs/2026-11-18-centelhas-conversao.md](../docs/specs/2026-11-18-centelhas-conversao.md). Continuidade: [docs/handoffs/luzia-acoes.md](../docs/handoffs/luzia-acoes.md).
+> Líder técnica de carreira dentro do agente. Regras do jogo e da trajetória: [docs/luzia-ux.md](../docs/luzia-ux.md); modelo de centelhas: [docs/specs/2026-11-18-centelhas-conversao.md](../docs/specs/2026-11-18-centelhas-conversao.md). Continuidade: [docs/handoffs/centelhas.md](../docs/handoffs/centelhas.md) (a anterior, [luzia-acoes.md](../docs/handoffs/luzia-acoes.md), é histórico).
 
 ## Instalar
 - **Claude Code (plugin):** `claude plugin marketplace add <pasta do repositório>` e `claude plugin install luzia@luzia`. Comandos, skills e hooks usam `${CLAUDE_PLUGIN_ROOT}`; nada de caminho fixo.
 - **Sem plugin:** `python -m luzia.instalar` (comandos e skills em `~/.claude`), com `--hooks` e `--statusline` opcionais (fazem backup do `settings.json`). Não misture com o plugin.
-- **Codex, Cursor, Antigravity:** `python -m luzia.instalar --regras` imprime o bloco de [harness/REGRAS.md](harness/REGRAS.md) com o caminho desta máquina.
+- **Codex, Cursor, Antigravity (experimental; o suporte completo está nos planos):** `python -m luzia.instalar --regras` imprime o bloco de [harness/REGRAS.md](harness/REGRAS.md) com o caminho desta máquina.
 
 ## Peças
 | arquivo | o que faz |
@@ -25,7 +25,7 @@
 | `statusline.py` | linha de status do Claude Code com o estado do foco, a luz própria da trajetória e quantas centelhas há para converter (só nos repositórios autorizados) |
 | `server.py` + `painel/` | painel local em `127.0.0.1:8501` (**Hoje · Trajetória · Centelhas · Entregas · Ajustes**), barra do avanço até o alvo em cada prisma, com a composição da luz, proteção Host/Origin/JSON e login: toda rota `/api` fora `ping` e `acesso/*` exige sessão (401) |
 | `acesso.py` | entrada no painel herdada do agente: `career-map` grava um link de uso único (2 min, só o SHA-256 em `acesso_link`) e abre `#entrar=<token>`; a página troca o link por uma sessão de 30 dias sem uso (só o SHA-256 em `acesso_sessao`, sobrevive a reinícios; o polling manda `X-Luzia-Auto: 1` e não renova); 10 links errados por minuto dão 429; `acesso sair-de-todos` encerra todas |
-| `planner.py`, `pipeline.py`, `modelo.py` | esquemas JSON estruturados, chamadas ao modelo configurável e registro de custo em `runs.jsonl` e `chamada_modelo` |
+| `planner.py`, `pipeline.py`, `modelo.py` | esquemas JSON estruturados, chamadas ao modelo escolhido pela pessoa (Gemini, Anthropic, NVIDIA, Groq, OpenRouter ou qualquer compatível com OpenAI; o Testar faz uma tentativa de até 30 s) e registro de custo em `runs.jsonl` e `chamada_modelo` |
 | `triage.py`, `privacy.py` | leitura das fontes locais e mascaramento LGPD (`Redactor`, `mascarar_estrutura`), usado só no envio ao modelo com o interruptor `mascarar_modelo` ligado (`pipeline.run_plan`) |
 | `arquivos.py` | leitura/escrita atômica para arquivos de configuração (`observer.json`, `entrada.json`, etc.), `LUZIA_PRIVATE` e registro seguro de erros |
 | `commands/`, `skills/`, `hooks/`, `.claude-plugin/`, `.*-plugin/` | plugin multi-harness (fonte única em `luzia/`; o instalador resolve `${CLAUDE_PLUGIN_ROOT}` quando usado fora do sistema de plugins) |

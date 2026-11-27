@@ -10,9 +10,9 @@ Nas tabelas, marque um número por linha. Responda pelo que aconteceu no seu uso
 
 ## A. Perfil
 
-1. Função e senioridade (ex.: estudante, dev júnior, pleno, sênior):
+1. Cargo, área e senioridade (ex.: dev júnior, cientista de dados pleno, analista de segurança, estágio em dados):
 2. Anos programando:
-3. Com que frequência você usa agentes de código? (todo dia / algumas vezes por semana / de vez em quando / raramente)
+3. Com que frequência você usa agentes de IA, como o Claude Code, no trabalho? (todo dia / algumas vezes por semana / de vez em quando / raramente)
 4. Por quantos dias você usou a Luzia?
 5. Quantas centelhas você converteu, mais ou menos? (nenhuma / 1 a 2 / 3 a 5 / mais de 5)
 6. Quanto tempo você costuma esperar o agente terminar uma tarefa longa? (menos de 1 min / 1 a 5 min / 5 a 15 min / mais de 15 min)
@@ -24,7 +24,7 @@ Nas tabelas, marque um número por linha. Responda pelo que aconteceu no seu uso
 | B1 | Aceito código do agente que eu não saberia explicar sem a IA. | | | | | |
 | B2 | Isso me preocupa para o meu crescimento profissional. | | | | | |
 | B3 | Tenho dificuldade de saber o que estudar a partir do que o agente faz por mim. | | | | | |
-| B4 | Já tive dificuldade de explicar ou defender uma entrega minha (code review, reunião, avaliação). | | | | | |
+| B4 | Já tive dificuldade de explicar ou defender uma entrega minha (revisão de código ou de análise, reunião, avaliação). | | | | | |
 | B5 | Ter evidência do que eu realmente domino (para PDI, promoção ou feedback) seria útil para mim. | | | | | |
 
 B6. Com que frequência você aceita código do agente sem entender tudo? (1 nunca · 2 raramente · 3 às vezes · 4 frequentemente · 5 quase sempre):
@@ -33,7 +33,7 @@ B6. Com que frequência você aceita código do agente sem entender tudo? (1 nun
 
 | # | Afirmação | 1 | 2 | 3 | 4 | 5 |
 |---|---|---|---|---|---|---|
-| C1 | Converter centelhas me ajudou a entender código que eu tinha aceitado do agente. | | | | | |
+| C1 | Converter centelhas me ajudou a entender o que eu tinha aceitado do agente (código, análise, script ou configuração). | | | | | |
 | C2 | Depois de converter uma centelha, eu conseguiria explicar o conceito a um colega sem a IA. | | | | | |
 | C3 | As centelhas propostas tinham a ver com o meu trabalho e com a minha meta. | | | | | |
 | C4 | A diferença entre luz própria e luz refletida descreve bem como eu uso IA. | | | | | |
@@ -64,7 +64,7 @@ C8. Descreva uma centelha que você converteu. O que você entendeu que não ent
 
 E5. Como você se sentiria se não pudesse mais usar a Luzia? (seria uma grande perda · seria uma pequena perda · não faria diferença):
 
-E6. De 0 a 10, quanto você recomendaria a Luzia a um colega que usa agentes de código?
+E6. De 0 a 10, quanto você recomendaria a Luzia a um colega que trabalha com agentes de IA?
 
 | # | Afirmação | 1 | 2 | 3 | 4 | 5 |
 |---|---|---|---|---|---|---|

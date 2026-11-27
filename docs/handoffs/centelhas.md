@@ -47,6 +47,13 @@ Instalação pelo GitHub numa configuração isolada (`CLAUDE_CONFIG_DIR` tempor
 - A avaliação é um Google Forms na conta da Rayane, criado por `docs/teste/formulario.gs` (Apps Script) e ligado a uma planilha de respostas; abre sem login. `AVALIACAO.md` ficou como versão em texto. Sem a seção de problemas técnicos (virou a pergunta aberta G5); entraram A6 (quanto a pessoa espera o agente), E7 (a conversão aproveitou a espera) e E8 (invertido: a Luzia tomou tempo).
 - Ideia central registrada: converter centelhas enquanto o agente executa tarefas longas, numa segunda sessão, para a Luzia não parecer tempo a mais. Está no roteiro (seção "Quando converter"), no README, no passo "O próximo passo" do tutorial e nas instruções da mentora.
 
+## Provedores, público e plataformas (0.4.5, 27/11)
+- A pessoa escolhe o provedor e a chave: Gemini, Anthropic, OpenAI ou compatível, e NVIDIA, Groq e OpenRouter com o endereço pronto e chave própria (`modelo.PROVEDORES`). Os com opção gratuita (Gemini, NVIDIA, Groq, OpenRouter) aparecem marcados como sugestão, com o aviso de que o plano gratuito pode usar os dados para treinar modelos. Os termos gratuitos vieram de fontes de terceiros em 27/11 e mudam: conferir no site de cada um.
+- Testar com uma tentativa de até 30 s em todos os provedores; compatível com OpenAI repete sem o modo JSON quando o modelo não o aceita; erros de chave, limite e sobrecarga com mensagem clara e o nome do provedor; `modelo testar` no chat nunca mostra traceback.
+- Público: profissionais técnicos de qualquer senioridade que trabalham a maior parte do dia com agentes de IA (dev, dados, segurança, infraestrutura...). Instruções do modelo, entrevista da triagem (cargo e área, meta e o uso do Claude Code, `--uso-ia`), roteiro, README, `docs/luzia-ux.md` e o formulário (A1, A3, B4, C1, E6) ajustados.
+- Plataformas: por enquanto só Claude Code; Codex, Antigravity e Cursor marcados como experimentais (regras e `foco`), com o suporte completo nos planos.
+- INSTALAR sem convite nem `gh` (repositório público), SDK conforme o provedor, 8 passos.
+
 ## Pendências
 - Mandar os convites (mensagem com data final a definir).
 - Nome completo da autora nos manifestos: decisão em aberto.

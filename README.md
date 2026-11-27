@@ -1,6 +1,6 @@
 # Luzia
 
-Líder técnica de carreira dentro do agente de código (Claude Code, Codex, Cursor, Antigravity).
+Líder técnica de carreira dentro do agente de código, para profissionais técnicos de qualquer senioridade (desenvolvimento, dados, segurança, infraestrutura...) que trabalham a maior parte do dia com um agente de IA. Por enquanto roda no **Claude Code**; o suporte a outros agentes (Codex, Antigravity, Cursor) está nos planos.
 
 A tese: o código que o agente produz e você não domina é **luz refletida**. Quando você explica, decide e defende, a luz passa a ser **própria**. A Luzia captura **centelhas** (conceitos que aparecem no seu trabalho), mostra quanto de cada prisma (skill) da sua meta já é luz própria e guia a conversão do que ainda é refletido. A conversão foi pensada para a espera: enquanto o agente executa uma tarefa longa, você converte uma centelha dessa tarefa ou do painel, em vez de só aguardar.
 
@@ -17,7 +17,7 @@ Testadores: siga [docs/teste/INSTALAR.md](docs/teste/INSTALAR.md). Para desenvol
 claude plugin marketplace add <esta pasta>
 claude plugin install luzia@luzia --scope user
 ```
-Sem o sistema de plugins: `python -m luzia.instalar` (com `--hooks` e `--statusline` opcionais). Outros agentes: `python -m luzia.instalar --regras`.
+Sem o sistema de plugins: `python -m luzia.instalar` (com `--hooks` e `--statusline` opcionais). Outros agentes (experimental, ainda não testado; o suporte completo está nos planos): `python -m luzia.instalar --regras`.
 
 Regras do jogo: [docs/luzia-ux.md](docs/luzia-ux.md). Mapa do código: [luzia/CONTEXT.md](luzia/CONTEXT.md).
 

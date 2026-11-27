@@ -40,10 +40,10 @@ const MODOS = {
 };
 const AGENTES = {
   'claude-code': ['Claude Code', 'Fila, comandos e foco automático'],
-  codex: ['Codex', 'Fila e comandos via AGENTS.md'],
-  cursor: ['Cursor', 'Fila e comandos via User Rules'],
-  antigravity: ['Antigravity', 'Fila e comandos via GEMINI.md'],
-  outro: ['Outro', 'Qualquer agente com terminal'],
+  codex: ['Codex', 'Experimental · fila e comandos via AGENTS.md'],
+  cursor: ['Cursor', 'Experimental · fila e comandos via User Rules'],
+  antigravity: ['Antigravity', 'Experimental · fila e comandos via GEMINI.md'],
+  outro: ['Outro', 'Experimental · qualquer agente com terminal'],
 };
 const TIPO_PEDIDO_NOME = { incluir: 'Incluir', mudar_meta: 'Mudar meta de', arquivar: 'Arquivar', reativar: 'Reativar', dividir: 'Dividir', propor_meta: 'Meta de' };
 const NOME_DIM = { P1: 'Direção no prompt', P2: 'Coesão', P3: 'Aplicação de conceito', P4: 'Decisão de arquitetura' };
@@ -609,14 +609,15 @@ function secaoModelo() {
   const conhecido = info.sugestoes.includes(valor);
   return `<section><div class="titulo-sec"><h2>Modelo</h2><span>Em uso: ${esc(m.modelo)}</span></div>
     <div class="bloco"><div class="campos">
-      <label>Provedor<select id="m-prov">${Object.entries(m.provedores).map(([k, v]) => `<option value="${k}" ${prov === k ? 'selected' : ''}>${esc(v.nome)} · ${v.chave_configurada ? 'com chave' : 'sem chave'}</option>`).join('')}</select></label>
+      <label>Provedor<select id="m-prov">${Object.entries(m.provedores).map(([k, v]) => `<option value="${k}" ${prov === k ? 'selected' : ''}>${esc(v.nome)}${v.gratuito ? ' · tem opção gratuita' : ''} · ${v.chave_configurada ? 'com chave' : 'sem chave'}</option>`).join('')}</select></label>
       <label>Modelo<select id="m-select">${info.sugestoes.map((s) => `<option value="${esc(s)}" ${s === valor ? 'selected' : ''}>${esc(s)}</option>`).join('')}<option value="__outro" ${conhecido ? '' : 'selected'}>Outro…</option></select></label>
       <label ${conhecido ? 'hidden' : ''} id="m-outro-l">Nome exato<input id="m-outro" value="${conhecido ? '' : esc(valor)}" placeholder="nome exato do modelo"></label>
       ${info.base_url ? `<label>URL da API<input id="m-base" value="${esc(atual ? m.base_url : '')}" placeholder="ex.: http://localhost:11434/v1"></label>` : ''}
       <label>API key<input id="m-chave" type="password" autocomplete="off" placeholder="${info.chave_configurada ? 'Já salva. Deixe vazio para manter.' : 'Cole a chave'}"></label>
     </div>
     <div class="acoes-bt" style="margin-top:16px"><button class="btn neutro" id="m-salvar">Salvar</button><button class="btn sec" id="m-testar">Testar</button>
-      <span class="discreto">Fica só nesta máquina, fora do git.${atual && !m.sdk_instalado ? ` Falta o SDK: python -m pip install ${esc(m.pip)}` : ''}</span></div></div></section>`;
+      <span class="discreto">Fica só nesta máquina, fora do git.${atual && !m.sdk_instalado ? ` Falta o SDK: python -m pip install ${esc(m.pip)}` : ''}</span></div>
+    <p class="dica" style="margin-top:14px">Use a chave que preferir. Gemini, NVIDIA, Groq e OpenRouter têm opção gratuita (sugestão)${info.site ? `; a chave deste provedor se cria em <a href="${esc(info.site)}" target="_blank" rel="noopener">${esc(info.site.replace('https://', ''))}</a>` : ''}. No plano gratuito, o provedor pode usar os dados enviados para treinar modelos.${info.sugestoes.length ? '' : ' Copie o nome exato do modelo da página do provedor.'}</p></div></section>`;
 }
 function telaAjustes() {
   const opcao = (grupo, chave, [icone, titulo, desc], ativo) =>
@@ -980,7 +981,7 @@ function telaBoasVindas() {
     <span class="sobre-linha">Olá, eu sou a Luzia</span>
     <h1>Vamos montar a sua trajetória</h1>
     <ol class="guia">
-      <li>Configure o modelo aqui embaixo (ex.: Gemini, com a sua chave). A chave fica só nesta máquina.</li>
+      <li>Escolha o provedor e cole a sua chave aqui embaixo: Anthropic, OpenAI, Gemini ou outro. Gemini, NVIDIA, Groq e OpenRouter têm opção gratuita. A chave fica só nesta máquina.</li>
       <li>No chat do seu agente, rode <b>/luzia:triage</b>. Eu leio o currículo, o git e o histórico que você autorizar.</li>
       <li>Volte aqui: as centelhas da sua meta aparecem em Hoje.</li>
     </ol>
@@ -1236,7 +1237,7 @@ async function aoClicar(t, ev) {
   }
   if (ds.pedidoPropor) {
     t.disabled = true;
-    toast('Gerando a proposta… pode levar alguns minutos se o Gemini estiver ocupado', 'neutro', null, 0);
+    toast('Gerando a proposta… pode levar alguns minutos se o modelo estiver ocupado', 'neutro', null, 0);
     const r = await api('/api/pedido', { acao: 'propor', id: Number(ds.pedidoPropor) });
     toast(r.erro ? `Erro: ${r.erro}` : 'Proposta pronta: confira e aceite ou recuse', 'neutro');
     return carregar();

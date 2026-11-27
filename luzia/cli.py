@@ -1591,9 +1591,19 @@ def main() -> None:
               f"SDK: {'instalado' if s['sdk_instalado'] else 'falta: python -m pip install ' + s['pip']}")
         print('Troque em Ajustes > Modelo da Luzia, no painel, ou pelo chat: `modelo usar <provedor> <modelo>`. '
               'A chave nunca passa pelo chat: coloque-a no painel ou no .env desta máquina.')
+        if args.valor != 'testar':
+            livres = [v['nome'] for v in modelo.PROVEDORES.values() if v.get('gratuito')]
+            print(f"Com opção gratuita (sugestão): {', '.join(livres)}. No plano gratuito, o provedor pode usar os dados "
+                  'enviados para treinar modelos.')
         if args.valor == 'testar':
-            r = modelo.chamar('Responda só com o JSON {"ok": true}.', 'Responda só com JSON.', rapido=True)
-            print(f"teste: {r['texto'].strip()[:60]} · {r['segundos']:.1f} s · {r['tokens_in']}→{r['tokens_out']} tokens · {r['provedor']}/{r['modelo']}")
+            try:
+                r = modelo.chamar('Responda só com o JSON {"ok": true}.', 'Responda só com JSON.', rapido=True)
+            except Exception as e:  # chave errada, modelo inexistente ou provedor fora do ar: mensagem, nunca traceback
+                arquivos.registrar_erro('cli modelo testar', e)
+                print(f"◐ O teste não funcionou: {str(e)[:200]}")
+                botoes([BT_PAINEL, BT_TRAJETORIA], 'Ajustar o modelo no painel?')
+                return
+            print(f"Funcionou: {r['provedor']}/{r['modelo']} respondeu em {r['segundos']:.1f} s.")
             if r.get('aviso'):
                 print(f"! {r['aviso']}")
         botoes([BT_TRAJETORIA, BT_PAINEL], 'O que você quer ver agora?')

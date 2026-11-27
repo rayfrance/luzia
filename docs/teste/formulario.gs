@@ -17,9 +17,9 @@ var SECOES = [
   {
     titulo: 'A. Perfil',
     itens: [
-      { tipo: 'texto', codigo: 'A1', texto: 'Função e senioridade (ex.: estudante, estágio, dev júnior, pleno, sênior)' },
+      { tipo: 'texto', codigo: 'A1', texto: 'Cargo, área e senioridade (ex.: dev júnior, cientista de dados pleno, analista de segurança, estágio em dados)' },
       { tipo: 'numero', codigo: 'A2', texto: 'Anos programando' },
-      { tipo: 'opcao', codigo: 'A3', texto: 'Com que frequência você usa agentes de código?',
+      { tipo: 'opcao', codigo: 'A3', texto: 'Com que frequência você usa agentes de IA, como o Claude Code, no trabalho?',
         opcoes: ['Todo dia', 'Algumas vezes por semana', 'De vez em quando', 'Raramente'] },
       { tipo: 'numero', codigo: 'A4', texto: 'Por quantos dias você usou a Luzia?' },
       { tipo: 'opcao', codigo: 'A5', texto: 'Quantas centelhas você converteu, mais ou menos?',
@@ -35,7 +35,7 @@ var SECOES = [
       { tipo: 'escala', codigo: 'B1', texto: 'Aceito código do agente que eu não saberia explicar sem a IA.' },
       { tipo: 'escala', codigo: 'B2', texto: 'Isso me preocupa para o meu crescimento profissional.' },
       { tipo: 'escala', codigo: 'B3', texto: 'Tenho dificuldade de saber o que estudar a partir do que o agente faz por mim.' },
-      { tipo: 'escala', codigo: 'B4', texto: 'Já tive dificuldade de explicar ou defender uma entrega minha (code review, reunião, avaliação).' },
+      { tipo: 'escala', codigo: 'B4', texto: 'Já tive dificuldade de explicar ou defender uma entrega minha (revisão de código ou de análise, reunião, avaliação).' },
       { tipo: 'escala', codigo: 'B5', texto: 'Ter evidência do que eu realmente domino (para PDI, promoção ou feedback) seria útil para mim.' },
       { tipo: 'escala', codigo: 'B6', texto: 'Com que frequência você aceita código do agente sem entender tudo?',
         rotulos: ['Nunca', 'Quase sempre'] },
@@ -45,7 +45,7 @@ var SECOES = [
     titulo: 'C. A Luzia resolve?',
     ajuda: 'Responda pelo que aconteceu no seu uso, não pelo que a Luzia promete.',
     itens: [
-      { tipo: 'escala', codigo: 'C1', texto: 'Converter centelhas me ajudou a entender código que eu tinha aceitado do agente.' },
+      { tipo: 'escala', codigo: 'C1', texto: 'Converter centelhas me ajudou a entender o que eu tinha aceitado do agente (código, análise, script ou configuração).' },
       { tipo: 'escala', codigo: 'C2', texto: 'Depois de converter uma centelha, eu conseguiria explicar o conceito a um colega sem a IA.' },
       { tipo: 'escala', codigo: 'C3', texto: 'As centelhas propostas tinham a ver com o meu trabalho e com a minha meta.' },
       { tipo: 'escala', codigo: 'C4', texto: 'A diferença entre luz própria e luz refletida descreve bem como eu uso IA.' },
@@ -74,7 +74,7 @@ var SECOES = [
       { tipo: 'escala', codigo: 'E4', texto: 'O tempo que gastei convertendo centelhas valeu a pena.' },
       { tipo: 'opcao', codigo: 'E5', texto: 'Como você se sentiria se não pudesse mais usar a Luzia?',
         opcoes: ['Seria uma grande perda', 'Seria uma pequena perda', 'Não faria diferença'] },
-      { tipo: 'escala', codigo: 'E6', texto: 'Quanto você recomendaria a Luzia a um colega que usa agentes de código?',
+      { tipo: 'escala', codigo: 'E6', texto: 'Quanto você recomendaria a Luzia a um colega que trabalha com agentes de IA?',
         min: 0, max: 10, rotulos: ['Nada provável', 'Muito provável'] },
       { tipo: 'escala', codigo: 'E7', texto: 'Converter centelhas enquanto o agente trabalhava aproveitou um tempo em que eu só ficaria esperando.' },
       { tipo: 'escala', codigo: 'E8', texto: 'A Luzia tomou um tempo que eu preferiria usar em outra coisa.' },
